@@ -360,7 +360,7 @@
       <div class="lock-form">
         <input id="code-input" type="password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
         <p id="code-err" class="err" style="text-align:center"></p>
-        <button class="btn btn-coral btn-full" style="padding:14px;border-radius:var(--radius-sm)" onclick="tryUnlock()">Unlock</button>
+        <button class="btn btn-coral btn-full" style="padding:14px;border-radius:var(--radius-sm)" onclick="this.textContent='Checking…';this.disabled=true;tryUnlock().finally(()=>{this.textContent='Unlock';this.disabled=false;})">Unlock</button>
         <button class="btn btn-ghost btn-full" style="margin-top:4px" onclick="showScreen('screen-setup')">First time? Create a household</button>
       </div>
     </div>
@@ -388,7 +388,7 @@
           <input id="setup-budget" type="number" placeholder="e.g. 6000" />
         </div>
         <p id="setup-err" class="err"></p>
-        <button class="btn btn-coral btn-full" style="padding:14px;margin-top:6px;border-radius:var(--radius-sm)" onclick="doSetup()">Create household</button>
+        <button class="btn btn-coral btn-full" style="padding:14px;margin-top:6px;border-radius:var(--radius-sm)" onclick="this.textContent='Creating…';this.disabled=true;doSetup().finally(()=>{this.textContent='Create household';this.disabled=false;})">Create household</button>
         <button class="btn btn-ghost btn-full" onclick="showScreen('screen-lock')">Back</button>
       </div>
     </div>
@@ -500,7 +500,7 @@
         <label class="label">Names (one per line, up to 3)</label>
         <textarea id="set-names" rows="3"></textarea>
       </div>
-      <button class="btn btn-sky btn-full" style="padding:14px;border-radius:var(--radius-sm)" onclick="saveSettings()">Save settings</button>
+      <button class="btn btn-sky btn-full" style="padding:14px;border-radius:var(--radius-sm)" onclick="this.textContent='Saving…';this.disabled=true;saveSettings().finally(()=>{this.textContent='Save settings';this.disabled=false;})">Save settings</button>
       <div class="divider" style="margin:0"></div>
       <div>
         <label class="label">Color theme</label>
@@ -572,8 +572,61 @@ document.addEventListener('click', e => {
 });
 
 function storeKey(k) { return 'hft_' + btoa(householdCode).replace(/[^a-zA-Z0-9]/g,'') + '_' + k; }
-function lsGet(k) { try { return localStorage.getItem(storeKey(k)); } catch(e) { return null; } }
-function lsSet(k, v) { try { localStorage.setItem(storeKey(k), v); } catch(e) {} }
+
+const JSONBIN_KEY = '$2a$10$OfaviCXV8Za0Zs7Vb4qEyeth0ux/jNXr81qlodIBNoRnyLqMMBTye';
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
+
+function householdBinName() { return 'hft_' + btoa(householdCode).replace(/[^a-zA-Z0-9]/g,'').slice(0,24); }
+
+async function findBin() {
+  const name = householdBinName();
+  const r = await fetch('https://api.jsonbin.io/v3/b?metadata=true', {
+    headers: { 'X-Master-Key': JSONBIN_KEY }
+  });
+  if (!r.ok) return null;
+  const data = await r.json();
+  const bins = data.result || [];
+  const found = bins.find(b => b.metadata && b.metadata.name === name);
+  return found ? found.metadata.id : null;
+}
+
+async function createBin(initialData) {
+  const r = await fetch(JSONBIN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Name': householdBinName(), 'X-Bin-Private': 'true' },
+    body: JSON.stringify(initialData)
+  });
+  if (!r.ok) return null;
+  const data = await r.json();
+  return data.metadata ? data.metadata.id : null;
+}
+
+async function readBin(binId) {
+  const r = await fetch(`${JSONBIN_URL}/${binId}/latest`, {
+    headers: { 'X-Master-Key': JSONBIN_KEY }
+  });
+  if (!r.ok) return null;
+  const data = await r.json();
+  return data.record || null;
+}
+
+async function writeBin(binId, record) {
+  const r = await fetch(`${JSONBIN_URL}/${binId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
+    body: JSON.stringify(record)
+  });
+  return r.ok;
+}
+
+let binId = null;
+let binRecord = null;
+
+function setLoading(msg) {
+  const err = document.getElementById('code-err');
+  if (msg) { err.textContent = msg; err.style.display = 'block'; err.style.color = 'var(--text-2)'; }
+  else { err.style.display = 'none'; err.style.color = ''; }
+}
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -593,18 +646,24 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-function tryUnlock() {
+async function tryUnlock() {
   const code = document.getElementById('code-input').value.trim();
   const err = document.getElementById('code-err');
-  if (!code) { err.textContent = 'Please enter a code'; err.style.display = 'block'; return; }
+  if (!code) { err.textContent = 'Please enter a code'; err.style.display = 'block'; err.style.color = ''; return; }
   householdCode = code;
-  const raw = lsGet('config');
-  if (!raw) { err.textContent = 'No household found with that code'; err.style.display = 'block'; householdCode = ''; return; }
-  try { config = JSON.parse(raw); err.style.display = 'none'; enterApp(); }
-  catch(e) { err.textContent = 'Something went wrong — try again'; err.style.display = 'block'; householdCode = ''; }
+  setLoading('Looking up household…');
+  try {
+    binId = await findBin();
+    if (!binId) { err.textContent = 'No household found with that code'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; binId = null; return; }
+    binRecord = await readBin(binId);
+    if (!binRecord || !binRecord.config) { err.textContent = 'Household data corrupted — please contact your setup person'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; binId = null; return; }
+    config = binRecord.config;
+    err.style.display = 'none';
+    enterApp();
+  } catch(e) { err.textContent = 'Connection error — check your internet and try again'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; binId = null; }
 }
 
-function doSetup() {
+async function doSetup() {
   const code = document.getElementById('setup-code').value.trim();
   const namesRaw = document.getElementById('setup-names').value.trim();
   const budget = parseFloat(document.getElementById('setup-budget').value);
@@ -614,10 +673,17 @@ function doSetup() {
   if (!names.length) { err.textContent = 'Please enter at least one name'; err.style.display = 'block'; return; }
   if (!budget || budget <= 0) { err.textContent = 'Please enter a valid budget'; err.style.display = 'block'; return; }
   householdCode = code;
-  if (lsGet('config')) { err.textContent = 'That code is already in use — try another'; err.style.display = 'block'; householdCode = ''; return; }
-  config = { names, budget, created: Date.now() };
-  lsSet('config', JSON.stringify(config));
-  err.style.display = 'none'; enterApp();
+  err.textContent = 'Creating household…'; err.style.display = 'block'; err.style.color = 'var(--text-2)';
+  try {
+    const existing = await findBin();
+    if (existing) { err.textContent = 'That code is already in use — try another'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; return; }
+    config = { names, budget, created: Date.now() };
+    binRecord = { config, entries: {} };
+    binId = await createBin(binRecord);
+    if (!binId) { err.textContent = 'Failed to create household — try again'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; return; }
+    err.style.display = 'none'; err.style.color = '';
+    enterApp();
+  } catch(e) { err.textContent = 'Connection error — check your internet and try again'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; binId = null; }
 }
 
 function enterApp() { buildUserPills(); refreshMain(); showScreen('screen-main'); }
@@ -653,10 +719,20 @@ function getQuarterKeyOffset(offset) {
 }
 
 function quarterLabel(key) { const [y, q] = key.split('_'); return q + ' ' + y; }
-function loadEntries(qKey) { try { const r = lsGet('entries_' + qKey); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
-function saveEntries(qKey, entries) { lsSet('entries_' + qKey, JSON.stringify(entries)); }
 
-function submitEntry() {
+function loadEntries(qKey) {
+  if (!binRecord || !binRecord.entries) return [];
+  return binRecord.entries[qKey] || [];
+}
+
+async function saveEntries(qKey, entries) {
+  if (!binRecord) binRecord = { config, entries: {} };
+  if (!binRecord.entries) binRecord.entries = {};
+  binRecord.entries[qKey] = entries;
+  await writeBin(binId, binRecord);
+}
+
+async function submitEntry() {
   const amtRaw = document.getElementById('add-amount').value;
   const note = document.getElementById('add-note').value.trim();
   const err = document.getElementById('add-err');
@@ -664,15 +740,20 @@ function submitEntry() {
   if (!amtRaw || isNaN(amt) || amt <= 0) { err.textContent = 'Please enter a valid amount'; err.style.display = 'block'; return; }
   if (!addType) { err.textContent = 'Please select Essential or Non-essential'; err.style.display = 'block'; return; }
   if (!addUser) { err.textContent = 'Please select who is entering this'; err.style.display = 'block'; return; }
+  const btn = document.querySelector('#screen-add .btn-coral');
+  btn.textContent = 'Saving…'; btn.disabled = true;
   const qKey = getCurrentQuarterKey();
   const entries = loadEntries(qKey);
   entries.push({ id: Date.now(), amt: Math.round(amt * 100) / 100, type: addType, user: addUser, note, ts: Date.now() });
-  saveEntries(qKey, entries);
-  document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = '';
-  addType = null; addUser = null;
-  document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
-  (config.names || []).forEach(n => { const el = document.getElementById('pill-u-' + n); if (el) el.className = 'pill'; });
-  err.style.display = 'none'; refreshMain(); showScreen('screen-main'); toast('Saved!');
+  try {
+    await saveEntries(qKey, entries);
+    document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = '';
+    addType = null; addUser = null;
+    document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
+    (config.names || []).forEach(n => { const el = document.getElementById('pill-u-' + n); if (el) el.className = 'pill'; });
+    err.style.display = 'none'; refreshMain(); showScreen('screen-main'); toast('Saved!');
+  } catch(e) { err.textContent = 'Save failed — check your connection'; err.style.display = 'block'; }
+  btn.textContent = 'Save expense'; btn.disabled = false;
 }
 
 function refreshMain() {
@@ -726,15 +807,20 @@ function renderEntriesList(entries, containerId, allowDelete, qKey) {
   });
 }
 
-function deleteEntry(id, qKey) {
-  saveEntries(qKey, loadEntries(qKey).filter(e => e.id !== id));
+async function deleteEntry(id, qKey) {
+  const entries = loadEntries(qKey).filter(e => e.id !== id);
+  await saveEntries(qKey, entries);
   refreshMain(); toast('Entry removed');
 }
 
-function historyNav(dir) {
+async function historyNav(dir) {
   historyQOffset += dir;
   const key = getQuarterKeyOffset(historyQOffset);
   document.getElementById('history-label').textContent = quarterLabel(key);
+  if (binId) {
+    const fresh = await readBin(binId);
+    if (fresh) binRecord = fresh;
+  }
   const entries = loadEntries(key);
   let totE = 0, totN = 0;
   entries.forEach(e => { if (e.type === 'essential') totE += e.amt; else totN += e.amt; });
@@ -750,17 +836,19 @@ function historyNav(dir) {
   renderEntriesList(entries.slice().reverse(), 'history-list', false, key);
 }
 
-function saveSettings() {
+async function saveSettings() {
   const budget = parseFloat(document.getElementById('set-budget').value);
   const names = document.getElementById('set-names').value.split('\n').map(n => n.trim()).filter(Boolean).slice(0, 3);
   if (!budget || budget <= 0 || !names.length) return;
   config.budget = budget; config.names = names;
-  lsSet('config', JSON.stringify(config));
+  if (!binRecord) binRecord = { config, entries: {} };
+  binRecord.config = config;
+  await writeBin(binId, binRecord);
   buildUserPills(); refreshMain(); showScreen('screen-main'); toast('Settings saved');
 }
 
 function doLock() {
-  householdCode = ''; config = null; addType = null; addUser = null;
+  householdCode = ''; config = null; addType = null; addUser = null; binId = null; binRecord = null;
   document.getElementById('code-input').value = '';
   document.getElementById('code-err').style.display = 'none';
   showScreen('screen-lock');
