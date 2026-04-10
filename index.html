@@ -360,7 +360,7 @@
       <div class="lock-form">
         <input id="code-input" type="password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
         <p id="code-err" class="err" style="text-align:center"></p>
-        <button class="btn btn-coral btn-full" style="padding:14px;border-radius:var(--radius-sm)" onclick="this.textContent='Checking…';this.disabled=true;tryUnlock().finally(()=>{this.textContent='Unlock';this.disabled=false;})">Unlock</button>
+        <button class="btn btn-coral btn-full" style="padding:14px;border-radius:var(--radius-sm)" onclick="tryUnlock()">Unlock</button>
         <button class="btn btn-ghost btn-full" style="margin-top:4px" onclick="showScreen('screen-setup')">First time? Create a household</button>
       </div>
     </div>
@@ -388,7 +388,7 @@
           <input id="setup-budget" type="number" placeholder="e.g. 6000" />
         </div>
         <p id="setup-err" class="err"></p>
-        <button class="btn btn-coral btn-full" style="padding:14px;margin-top:6px;border-radius:var(--radius-sm)" onclick="this.textContent='Creating…';this.disabled=true;doSetup().finally(()=>{this.textContent='Create household';this.disabled=false;})">Create household</button>
+        <button class="btn btn-coral btn-full" style="padding:14px;margin-top:6px;border-radius:var(--radius-sm)" onclick="doSetup()">Create household</button>
         <button class="btn btn-ghost btn-full" onclick="showScreen('screen-lock')">Back</button>
       </div>
     </div>
@@ -500,7 +500,7 @@
         <label class="label">Names (one per line, up to 3)</label>
         <textarea id="set-names" rows="3"></textarea>
       </div>
-      <button class="btn btn-sky btn-full" style="padding:14px;border-radius:var(--radius-sm)" onclick="this.textContent='Saving…';this.disabled=true;saveSettings().finally(()=>{this.textContent='Save settings';this.disabled=false;})">Save settings</button>
+      <button class="btn btn-sky btn-full" style="padding:14px;border-radius:var(--radius-sm)" onclick="saveSettings()">Save settings</button>
       <div class="divider" style="margin:0"></div>
       <div>
         <label class="label">Color theme</label>
@@ -571,62 +571,33 @@ document.addEventListener('click', e => {
   if (swatch) applyTheme(swatch.dataset.theme);
 });
 
-function storeKey(k) { return 'hft_' + btoa(householdCode).replace(/[^a-zA-Z0-9]/g,'') + '_' + k; }
+const SB_URL = 'https://kwjbmjpbcyapebduokmj.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3amJtanBiY3lhcGViZHVva21qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NTM5MzEsImV4cCI6MjA5MTQyOTkzMX0.6ysxt-g27fLxc5aWZY3jfcP8kBiLipo2WudfY9Uw9Ik';
+const SB_HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-const JSONBIN_KEY = '$2a$10$OfaviCXV8Za0Zs7Vb4qEyeth0ux/jNXr81qlodIBNoRnyLqMMBTye';
-const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
+function codeKey() { return btoa(unescape(encodeURIComponent(householdCode))).replace(/[^a-zA-Z0-9]/g,'').slice(0,40); }
 
-function householdBinName() { return 'hft_' + btoa(householdCode).replace(/[^a-zA-Z0-9]/g,'').slice(0,24); }
-
-async function findBin() {
-  const name = householdBinName();
-  const r = await fetch('https://api.jsonbin.io/v3/b?metadata=true', {
-    headers: { 'X-Master-Key': JSONBIN_KEY }
-  });
-  if (!r.ok) return null;
-  const data = await r.json();
-  const bins = data.result || [];
-  const found = bins.find(b => b.metadata && b.metadata.name === name);
-  return found ? found.metadata.id : null;
+async function cloudGet() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/households?code=eq.${encodeURIComponent(codeKey())}&select=data`, { headers: SB_HEADERS });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return rows.length ? rows[0].data : null;
+  } catch(e) { return null; }
 }
 
-async function createBin(initialData) {
-  const r = await fetch(JSONBIN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Name': householdBinName(), 'X-Bin-Private': 'true' },
-    body: JSON.stringify(initialData)
-  });
-  if (!r.ok) return null;
-  const data = await r.json();
-  return data.metadata ? data.metadata.id : null;
+async function cloudSet(data) {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/households`, {
+      method: 'POST',
+      headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ code: codeKey(), data, updated_at: new Date().toISOString() })
+    });
+    return r.ok;
+  } catch(e) { return false; }
 }
 
-async function readBin(binId) {
-  const r = await fetch(`${JSONBIN_URL}/${binId}/latest`, {
-    headers: { 'X-Master-Key': JSONBIN_KEY }
-  });
-  if (!r.ok) return null;
-  const data = await r.json();
-  return data.record || null;
-}
-
-async function writeBin(binId, record) {
-  const r = await fetch(`${JSONBIN_URL}/${binId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
-    body: JSON.stringify(record)
-  });
-  return r.ok;
-}
-
-let binId = null;
-let binRecord = null;
-
-function setLoading(msg) {
-  const err = document.getElementById('code-err');
-  if (msg) { err.textContent = msg; err.style.display = 'block'; err.style.color = 'var(--text-2)'; }
-  else { err.style.display = 'none'; err.style.color = ''; }
-}
+let record = null;
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -646,44 +617,50 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+function showErr(elId, msg, isInfo) {
+  const el = document.getElementById(elId);
+  el.textContent = msg; el.style.display = 'block';
+  el.style.color = isInfo ? 'var(--text-2)' : '';
+}
+function hideErr(elId) { document.getElementById(elId).style.display = 'none'; }
+
 async function tryUnlock() {
   const code = document.getElementById('code-input').value.trim();
-  const err = document.getElementById('code-err');
-  if (!code) { err.textContent = 'Please enter a code'; err.style.display = 'block'; err.style.color = ''; return; }
+  if (!code) { showErr('code-err','Please enter a code'); return; }
   householdCode = code;
-  setLoading('Looking up household…');
-  try {
-    binId = await findBin();
-    if (!binId) { err.textContent = 'No household found with that code'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; binId = null; return; }
-    binRecord = await readBin(binId);
-    if (!binRecord || !binRecord.config) { err.textContent = 'Household data corrupted — please contact your setup person'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; binId = null; return; }
-    config = binRecord.config;
-    err.style.display = 'none';
-    enterApp();
-  } catch(e) { err.textContent = 'Connection error — check your internet and try again'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; binId = null; }
+  showErr('code-err', 'Looking up household…', true);
+  const data = await cloudGet();
+  if (!data || !data.config) {
+    showErr('code-err', 'No household found with that code');
+    householdCode = ''; return;
+  }
+  record = data;
+  config = record.config;
+  hideErr('code-err');
+  enterApp();
 }
 
 async function doSetup() {
   const code = document.getElementById('setup-code').value.trim();
   const namesRaw = document.getElementById('setup-names').value.trim();
   const budget = parseFloat(document.getElementById('setup-budget').value);
-  const err = document.getElementById('setup-err');
-  if (!code) { err.textContent = 'Please enter a code'; err.style.display = 'block'; return; }
-  const names = namesRaw.split('\n').map(n => n.trim()).filter(Boolean).slice(0, 3);
-  if (!names.length) { err.textContent = 'Please enter at least one name'; err.style.display = 'block'; return; }
-  if (!budget || budget <= 0) { err.textContent = 'Please enter a valid budget'; err.style.display = 'block'; return; }
+  if (!code) { showErr('setup-err','Please enter a code'); return; }
+  const names = namesRaw.split('\n').map(n => n.trim()).filter(Boolean).slice(0,3);
+  if (!names.length) { showErr('setup-err','Please enter at least one name'); return; }
+  if (!budget || budget <= 0) { showErr('setup-err','Please enter a valid budget'); return; }
   householdCode = code;
-  err.textContent = 'Creating household…'; err.style.display = 'block'; err.style.color = 'var(--text-2)';
-  try {
-    const existing = await findBin();
-    if (existing) { err.textContent = 'That code is already in use — try another'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; return; }
-    config = { names, budget, created: Date.now() };
-    binRecord = { config, entries: {} };
-    binId = await createBin(binRecord);
-    if (!binId) { err.textContent = 'Failed to create household — try again'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; return; }
-    err.style.display = 'none'; err.style.color = '';
-    enterApp();
-  } catch(e) { err.textContent = 'Connection error — check your internet and try again'; err.style.display = 'block'; err.style.color = ''; householdCode = ''; binId = null; }
+  showErr('setup-err','Creating household…', true);
+  const existing = await cloudGet();
+  if (existing && existing.config) {
+    showErr('setup-err','That code is already in use — try another');
+    householdCode = ''; return;
+  }
+  config = { names, budget, created: Date.now() };
+  record = { config, entries: {} };
+  const ok = await cloudSet(record);
+  if (!ok) { showErr('setup-err','Something went wrong — try again'); householdCode = ''; return; }
+  hideErr('setup-err');
+  enterApp();
 }
 
 function enterApp() { buildUserPills(); refreshMain(); showScreen('screen-main'); }
@@ -721,15 +698,14 @@ function getQuarterKeyOffset(offset) {
 function quarterLabel(key) { const [y, q] = key.split('_'); return q + ' ' + y; }
 
 function loadEntries(qKey) {
-  if (!binRecord || !binRecord.entries) return [];
-  return binRecord.entries[qKey] || [];
+  return (record && record.entries && record.entries[qKey]) || [];
 }
 
 async function saveEntries(qKey, entries) {
-  if (!binRecord) binRecord = { config, entries: {} };
-  if (!binRecord.entries) binRecord.entries = {};
-  binRecord.entries[qKey] = entries;
-  await writeBin(binId, binRecord);
+  if (!record) record = { config, entries: {} };
+  if (!record.entries) record.entries = {};
+  record.entries[qKey] = entries;
+  await cloudSet(record);
 }
 
 async function submitEntry() {
@@ -743,16 +719,16 @@ async function submitEntry() {
   const btn = document.querySelector('#screen-add .btn-coral');
   btn.textContent = 'Saving…'; btn.disabled = true;
   const qKey = getCurrentQuarterKey();
+  const fresh = await cloudGet();
+  if (fresh) record = fresh;
   const entries = loadEntries(qKey);
   entries.push({ id: Date.now(), amt: Math.round(amt * 100) / 100, type: addType, user: addUser, note, ts: Date.now() });
-  try {
-    await saveEntries(qKey, entries);
-    document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = '';
-    addType = null; addUser = null;
-    document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
-    (config.names || []).forEach(n => { const el = document.getElementById('pill-u-' + n); if (el) el.className = 'pill'; });
-    err.style.display = 'none'; refreshMain(); showScreen('screen-main'); toast('Saved!');
-  } catch(e) { err.textContent = 'Save failed — check your connection'; err.style.display = 'block'; }
+  await saveEntries(qKey, entries);
+  document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = '';
+  addType = null; addUser = null;
+  document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
+  (config.names || []).forEach(n => { const el = document.getElementById('pill-u-' + n); if (el) el.className = 'pill'; });
+  err.style.display = 'none'; refreshMain(); showScreen('screen-main'); toast('Saved!');
   btn.textContent = 'Save expense'; btn.disabled = false;
 }
 
@@ -808,8 +784,8 @@ function renderEntriesList(entries, containerId, allowDelete, qKey) {
 }
 
 async function deleteEntry(id, qKey) {
-  const entries = loadEntries(qKey).filter(e => e.id !== id);
-  await saveEntries(qKey, entries);
+  const fresh = await cloudGet(); if (fresh) record = fresh;
+  await saveEntries(qKey, loadEntries(qKey).filter(e => e.id !== id));
   refreshMain(); toast('Entry removed');
 }
 
@@ -817,10 +793,7 @@ async function historyNav(dir) {
   historyQOffset += dir;
   const key = getQuarterKeyOffset(historyQOffset);
   document.getElementById('history-label').textContent = quarterLabel(key);
-  if (binId) {
-    const fresh = await readBin(binId);
-    if (fresh) binRecord = fresh;
-  }
+  const fresh = await cloudGet(); if (fresh) { record = fresh; config = record.config; }
   const entries = loadEntries(key);
   let totE = 0, totN = 0;
   entries.forEach(e => { if (e.type === 'essential') totE += e.amt; else totN += e.amt; });
@@ -841,16 +814,16 @@ async function saveSettings() {
   const names = document.getElementById('set-names').value.split('\n').map(n => n.trim()).filter(Boolean).slice(0, 3);
   if (!budget || budget <= 0 || !names.length) return;
   config.budget = budget; config.names = names;
-  if (!binRecord) binRecord = { config, entries: {} };
-  binRecord.config = config;
-  await writeBin(binId, binRecord);
+  if (!record) record = { config, entries: {} };
+  record.config = config;
+  await cloudSet(record);
   buildUserPills(); refreshMain(); showScreen('screen-main'); toast('Settings saved');
 }
 
 function doLock() {
-  householdCode = ''; config = null; addType = null; addUser = null; binId = null; binRecord = null;
+  householdCode = ''; config = null; addType = null; addUser = null; record = null;
   document.getElementById('code-input').value = '';
-  document.getElementById('code-err').style.display = 'none';
+  hideErr('code-err');
   showScreen('screen-lock');
 }
 
