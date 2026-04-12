@@ -148,8 +148,10 @@ textarea { resize: none; }
 .cat-pill-btn { padding: 9px 12px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text-2); font-family: 'Zilla Slab', Georgia, serif; font-size: 14px; font-weight: 500; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s; text-align: left; line-height: 1.2; }
 .cat-pill-btn:hover { border-color: var(--border-dark); color: var(--text); }
 .cat-pill-btn.sel-cat { background: var(--coral-bg); border-color: var(--coral); color: var(--coral-dim); font-weight: 600; }
-.cat-pill-btn .cat-budget { display: block; font-size: 11px; color: var(--text-3); font-weight: 400; margin-top: 2px; }
-.cat-pill-btn.sel-cat .cat-budget { color: var(--coral-dim); opacity: 0.8; }
+.cat-pill-btn .cat-budget { display: block; font-size: 11px; color: var(--text-3); font-weight: 400; margin-top: 2px; line-height: 1.4; }
+.cat-pill-btn.sel-cat .cat-budget { opacity: 0.85; }
+.cat-bar-wrap { display: block; height: 4px; background: var(--border); border-radius: 4px; margin-top: 4px; overflow: hidden; }
+.cat-bar-fill { display: block; height: 100%; border-radius: 4px; transition: width 0.4s ease; }
 .entry-cat { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--coral-bg); color: var(--coral-dim); border: 1px solid var(--coral); margin-left: 4px; vertical-align: middle; }
 .lock-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; gap: 28px; text-align: center; }
 .lock-icon { width: 64px; height: 64px; background: var(--coral-bg); border: 1.5px solid var(--coral); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 0 var(--coral-dim); }
@@ -371,21 +373,51 @@ const BUDGET_CATEGORIES = [
   { name: 'Other',                       budget: null, essential: null  },
 ];
 
-function buildCategoryGrid() {
+function buildCategoryGrid(spendMap) {
   const grid = document.getElementById('category-grid');
   if (!grid) return;
   grid.innerHTML = '';
+  // spendMap: { catName -> total spent this quarter }
+  const sm = spendMap || {};
   BUDGET_CATEGORIES.forEach(cat => {
     const btn = document.createElement('button');
     btn.className = 'cat-pill-btn';
+    btn.id = 'cat-btn-' + cat.name.replace(/[^a-zA-Z0-9]/g, '_');
     btn.dataset.cat = cat.name;
-    btn.innerHTML = cat.name +
-      (cat.budget
-        ? '<span class="cat-budget">$' + cat.budget.toLocaleString() + '/mo</span>'
-        : '<span class="cat-budget">tap to describe</span>');
+    const spent = sm[cat.name] || 0;
+    let bottomLine = '';
+    if (cat.budget) {
+      // Monthly budget, quarterly = x3
+      const qBudget = cat.budget * 3;
+      const pct = Math.min(spent / qBudget * 100, 100);
+      const over = spent > qBudget;
+      const spentFmt = spent > 0 ? '$' + Math.round(spent).toLocaleString() : '$0';
+      const budgFmt = '$' + cat.budget.toLocaleString() + '/mo';
+      const color = over ? 'color:var(--red)' : spent > qBudget * 0.8 ? 'color:var(--sun-dim)' : 'color:var(--grass-dim)';
+      bottomLine = '<span class="cat-budget">' +
+        '<span style="' + color + ';font-weight:600">' + spentFmt + '</span>' +
+        '<span style="opacity:0.6"> / ' + budgFmt + '</span>' +
+        '</span>' +
+        '<span class="cat-bar-wrap"><span class="cat-bar-fill" style="width:' + pct.toFixed(1) + '%;background:' + (over ? 'var(--red)' : spent > qBudget * 0.8 ? 'var(--sun)' : 'var(--grass)') + '"></span></span>';
+    } else {
+      const spentFmt = spent > 0 ? '$' + Math.round(spent).toLocaleString() + ' spent' : 'tap to describe';
+      bottomLine = '<span class="cat-budget">' + spentFmt + '</span>';
+    }
+    btn.innerHTML = cat.name + bottomLine;
     btn.onclick = () => selectCategory(cat.name);
     grid.appendChild(btn);
   });
+}
+
+function getCategorySpend() {
+  // Sum current quarter entries by category
+  const qKey = getCurrentQuarterKey();
+  const entries = loadEntries(qKey);
+  const map = {};
+  entries.forEach(e => {
+    if (e.cat) map[e.cat] = (map[e.cat] || 0) + e.amt;
+  });
+  return map;
 }
 
 function selectCategory(catName) {
@@ -454,6 +486,7 @@ let record = null;
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
   if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
   if (id === 'screen-settings') {
     document.getElementById('set-budget').value = config.budget || '';
@@ -515,7 +548,7 @@ async function doSetup() {
   enterApp();
 }
 
-function enterApp() { buildUserPills(); buildCategoryGrid(); refreshMain(); showScreen('screen-main'); }
+function enterApp() { buildUserPills(); buildCategoryGrid(getCategorySpend()); refreshMain(); showScreen('screen-main'); }
 
 function buildUserPills() {
   const cont = document.getElementById('pill-users'); cont.innerHTML = '';
