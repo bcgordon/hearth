@@ -345,6 +345,12 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <span class="toggle-track"></span>
 </label>
 </div>
+<div class="divider" style="margin:0"></div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+  <span style="font-size:15px;font-weight:500;color:var(--text-2)">Spreadsheet sync</span>
+  <span id="sync-badge" style="display:none;font-size:12px;font-weight:600;padding:3px 10px;border-radius:var(--radius-pill);background:var(--sun-bg);color:var(--sun-dim);border:1px solid var(--sun)"></span>
+</div>
+<button class="btn btn-ghost btn-full" style="padding:11px" onclick="retryPendingSyncs()">Retry failed syncs</button>
 <div class="divider"></div>
 <button class="btn btn-red btn-full" style="padding:13px" onclick="doLock()">Lock / sign out</button>
 </div>
@@ -489,6 +495,7 @@ function showScreen(id) {
   if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
   if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
   if (id === 'screen-settings') {
+    updateSyncBadge();
     document.getElementById('set-budget').value = config.budget || '';
     document.getElementById('set-names').value = (config.names || []).join('\n');
     document.getElementById('dark-mode-toggle').checked = document.body.classList.contains('dark');
@@ -593,6 +600,69 @@ async function saveEntries(qKey, entries) {
   await cloudSet(record);
 }
 
+// ── Google Sheets sync ───────────────────────────────────────────────────────
+const SUPABASE_FUNCTIONS_URL = 'https://kwjbmjpbcyapebduokmj.supabase.co/functions/v1/synch-to-sheets';
+const SYNC_KEY = 'hft_pending_syncs';
+
+function getPendingSyncs() {
+  try {
+    const raw = window._pendingSyncs || '[]';
+    return JSON.parse(raw);
+  } catch { return []; }
+}
+
+function savePendingSyncs(syncs) {
+  window._pendingSyncs = JSON.stringify(syncs);
+}
+
+async function callSheetsSync(entry) {
+  try {
+    const res = await fetch(SUPABASE_FUNCTIONS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3amJtanBiY3lhcGViZHVva21qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NTM5MzEsImV4cCI6MjA5MTQyOTkzMX0.6ysxt-g27fLxc5aWZY3jfcP8kBiLipo2WudfY9Uw9Ik',
+      },
+      body: JSON.stringify({ entry }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Sync failed');
+    }
+    return true;
+  } catch (e) {
+    console.warn('Sheets sync failed (will queue):', e.message);
+    // Queue for retry
+    const pending = getPendingSyncs();
+    pending.push({ entry, ts: Date.now() });
+    savePendingSyncs(pending);
+    updateSyncBadge();
+    return false;
+  }
+}
+
+async function retryPendingSyncs() {
+  const pending = getPendingSyncs();
+  if (!pending.length) return;
+  const failed = [];
+  for (const item of pending) {
+    const ok = await callSheetsSync(item.entry);
+    if (!ok) failed.push(item);
+  }
+  savePendingSyncs(failed);
+  updateSyncBadge();
+  if (failed.length === 0) toast('Synced to spreadsheet!');
+}
+
+function updateSyncBadge() {
+  const pending = getPendingSyncs();
+  const badge = document.getElementById('sync-badge');
+  if (badge) {
+    badge.textContent = pending.length > 0 ? pending.length + ' pending' : '';
+    badge.style.display = pending.length > 0 ? 'inline' : 'none';
+  }
+}
+
 async function submitEntry() {
   const amtRaw = document.getElementById('add-amount').value;
   const note = document.getElementById('add-note').value.trim();
@@ -615,6 +685,10 @@ async function submitEntry() {
   const entries = loadEntries(qKey);
   entries.push({ id: Date.now(), amt: Math.round(amt * 100) / 100, type: addType, user: addUser, note, cat: finalCategory, ts: Date.now() });
   await saveEntries(qKey, entries);
+
+  // Fire sync to Google Sheets (non-blocking — app saves regardless)
+  callSheetsSync(entries[entries.length - 1]);
+
   document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = '';
   addType = null; addUser = null; addCategory = null;
   document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
