@@ -169,6 +169,42 @@ textarea { resize: none; }
 #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--grass); color: #fff; padding: 12px 26px; font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; font-weight: 600; border-radius: var(--radius-pill); border: 1.5px solid var(--grass-dim); box-shadow: 0 3px 0 var(--grass-dim); transition: transform 0.3s cubic-bezier(.4,0,.2,1); pointer-events: none; white-space: nowrap; z-index: 9998; }
 #toast.show { transform: translateX(-50%) translateY(0); }
 .setup-hint { font-size: 13px; color: var(--text-3); margin-top: 4px; font-style: italic; }
+/* ── BALANCE SCREEN ── */
+.bal-hero { text-align:center; padding:18px 0 10px; }
+.bal-amount { font-size:48px; font-weight:600; line-height:1; }
+.bal-label { font-size:13px; color:var(--text-3); margin-top:4px; letter-spacing:0.04em; text-transform:uppercase; }
+.bal-safe { color:var(--grass); }
+.bal-warn { color:var(--sun); }
+.bal-danger { color:var(--red); }
+.bal-input-row { display:flex; align-items:center; gap:10px; margin:14px 0; }
+.bal-input-row input { font-size:22px; font-weight:600; text-align:right; color:var(--sky); padding:10px 14px; }
+.bal-input-row label { font-size:13px; color:var(--text-2); white-space:nowrap; font-weight:600; }
+.timeline { margin-top:6px; }
+.tl-month { margin-bottom:10px; }
+.tl-month-header { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1.5px solid var(--border); margin-bottom:6px; }
+.tl-month-name { font-size:14px; font-weight:600; color:var(--text-2); }
+.tl-month-bal { font-size:14px; font-weight:600; }
+.tl-event { display:flex; justify-content:space-between; align-items:center; padding:5px 0 5px 12px; border-bottom:0.5px solid var(--border); font-size:13px; }
+.tl-event:last-child { border-bottom:none; }
+.tl-event-name { color:var(--text-2); flex:1; }
+.tl-event-date { color:var(--text-3); font-size:12px; margin-right:10px; }
+.tl-event-amt { font-weight:600; min-width:72px; text-align:right; }
+.tl-in { color:var(--grass); }
+.tl-out { color:var(--coral); }
+.tl-cc { color:var(--sky); }
+.tl-save { color:var(--text-3); }
+.danger-alert { background:var(--coral-bg); border:1.5px solid var(--coral); border-radius:var(--radius); padding:14px 16px; margin-bottom:12px; }
+.danger-alert-title { font-size:15px; font-weight:600; color:var(--coral-dim); margin-bottom:4px; }
+.danger-alert-body { font-size:13px; color:var(--coral-dim); line-height:1.5; }
+.bal-chart { width:100%; height:140px; margin:12px 0 4px; cursor:pointer; }
+.chart-bar-wrap { display:flex; align-items:flex-end; gap:2px; height:110px; }
+.chart-bar { flex:1; border-radius:3px 3px 0 0; min-height:4px; transition:opacity 0.15s; }
+.chart-bar:hover { opacity:0.75; }
+.chart-labels { display:flex; gap:2px; }
+.chart-label { flex:1; font-size:9px; color:var(--text-3); text-align:center; overflow:hidden; }
+.floor-line { position:relative; }
+.floor-line::after { content:'— $2k floor'; position:absolute; right:0; font-size:10px; color:var(--red); opacity:0.7; }
+
 @media (max-width: 400px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
@@ -224,6 +260,7 @@ textarea { resize: none; }
 <div class="top-bar">
 <span id="main-quarter-label" class="quarter-badge"></span>
 <div class="top-actions">
+<button class="icon-btn" onclick="showScreen('screen-balance')">Balance</button>
 <button class="icon-btn" onclick="showScreen('screen-history')">History</button>
 <button class="icon-btn" onclick="showScreen('screen-settings')">Settings</button>
 </div>
@@ -296,6 +333,57 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <button class="btn btn-coral btn-full" style="padding:15px;border-radius:var(--radius-sm);font-size:18px" onclick="submitEntry()">Save expense</button>
 </div>
 </div>
+
+<!-- BALANCE -->
+<div id="screen-balance" class="screen">
+  <div class="back-row">
+    <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
+    <span style="font-size:20px;font-weight:600;color:var(--sky)">Checking balance</span>
+    <button class="icon-btn" style="margin-left:auto" onclick="refreshBalance()">Refresh</button>
+  </div>
+
+  <div id="danger-alerts"></div>
+
+  <div class="card card-sky" style="margin-bottom:12px">
+    <div class="bal-hero">
+      <div id="bal-current-amount" class="bal-amount bal-safe">$0</div>
+      <div class="bal-label">projected balance today</div>
+    </div>
+    <div class="bal-input-row">
+      <label class="label" style="margin:0">Actual balance</label>
+      <input id="bal-actual-input" type="number" placeholder="enter real balance" step="0.01"
+        style="flex:1;max-width:180px" onchange="saveActualBalance(this.value)" />
+    </div>
+    <div id="bal-variance" style="font-size:13px;color:var(--text-3);text-align:right;margin-top:-8px"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div class="section-head">12-month projected balance</div>
+    <div class="bal-chart">
+      <div class="chart-bar-wrap" id="bal-chart-bars"></div>
+      <div class="chart-labels" id="bal-chart-labels"></div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px">
+      <span style="font-size:12px;color:var(--grass)">&#9632; Safe (&gt;$5k)</span>
+      <span style="font-size:12px;color:var(--sun)">&#9632; Watch ($2k-$5k)</span>
+      <span style="font-size:12px;color:var(--red)">&#9632; Danger (&lt;$2k)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="section-head" style="margin:0">Upcoming events</div>
+      <div style="display:flex;gap:6px">
+        <button class="icon-btn" id="bal-filter-btn" onclick="toggleBalFilter()" style="font-size:13px;padding:5px 10px">All</button>
+        <button class="icon-btn" onclick="balMonthNav(-1)" style="padding:5px 12px">&#8592;</button>
+        <span id="bal-month-label" style="font-size:14px;font-weight:600;color:var(--text-2);padding:5px 0;min-width:70px;text-align:center"></span>
+        <button class="icon-btn" onclick="balMonthNav(1)" style="padding:5px 12px">&#8594;</button>
+      </div>
+    </div>
+    <div id="bal-timeline"></div>
+  </div>
+</div>
+
 <!-- HISTORY -->
 <div id="screen-history" class="screen">
 <div class="back-row">
@@ -493,6 +581,7 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
+  if (id === 'screen-balance') { refreshBalance(); }
   if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -796,6 +885,398 @@ function doLock() {
   document.getElementById('code-input').value = '';
   hideErr('code-err');
   showScreen('screen-lock');
+}
+
+
+// ── BALANCE PROJECTION ENGINE ───────────────────────────────────────────────
+const STARTING_BALANCE = 6500;
+const FLOOR = 2000;
+
+// All scheduled events — hardcoded since they're fixed
+function getScheduledEvents() {
+  var events = [];
+  var start = new Date(2026, 3, 10); // Apr 10 2026
+  var end   = new Date(2027, 3, 10); // Apr 10 2027
+
+  // Helper: adjust weekend to weekday
+  function adjWknd(d, fwd) {
+    var dd = new Date(d);
+    if (dd.getDay() === 6) dd.setDate(dd.getDate() + (fwd ? 2 : -1));
+    if (dd.getDay() === 0) dd.setDate(dd.getDate() + (fwd ? 1 : -2));
+    return dd;
+  }
+  function lastDay(y, m) {
+    return new Date(y, m + 1, 0);
+  }
+
+  // Bi-weekly paychecks starting Apr 10
+  var bw = new Date(2026, 3, 10);
+  while (bw <= end) {
+    events.push({ date: new Date(bw), name: 'Bi-weekly paycheck', amt: 2000, type: 'in' });
+    bw.setDate(bw.getDate() + 14);
+  }
+
+  // Semi-monthly: 15th and last day
+  for (var y = 2026; y <= 2027; y++) {
+    for (var m = 0; m < 12; m++) {
+      var d15 = adjWknd(new Date(y, m, 15), true);
+      if (d15 >= start && d15 <= end)
+        events.push({ date: d15, name: 'Semi-monthly paycheck', amt: 4300, type: 'in' });
+      var ld = adjWknd(lastDay(y, m), false);
+      if (ld >= start && ld <= end)
+        events.push({ date: ld, name: 'Semi-monthly paycheck', amt: 4300, type: 'in' });
+    }
+  }
+
+  // Monthly fixed bills
+  var bills = [
+    [1,  'Life insurance NW Mutual', 250,  'out'],
+    [9,  'Student loan minimum',     386,  'out'],
+    [15, 'Life insurance NW Mutual', 250,  'out'],
+    [16, 'Mortgage',                 2710, 'out'],
+    [16, 'Solar bill',               266,  'out'],
+    [23, 'Gas bill',                 150,  'out'],
+    [26, 'Car loan',                 414,  'out'],
+    [27, 'T-Mobile',                 397,  'out'],
+  ];
+  for (var y2 = 2026; y2 <= 2027; y2++) {
+    for (var m2 = 0; m2 < 12; m2++) {
+      for (var bi = 0; bi < bills.length; bi++) {
+        var bd = bills[bi];
+        try {
+          var d = new Date(y2, m2, bd[0]);
+          if (d > start && d <= end)
+            events.push({ date: d, name: bd[1], amt: bd[2], type: bd[3] });
+        } catch(e) {}
+      }
+    }
+  }
+
+  // CC auto-pay: May 6 (last old date), then 19th each month from May 19 onwards
+  events.push({ date: new Date(2026, 4, 6),  name: 'Credit card auto-pay', amt: 0, type: 'cc' });
+  for (var y3 = 2026; y3 <= 2027; y3++) {
+    for (var m3 = 0; m3 < 12; m3++) {
+      var d19 = new Date(y3, m3, 19);
+      if (d19 >= new Date(2026, 4, 19) && d19 <= end)
+        events.push({ date: d19, name: 'Credit card auto-pay', amt: 0, type: 'cc' });
+    }
+  }
+
+  // Weekly allowances every Friday
+  var fri = new Date(2026, 3, 10);
+  while (fri.getDay() !== 5) fri.setDate(fri.getDate() + 1);
+  while (fri <= end) {
+    events.push({ date: new Date(fri), name: 'Personal allowances', amt: 300, type: 'out' });
+    fri.setDate(fri.getDate() + 7);
+  }
+
+  // Bi-weekly student loan extra
+  var bw2 = new Date(2026, 3, 11);
+  while (bw2 <= end) {
+    events.push({ date: new Date(bw2), name: 'Student loan extra', amt: 300, type: 'out' });
+    bw2.setDate(bw2.getDate() + 14);
+  }
+
+  // Sinking fund transfers
+  var bw3 = new Date(2026, 3, 11);
+  while (bw3 <= end) {
+    events.push({ date: new Date(bw3), name: 'Sinking funds (emergency)', amt: 400, type: 'save' });
+    bw3.setDate(bw3.getDate() + 14);
+  }
+  for (var y4 = 2026; y4 <= 2027; y4++) {
+    for (var m4 = 0; m4 < 12; m4++) {
+      var ld2 = adjWknd(lastDay(y4, m4), false);
+      var d1 = new Date(ld2); d1.setDate(d1.getDate() + 1);
+      if (d1 > start && d1 <= end)
+        events.push({ date: d1, name: 'Sinking funds (batch 1)', amt: 900, type: 'save' });
+      var d17 = new Date(y4, m4, 17);
+      if (d17 > start && d17 <= end)
+        events.push({ date: d17, name: 'Sinking funds (batch 2)', amt: 416, type: 'save' });
+    }
+  }
+
+  // Irregular one-time events
+  var irr = [
+    [2026,3,19, 'Ecoshield quarterly',           141, 'out'],
+    [2026,3,20, 'Hamline tuition',               445, 'out'],
+    [2026,4,2,  'Fairview payment',              200, 'out'],
+    [2026,5,2,  'Fairview last payment',         200, 'out'],
+    [2026,6,16, 'Progressive insurance',         950, 'out'],
+    [2026,6,19, 'Ecoshield quarterly',           141, 'out'],
+    [2026,6,25, 'Noom renewal',                  160, 'out'],
+    [2026,9,15, 'Eye clinic/contacts',          1044, 'out'],
+    [2026,9,19, 'Ecoshield quarterly',           141, 'out'],
+    [2026,9,25, 'Noom renewal',                  160, 'out'],
+    [2026,10,15,'LinkedIn annual',                43, 'out'],
+    [2026,11,1, 'Calm annual',                    70, 'out'],
+    [2026,11,1, 'Crooked annual',                 90, 'out'],
+    [2027,0,9,  'Hamline tuition',               445, 'out'],
+    [2027,0,16, 'Progressive insurance',         950, 'out'],
+    [2027,0,19, 'Ecoshield quarterly',           141, 'out'],
+    [2027,1,1,  'LastPass annual',                39, 'out'],
+    [2027,3,1,  'Ecoshield quarterly',           141, 'out'],
+  ];
+  for (var ii = 0; ii < irr.length; ii++) {
+    var ir = irr[ii];
+    var id = new Date(ir[0], ir[1], ir[2]);
+    if (id > start && id <= end)
+      events.push({ date: id, name: ir[3], amt: ir[4], type: ir[5] });
+  }
+
+  // Sort: by date, income before outflows same day
+  events.sort(function(a, b) {
+    if (a.date - b.date !== 0) return a.date - b.date;
+    var order = { in: 0, cc: 1, out: 2, save: 3 };
+    return (order[a.type] || 0) - (order[b.type] || 0);
+  });
+
+  return events;
+}
+
+// Get CC spending total for a given month from Supabase entries
+function getCCSpendForMonth(year, month) {
+  var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
+  var entries = loadEntries(qKey);
+  var total = 0;
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    var d = new Date(e.ts);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      total += e.amt;
+    }
+  }
+  return total;
+}
+
+// Build running balance projection
+function buildProjection() {
+  var events = getScheduledEvents();
+  var balance = STARTING_BALANCE;
+  var today = new Date();
+  today.setHours(0,0,0,0);
+
+  var projection = [];
+  for (var i = 0; i < events.length; i++) {
+    var ev = events[i];
+    var amt = ev.amt;
+
+    // For CC auto-pay rows, use actual CC spending from Supabase
+    if (ev.type === 'cc') {
+      amt = getCCSpendForMonth(ev.date.getFullYear(), ev.date.getMonth() - 1 < 0 ? 11 : ev.date.getMonth() - 1);
+      if (amt === 0) amt = 6000; // fallback estimate
+      ev.amt = amt;
+    }
+
+    if (ev.type === 'in') {
+      balance += amt;
+    } else {
+      balance -= amt;
+    }
+
+    projection.push({
+      date: ev.date,
+      name: ev.name,
+      amt: amt,
+      type: ev.type,
+      balance: Math.round(balance),
+      past: ev.date < today,
+    });
+  }
+  return projection;
+}
+
+// State
+var balProjection = [];
+var balMonthOffset = 0;
+var balShowAll = false;
+var balActualBalance = null;
+
+function refreshBalance() {
+  balProjection = buildProjection();
+  renderBalChart();
+  renderBalTimeline();
+  renderDangerAlerts();
+  updateBalHero();
+}
+
+function updateBalHero() {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var current = STARTING_BALANCE;
+  for (var i = 0; i < balProjection.length; i++) {
+    if (balProjection[i].date <= today) current = balProjection[i].balance;
+    else break;
+  }
+  var el = document.getElementById('bal-current-amount');
+  el.textContent = '$' + Math.round(Math.abs(current)).toLocaleString('en-US');
+  el.className = 'bal-amount ' + (current >= 5000 ? 'bal-safe' : current >= FLOOR ? 'bal-warn' : 'bal-danger');
+
+  // Variance
+  var actual = balActualBalance;
+  if (actual === null) {
+    var saved = localStorage.getItem('bal_actual');
+    if (saved) { actual = parseFloat(saved); balActualBalance = actual; }
+  }
+  if (actual !== null) {
+    document.getElementById('bal-actual-input').value = actual;
+    var diff = actual - current;
+    var varEl = document.getElementById('bal-variance');
+    varEl.textContent = (diff >= 0 ? '+' : '') + '$' + Math.round(Math.abs(diff)).toLocaleString() + ' vs projection';
+    varEl.style.color = Math.abs(diff) < 200 ? 'var(--grass)' : Math.abs(diff) < 500 ? 'var(--sun)' : 'var(--red)';
+  }
+}
+
+function saveActualBalance(val) {
+  var n = parseFloat(val);
+  if (!isNaN(n)) {
+    balActualBalance = n;
+    localStorage.setItem('bal_actual', n);
+    updateBalHero();
+  }
+}
+
+function renderDangerAlerts() {
+  var container = document.getElementById('danger-alerts');
+  container.innerHTML = '';
+  var today = new Date(); today.setHours(0,0,0,0);
+  var in30 = new Date(today); in30.setDate(in30.getDate() + 30);
+  var alerts = [];
+  for (var i = 0; i < balProjection.length; i++) {
+    var p = balProjection[i];
+    if (p.date >= today && p.date <= in30 && p.balance < FLOOR) {
+      var d = p.date;
+      alerts.push((d.getMonth()+1) + '/' + d.getDate() + ' — balance drops to $' + p.balance.toLocaleString() + ' after ' + p.name);
+    }
+  }
+  // Also check 90 days
+  var in90 = new Date(today); in90.setDate(in90.getDate() + 90);
+  var futureAlerts = [];
+  for (var j = 0; j < balProjection.length; j++) {
+    var p2 = balProjection[j];
+    if (p2.date > in30 && p2.date <= in90 && p2.balance < FLOOR) {
+      var d2 = p2.date;
+      futureAlerts.push((d2.getMonth()+1) + '/' + d2.getDate());
+    }
+  }
+  if (alerts.length > 0) {
+    var div = document.createElement('div');
+    div.className = 'danger-alert';
+    div.innerHTML = '<div class="danger-alert-title">Balance warning — next 30 days</div>' +
+      '<div class="danger-alert-body">' + alerts.slice(0,3).join('<br>') + '</div>';
+    container.appendChild(div);
+  }
+  if (futureAlerts.length > 0 && alerts.length === 0) {
+    var div2 = document.createElement('div');
+    div2.className = 'danger-alert';
+    div2.style.background = 'var(--sun-bg)';
+    div2.style.borderColor = 'var(--sun)';
+    div2.innerHTML = '<div class="danger-alert-title" style="color:var(--sun-dim)">Upcoming low balance dates</div>' +
+      '<div class="danger-alert-body" style="color:var(--sun-dim)">Balance dips below $2k on: ' + futureAlerts.slice(0,3).join(', ') + '</div>';
+    container.appendChild(div2);
+  }
+}
+
+function renderBalChart() {
+  var barsEl = document.getElementById('bal-chart-bars');
+  var labelsEl = document.getElementById('bal-chart-labels');
+  barsEl.innerHTML = '';
+  labelsEl.innerHTML = '';
+
+  // Get min balance per month
+  var months = [];
+  for (var i = 0; i < 12; i++) {
+    var d = new Date(2026, 3 + i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth(), min: Infinity, label: ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'][i] });
+  }
+
+  for (var j = 0; j < balProjection.length; j++) {
+    var p = balProjection[j];
+    for (var k = 0; k < months.length; k++) {
+      if (p.date.getFullYear() === months[k].year && p.date.getMonth() === months[k].month) {
+        if (p.balance < months[k].min) months[k].min = p.balance;
+      }
+    }
+  }
+
+  var maxVal = 0;
+  for (var l = 0; l < months.length; l++) {
+    if (months[l].min !== Infinity && months[l].min > maxVal) maxVal = months[l].min;
+  }
+  if (maxVal < 1) maxVal = 10000;
+
+  for (var m = 0; m < months.length; m++) {
+    var mo = months[m];
+    var val = mo.min === Infinity ? 0 : mo.min;
+    var pct = Math.max(Math.min(val / maxVal * 100, 100), 2);
+    var color = val >= 5000 ? 'var(--grass)' : val >= FLOOR ? 'var(--sun)' : 'var(--red)';
+
+    var bar = document.createElement('div');
+    bar.className = 'chart-bar';
+    bar.style.height = pct + '%';
+    bar.style.background = color;
+    bar.title = mo.label + ': min $' + (val < 0 ? '-' : '') + Math.abs(Math.round(val)).toLocaleString();
+    barsEl.appendChild(bar);
+
+    var lbl = document.createElement('div');
+    lbl.className = 'chart-label';
+    lbl.textContent = mo.label;
+    labelsEl.appendChild(lbl);
+  }
+}
+
+function renderBalTimeline() {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var targetMonth = new Date(today.getFullYear(), today.getMonth() + balMonthOffset, 1);
+  var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('bal-month-label').textContent = monthNames[targetMonth.getMonth()].slice(0,3) + ' ' + targetMonth.getFullYear();
+
+  var container = document.getElementById('bal-timeline');
+  container.innerHTML = '';
+
+  var monthEvents = balProjection.filter(function(p) {
+    return p.date.getFullYear() === targetMonth.getFullYear() && p.date.getMonth() === targetMonth.getMonth();
+  });
+
+  if (!balShowAll) {
+    // Filter out savings transfers for cleaner view
+    monthEvents = monthEvents.filter(function(p) { return p.type !== 'save'; });
+  }
+
+  if (monthEvents.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-3);font-style:italic;font-size:15px;text-align:center;padding:12px 0">No events this month</p>';
+    return;
+  }
+
+  var fmt = function(n) { return '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); };
+
+  for (var i = 0; i < monthEvents.length; i++) {
+    var ev = monthEvents[i];
+    var row = document.createElement('div');
+    row.className = 'tl-event';
+    if (ev.balance < FLOOR) row.style.background = 'var(--coral-bg)';
+
+    var typeClass = ev.type === 'in' ? 'tl-in' : ev.type === 'cc' ? 'tl-cc' : ev.type === 'save' ? 'tl-save' : 'tl-out';
+    var sign = ev.type === 'in' ? '+' : '-';
+    var d = ev.date;
+    var dateStr = (d.getMonth()+1) + '/' + d.getDate();
+
+    row.innerHTML = '<span class="tl-event-date">' + dateStr + '</span>' +
+      '<span class="tl-event-name">' + ev.name + '</span>' +
+      '<span class="tl-event-amt ' + typeClass + '">' + sign + fmt(ev.amt) + '</span>' +
+      '<span class="tl-event-amt" style="min-width:80px;color:' + (ev.balance < FLOOR ? 'var(--red)' : ev.balance < 5000 ? 'var(--sun-dim)' : 'var(--grass-dim)') + '">' + fmt(ev.balance) + '</span>';
+
+    container.appendChild(row);
+  }
+}
+
+function balMonthNav(dir) {
+  balMonthOffset += dir;
+  renderBalTimeline();
+}
+
+function toggleBalFilter() {
+  balShowAll = !balShowAll;
+  document.getElementById('bal-filter-btn').textContent = balShowAll ? 'Bills only' : 'All';
+  renderBalTimeline();
 }
 
 document.getElementById('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
