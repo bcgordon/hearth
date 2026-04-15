@@ -895,40 +895,37 @@ const FLOOR = 2000;
 // All scheduled events — hardcoded since they're fixed
 function getScheduledEvents() {
   var events = [];
-  var start = new Date(2026, 3, 10); // Apr 10 2026
-  var end   = new Date(2027, 3, 10); // Apr 10 2027
+  var start = new Date(2026, 3, 10);
+  var end   = new Date(2027, 3, 10);
 
-  // Helper: adjust weekend to weekday
   function adjWknd(d, fwd) {
     var dd = new Date(d);
     if (dd.getDay() === 6) dd.setDate(dd.getDate() + (fwd ? 2 : -1));
     if (dd.getDay() === 0) dd.setDate(dd.getDate() + (fwd ? 1 : -2));
     return dd;
   }
-  function lastDay(y, m) {
-    return new Date(y, m + 1, 0);
-  }
+  function lastDay(y, m) { return new Date(y, m + 1, 0); }
 
-  // Bi-weekly paychecks starting Apr 10
+  // ── INCOME ──────────────────────────────────────────────
+  // Bi-weekly paychecks every 2 weeks from Apr 10
   var bw = new Date(2026, 3, 10);
   while (bw <= end) {
     events.push({ date: new Date(bw), name: 'Bi-weekly paycheck', amt: 2000, type: 'in' });
     bw.setDate(bw.getDate() + 14);
   }
-
-  // Semi-monthly: 15th and last day
+  // Semi-monthly: 15th and last day of month
   for (var y = 2026; y <= 2027; y++) {
     for (var m = 0; m < 12; m++) {
       var d15 = adjWknd(new Date(y, m, 15), true);
-      if (d15 >= start && d15 <= end)
+      if (d15 > start && d15 <= end)
         events.push({ date: d15, name: 'Semi-monthly paycheck', amt: 4300, type: 'in' });
       var ld = adjWknd(lastDay(y, m), false);
-      if (ld >= start && ld <= end)
+      if (ld > start && ld <= end)
         events.push({ date: ld, name: 'Semi-monthly paycheck', amt: 4300, type: 'in' });
     }
   }
 
-  // Monthly fixed bills
+  // ── FIXED MONTHLY BILLS ──────────────────────────────────
   var bills = [
     [1,  'Life insurance NW Mutual', 250,  'out'],
     [9,  'Student loan minimum',     386,  'out'],
@@ -943,26 +940,26 @@ function getScheduledEvents() {
     for (var m2 = 0; m2 < 12; m2++) {
       for (var bi = 0; bi < bills.length; bi++) {
         var bd = bills[bi];
-        try {
-          var d = new Date(y2, m2, bd[0]);
-          if (d > start && d <= end)
-            events.push({ date: d, name: bd[1], amt: bd[2], type: bd[3] });
-        } catch(e) {}
+        var d = new Date(y2, m2, bd[0]);
+        if (d > start && d <= end)
+          events.push({ date: d, name: bd[1], amt: bd[2], type: bd[3] });
       }
     }
   }
 
-  // CC auto-pay: May 6 (last old date), then 19th each month from May 19 onwards
-  events.push({ date: new Date(2026, 4, 6),  name: 'Credit card auto-pay', amt: 0, type: 'cc' });
+  // ── CREDIT CARD AUTO-PAY ─────────────────────────────────
+  // May 6 2026: last payment on old due date — fixed $6,000
+  events.push({ date: new Date(2026, 4, 6), name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
+  // 19th each month from May 19 2026 onwards — uses actual CC spend
   for (var y3 = 2026; y3 <= 2027; y3++) {
     for (var m3 = 0; m3 < 12; m3++) {
       var d19 = new Date(y3, m3, 19);
       if (d19 >= new Date(2026, 4, 19) && d19 <= end)
-        events.push({ date: d19, name: 'Credit card auto-pay', amt: 0, type: 'cc' });
+        events.push({ date: d19, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
     }
   }
 
-  // Weekly allowances every Friday
+  // ── WEEKLY ALLOWANCES (every Friday) ────────────────────
   var fri = new Date(2026, 3, 10);
   while (fri.getDay() !== 5) fri.setDate(fri.getDate() + 1);
   while (fri <= end) {
@@ -970,51 +967,51 @@ function getScheduledEvents() {
     fri.setDate(fri.getDate() + 7);
   }
 
-  // Bi-weekly student loan extra
-  var bw2 = new Date(2026, 3, 11);
+  // ── BI-WEEKLY: student loan extra ────────────────────────
+  var bw2 = new Date(2026, 3, 25);
   while (bw2 <= end) {
     events.push({ date: new Date(bw2), name: 'Student loan extra', amt: 300, type: 'out' });
     bw2.setDate(bw2.getDate() + 14);
   }
 
-  // Sinking fund transfers
-  var bw3 = new Date(2026, 3, 11);
-  while (bw3 <= end) {
-    events.push({ date: new Date(bw3), name: 'Sinking funds (emergency)', amt: 400, type: 'save' });
-    bw3.setDate(bw3.getDate() + 14);
-  }
+  // ── SINKING FUND TRANSFERS ───────────────────────────────
+  // Total: $1,716/mo split across two paydays
+  // After 15th paycheck: $858 (home/auto $366 + medical $200 + travel $200 + big $150 = $916... use $858)
+  // After last-day paycheck: $858
   for (var y4 = 2026; y4 <= 2027; y4++) {
     for (var m4 = 0; m4 < 12; m4++) {
-      var ld2 = adjWknd(lastDay(y4, m4), false);
-      var d1 = new Date(ld2); d1.setDate(d1.getDate() + 1);
-      if (d1 > start && d1 <= end)
-        events.push({ date: d1, name: 'Sinking funds (batch 1)', amt: 900, type: 'save' });
-      var d17 = new Date(y4, m4, 17);
-      if (d17 > start && d17 <= end)
-        events.push({ date: d17, name: 'Sinking funds (batch 2)', amt: 416, type: 'save' });
+      // After 15th paycheck
+      var d16 = adjWknd(new Date(y4, m4, 16), true);
+      if (d16 > start && d16 <= end)
+        events.push({ date: d16, name: 'Sinking funds (post 15th)', amt: 858, type: 'save' });
+      // Day after last-day paycheck
+      var ldSave = adjWknd(lastDay(y4, m4), false);
+      ldSave.setDate(ldSave.getDate() + 1);
+      if (ldSave > start && ldSave <= end)
+        events.push({ date: ldSave, name: 'Sinking funds (post EOM)', amt: 858, type: 'save' });
     }
   }
 
-  // Irregular one-time events
+  // ── IRREGULAR ONE-TIME EVENTS ────────────────────────────
   var irr = [
-    [2026,3,19, 'Ecoshield quarterly',           141, 'out'],
-    [2026,3,20, 'Hamline tuition',               445, 'out'],
-    [2026,4,2,  'Fairview payment',              200, 'out'],
-    [2026,5,2,  'Fairview last payment',         200, 'out'],
-    [2026,6,16, 'Progressive insurance',         950, 'out'],
-    [2026,6,19, 'Ecoshield quarterly',           141, 'out'],
-    [2026,6,25, 'Noom renewal',                  160, 'out'],
-    [2026,9,15, 'Eye clinic/contacts',          1044, 'out'],
-    [2026,9,19, 'Ecoshield quarterly',           141, 'out'],
-    [2026,9,25, 'Noom renewal',                  160, 'out'],
-    [2026,10,15,'LinkedIn annual',                43, 'out'],
-    [2026,11,1, 'Calm annual',                    70, 'out'],
-    [2026,11,1, 'Crooked annual',                 90, 'out'],
-    [2027,0,9,  'Hamline tuition',               445, 'out'],
-    [2027,0,16, 'Progressive insurance',         950, 'out'],
-    [2027,0,19, 'Ecoshield quarterly',           141, 'out'],
-    [2027,1,1,  'LastPass annual',                39, 'out'],
-    [2027,3,1,  'Ecoshield quarterly',           141, 'out'],
+    [2026,3,19, 'Ecoshield quarterly',        141, 'out'],
+    [2026,3,20, 'Hamline tuition',            445, 'out'],
+    [2026,4,2,  'Fairview payment',           200, 'out'],
+    [2026,5,2,  'Fairview last payment',      200, 'out'],
+    [2026,6,16, 'Progressive insurance',      950, 'out'],
+    [2026,6,19, 'Ecoshield quarterly',        141, 'out'],
+    [2026,6,25, 'Noom renewal',               160, 'out'],
+    [2026,9,15, 'Eye clinic/contacts',       1044, 'out'],
+    [2026,9,19, 'Ecoshield quarterly',        141, 'out'],
+    [2026,9,25, 'Noom renewal',               160, 'out'],
+    [2026,10,15,'LinkedIn annual',             43, 'out'],
+    [2026,11,1, 'Calm annual',                 70, 'out'],
+    [2026,11,1, 'Crooked annual',              90, 'out'],
+    [2027,0,9,  'Hamline tuition',            445, 'out'],
+    [2027,0,16, 'Progressive insurance',      950, 'out'],
+    [2027,0,19, 'Ecoshield quarterly',        141, 'out'],
+    [2027,1,1,  'LastPass annual',             39, 'out'],
+    [2027,3,1,  'Ecoshield quarterly',        141, 'out'],
   ];
   for (var ii = 0; ii < irr.length; ii++) {
     var ir = irr[ii];
@@ -1023,7 +1020,7 @@ function getScheduledEvents() {
       events.push({ date: id, name: ir[3], amt: ir[4], type: ir[5] });
   }
 
-  // Sort: by date, income before outflows same day
+  // Sort by date, income first on same day
   events.sort(function(a, b) {
     if (a.date - b.date !== 0) return a.date - b.date;
     var order = { in: 0, cc: 1, out: 2, save: 3 };
@@ -1060,11 +1057,20 @@ function buildProjection() {
     var ev = events[i];
     var amt = ev.amt;
 
-    // For CC auto-pay rows, use actual CC spending from Supabase
+    // For CC auto-pay rows
     if (ev.type === 'cc') {
-      amt = getCCSpendForMonth(ev.date.getFullYear(), ev.date.getMonth() - 1 < 0 ? 11 : ev.date.getMonth() - 1);
-      if (amt === 0) amt = 6000; // fallback estimate
-      ev.amt = amt;
+      if (ev.fixedAmt) {
+        amt = ev.amt; // May 6 fixed $6,000
+      } else {
+        // 19th payment covers spending logged in the previous month
+        // (e.g. May 19 payment covers April spending)
+        var ccYear = ev.date.getFullYear();
+        var ccMonth = ev.date.getMonth() - 1;
+        if (ccMonth < 0) { ccMonth = 11; ccYear--; }
+        var ccSpend = getCCSpendForMonth(ccYear, ccMonth);
+        amt = ccSpend > 0 ? ccSpend : 3500; // fallback $3,500 estimate
+        ev.amt = amt;
+      }
     }
 
     if (ev.type === 'in') {
