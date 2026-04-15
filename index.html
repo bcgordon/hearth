@@ -1062,7 +1062,7 @@ var DEFAULT_BILLS = [
   { id:'hc_allow',  name:'Personal allowances',      amt:300,  freq:'biweekly', startDate:'2026-04-10', type:'out' },
   { id:'hc_sl_ext', name:'Student loan extra',       amt:300,  freq:'biweekly', startDate:'2026-04-25', type:'out' },
   { id:'hc_sf1',    name:'Sinking funds (post 15th)',amt:858,  day:16, freq:'monthly', type:'save' },
-  { id:'hc_sf2',    name:'Sinking funds (post EOM)', amt:858,  day:1,  freq:'monthly', type:'save', eom:true },
+  { id:'hc_sf2',    name:'Sinking funds (post EOM)', amt:858,  day:17, freq:'monthly', type:'save', eom:true },
   { id:'hc_eco1',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:3,  day:19, year:2026, type:'out' },
   { id:'hc_ham1',   name:'Hamline tuition',          amt:445,  freq:'once', month:3,  day:20, year:2026, type:'out' },
   { id:'hc_fair1',  name:'Fairview payment',         amt:200,  freq:'once', month:4,  day:2,  year:2026, type:'out' },
@@ -1305,10 +1305,11 @@ function getScheduledEvents() {
 
   // ── CC AUTO-PAY ─────────────────────────────────────────────────────────
   events.push({ date: new Date(2026, 4, 6), name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
+  // 19th payments start June 2026 (skip May 19 — May 6 already covers April)
   for (var y3 = 2026; y3 <= 2027; y3++) {
     for (var m3 = 0; m3 < 12; m3++) {
       var d19 = new Date(y3, m3, 19);
-      if (d19 >= new Date(2026, 4, 19) && d19 <= end)
+      if (d19 >= new Date(2026, 5, 19) && d19 <= end)
         events.push({ date: d19, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
     }
   }
@@ -1402,10 +1403,10 @@ function buildProjection() {
       if (ev.fixedAmt) {
         amt = ev.amt; // May 6 fixed $6,000
       } else {
-        // 19th payment covers spending logged in the previous month
+        // 19th payment covers spending from ~20th of prior month to 19th of this month
+        // For projection purposes we use the current month's entries
         var ccYear = ev.date.getFullYear();
-        var ccMonth = ev.date.getMonth() - 1;
-        if (ccMonth < 0) { ccMonth = 11; ccYear--; }
+        var ccMonth = ev.date.getMonth();
         // Check for manual override first
         var overrideKey = 'cc_override_' + ccYear + '_' + ccMonth;
         var override = localStorage.getItem(overrideKey);
@@ -1414,7 +1415,7 @@ function buildProjection() {
         } else {
           // Use actual CC spend if entries exist, otherwise $6,000 placeholder
           var ccSpend = getCCSpendForMonth(ccYear, ccMonth);
-          amt = ccSpend > 0 ? ccSpend : 6000;
+          amt = ccSpend > 0 ? ccSpend : 3500;
         }
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
