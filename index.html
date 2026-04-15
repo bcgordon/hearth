@@ -520,7 +520,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:2px">
       <span style="font-size:12px;color:var(--grass-dim)">&#9632; Income</span>
       <span style="font-size:12px;color:var(--coral)">&#9632; Bills &amp; spending</span>
-      <span style="font-size:12px;color:var(--text-3)">Savings not shown</span>
+      <span style="font-size:12px;color:var(--sky-dim)">&#9632; Savings transfers</span>
     </div>
   </div>
 
@@ -1674,6 +1674,7 @@ function renderCashflowGrid() {
     var income = 0;
     var bills = 0;
     var ccPay = 0;
+    var savings = 0;
 
     for (var j = 0; j < balProjection.length; j++) {
       var ev = balProjection[j];
@@ -1681,11 +1682,11 @@ function renderCashflowGrid() {
         if (ev.type === 'in') income += ev.amt;
         else if (ev.type === 'cc') ccPay += ev.amt;
         else if (ev.type === 'out') bills += ev.amt;
-        // savings (type=save) intentionally excluded
+        else if (ev.type === 'save') savings += ev.amt;
       }
     }
 
-    var totalOut = bills + ccPay;
+    var totalOut = bills + ccPay + savings;
     var net = income - totalOut;
 
     var card = document.createElement('div');
@@ -1698,7 +1699,8 @@ function renderCashflowGrid() {
     card.innerHTML =
       '<div class="cf-month">' + monthNames[mo] + ' ' + (isCurrent ? '●' : yr === 2027 ? "'" + String(yr).slice(2) : '') + '</div>' +
       '<div class="cf-row"><span class="cf-label">In</span><span class="cf-val cf-in">' + fmt(income) + '</span></div>' +
-      '<div class="cf-row"><span class="cf-label">Out</span><span class="cf-val cf-out">' + fmt(totalOut) + '</span></div>' +
+      '<div class="cf-row"><span class="cf-label">Bills</span><span class="cf-val cf-out">' + fmt(bills + ccPay) + '</span></div>' +
+      '<div class="cf-row"><span class="cf-label">Savings</span><span class="cf-val" style="color:var(--sky-dim)">' + fmt(savings) + '</span></div>' +
       '<div class="' + netClass + '">' + netSign + fmt(net) + '</div>';
 
     grid.appendChild(card);
