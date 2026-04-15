@@ -169,6 +169,24 @@ textarea { resize: none; }
 #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--grass); color: #fff; padding: 12px 26px; font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; font-weight: 600; border-radius: var(--radius-pill); border: 1.5px solid var(--grass-dim); box-shadow: 0 3px 0 var(--grass-dim); transition: transform 0.3s cubic-bezier(.4,0,.2,1); pointer-events: none; white-space: nowrap; z-index: 9998; }
 #toast.show { transform: translateX(-50%) translateY(0); }
 .setup-hint { font-size: 13px; color: var(--text-3); margin-top: 4px; font-style: italic; }
+
+/* ── BILL EDITOR ── */
+.bill-row { display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:0.5px solid var(--border); }
+.bill-row:last-child { border-bottom:none; }
+.bill-info { flex:1; }
+.bill-name { font-size:15px; font-weight:600; color:var(--text); }
+.bill-detail { font-size:12px; color:var(--text-3); margin-top:2px; }
+.bill-amt { font-size:16px; font-weight:600; color:var(--coral); min-width:64px; text-align:right; }
+.bill-edit-btn { background:none; border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:5px 10px; font-size:13px; color:var(--text-2); cursor:pointer; font-family:inherit; }
+.bill-edit-btn:hover { border-color:var(--sky); color:var(--sky); }
+.bill-del-btn { background:none; border:none; color:var(--text-3); font-size:18px; cursor:pointer; padding:0 4px; }
+.bill-del-btn:hover { color:var(--red); }
+.bill-form { display:flex; flex-direction:column; gap:12px; padding:16px 0; }
+.bill-form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.freq-pills { display:flex; gap:6px; flex-wrap:wrap; }
+.freq-pill { padding:7px 14px; border:1.5px solid var(--border); background:var(--surface2); border-radius:var(--radius-pill); font-size:14px; font-weight:500; color:var(--text-2); cursor:pointer; font-family:inherit; }
+.freq-pill.active { background:var(--sky-bg); border-color:var(--sky); color:var(--sky-dim); font-weight:600; }
+
 /* ── BALANCE SCREEN ── */
 .bal-hero { text-align:center; padding:18px 0 10px; }
 .bal-amount { font-size:48px; font-weight:600; line-height:1; }
@@ -334,6 +352,88 @@ Non-essential: <strong id="lbl-n">$0</strong>
 </div>
 </div>
 
+
+<!-- BILLS -->
+<div id="screen-bills" class="screen">
+  <div class="back-row">
+    <button class="back-btn" onclick="showScreen('screen-settings')">&#8592;</button>
+    <span style="font-size:20px;font-weight:600;color:var(--sky)">Scheduled bills</span>
+    <button class="icon-btn" style="margin-left:auto" onclick="showAddBill()">+ Add</button>
+  </div>
+
+  <div id="bill-form-wrap" style="display:none">
+    <div class="card card-coral" style="margin-bottom:12px">
+      <div id="bill-form-title" style="font-size:16px;font-weight:600;color:var(--coral);margin-bottom:14px">Add bill</div>
+      <div class="bill-form">
+        <div>
+          <label class="label">Bill name</label>
+          <input id="bf-name" type="text" placeholder="e.g. Netflix" />
+        </div>
+        <div class="bill-form-row">
+          <div>
+            <label class="label">Amount ($)</label>
+            <input id="bf-amt" type="number" placeholder="0.00" step="0.01" min="0" />
+          </div>
+          <div>
+            <label class="label">Day of month</label>
+            <input id="bf-day" type="number" placeholder="1-31" min="1" max="31" />
+          </div>
+        </div>
+        <div>
+          <label class="label">Frequency</label>
+          <div class="freq-pills">
+            <button class="freq-pill active" data-freq="monthly" onclick="selectFreq('monthly')">Monthly</button>
+            <button class="freq-pill" data-freq="biweekly" onclick="selectFreq('biweekly')">Bi-weekly</button>
+            <button class="freq-pill" data-freq="annual" onclick="selectFreq('annual')">Annual</button>
+            <button class="freq-pill" data-freq="once" onclick="selectFreq('once')">One-time</button>
+          </div>
+        </div>
+        <div id="bf-month-wrap" style="display:none">
+          <label class="label">Month</label>
+          <select id="bf-month" style="font-family:inherit;font-size:15px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);width:100%">
+            <option value="0">January</option><option value="1">February</option>
+            <option value="2">March</option><option value="3">April</option>
+            <option value="4">May</option><option value="5">June</option>
+            <option value="6">July</option><option value="7">August</option>
+            <option value="8">September</option><option value="9">October</option>
+            <option value="10">November</option><option value="11">December</option>
+          </select>
+        </div>
+        <div id="bf-year-wrap" style="display:none">
+          <label class="label">Year</label>
+          <select id="bf-year" style="font-family:inherit;font-size:15px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);width:100%">
+            <option value="2026">2026</option><option value="2027">2027</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Type</label>
+          <div class="freq-pills">
+            <button class="freq-pill active" data-btype="out" onclick="selectBillType('out')">Bill / expense</button>
+            <button class="freq-pill" data-btype="in" onclick="selectBillType('in')">Income</button>
+            <button class="freq-pill" data-btype="save" onclick="selectBillType('save')">Savings transfer</button>
+          </div>
+        </div>
+        <p id="bf-err" class="err"></p>
+        <button class="btn btn-coral btn-full" style="padding:13px" onclick="saveBill()">Save bill</button>
+        <button class="btn btn-ghost btn-full" onclick="hideBillForm()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div class="section-head">Monthly bills</div>
+    <div id="bills-list-monthly"></div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="section-head">Bi-weekly</div>
+    <div id="bills-list-biweekly"></div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="section-head">Annual &amp; one-time</div>
+    <div id="bills-list-once"></div>
+  </div>
+</div>
+
 <!-- BALANCE -->
 <div id="screen-balance" class="screen">
   <div class="back-row">
@@ -438,7 +538,8 @@ Non-essential: <strong id="lbl-n">$0</strong>
   <span style="font-size:15px;font-weight:500;color:var(--text-2)">Spreadsheet sync</span>
   <span id="sync-badge" style="display:none;font-size:12px;font-weight:600;padding:3px 10px;border-radius:var(--radius-pill);background:var(--sun-bg);color:var(--sun-dim);border:1px solid var(--sun)"></span>
 </div>
-<button class="btn btn-ghost btn-full" style="padding:11px" onclick="retryPendingSyncs()">Retry failed syncs</button>
+<button class="btn btn-ghost btn-full" style="padding:11px" onclick="showScreen('screen-bills')">Edit scheduled bills</button>
+    <button class="btn btn-ghost btn-full" style="padding:11px" onclick="retryPendingSyncs()">Retry failed syncs</button>
 <div class="divider"></div>
 <button class="btn btn-red btn-full" style="padding:13px" onclick="doLock()">Lock / sign out</button>
 </div>
@@ -582,6 +683,7 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
   if (id === 'screen-balance') { refreshBalance(); }
+  if (id === 'screen-bills') { renderBillsList(); }
   if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -888,6 +990,229 @@ function doLock() {
 }
 
 
+
+// ── BILL EDITOR ──────────────────────────────────────────────────────────────
+
+// Default hardcoded bills — stored in Supabase under record.bills
+// Users can add/edit/delete custom bills, which merge with the hardcoded ones
+var DEFAULT_BILLS = [
+  { id:'hc_life1',  name:'Life insurance NW Mutual', amt:250,  day:1,  freq:'monthly', type:'out' },
+  { id:'hc_sl_min', name:'Student loan minimum',     amt:386,  day:9,  freq:'monthly', type:'out' },
+  { id:'hc_life2',  name:'Life insurance NW Mutual', amt:250,  day:15, freq:'monthly', type:'out' },
+  { id:'hc_mort',   name:'Mortgage',                 amt:2710, day:16, freq:'monthly', type:'out' },
+  { id:'hc_solar',  name:'Solar bill',               amt:266,  day:16, freq:'monthly', type:'out' },
+  { id:'hc_gas',    name:'Gas bill',                 amt:150,  day:23, freq:'monthly', type:'out' },
+  { id:'hc_car',    name:'Car loan',                 amt:414,  day:26, freq:'monthly', type:'out' },
+  { id:'hc_tmob',   name:'T-Mobile',                 amt:397,  day:27, freq:'monthly', type:'out' },
+  { id:'hc_allow',  name:'Personal allowances',      amt:300,  freq:'biweekly', startDate:'2026-04-10', type:'out' },
+  { id:'hc_sl_ext', name:'Student loan extra',       amt:300,  freq:'biweekly', startDate:'2026-04-25', type:'out' },
+  { id:'hc_sf1',    name:'Sinking funds (post 15th)',amt:858,  day:16, freq:'monthly', type:'save' },
+  { id:'hc_sf2',    name:'Sinking funds (post EOM)', amt:858,  day:1,  freq:'monthly', type:'save', eom:true },
+  { id:'hc_eco1',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:3,  day:19, year:2026, type:'out' },
+  { id:'hc_ham1',   name:'Hamline tuition',          amt:445,  freq:'once', month:3,  day:20, year:2026, type:'out' },
+  { id:'hc_fair1',  name:'Fairview payment',         amt:200,  freq:'once', month:4,  day:2,  year:2026, type:'out' },
+  { id:'hc_fair2',  name:'Fairview last payment',    amt:200,  freq:'once', month:5,  day:2,  year:2026, type:'out' },
+  { id:'hc_prog1',  name:'Progressive insurance',    amt:950,  freq:'once', month:6,  day:16, year:2026, type:'out' },
+  { id:'hc_eco2',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:6,  day:19, year:2026, type:'out' },
+  { id:'hc_noom1',  name:'Noom renewal',             amt:160,  freq:'once', month:6,  day:25, year:2026, type:'out' },
+  { id:'hc_eye',    name:'Eye clinic/contacts',      amt:1044, freq:'once', month:9,  day:15, year:2026, type:'out' },
+  { id:'hc_eco3',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:9,  day:19, year:2026, type:'out' },
+  { id:'hc_noom2',  name:'Noom renewal',             amt:160,  freq:'once', month:9,  day:25, year:2026, type:'out' },
+  { id:'hc_li',     name:'LinkedIn annual',          amt:43,   freq:'once', month:10, day:15, year:2026, type:'out' },
+  { id:'hc_calm',   name:'Calm annual',              amt:70,   freq:'once', month:11, day:1,  year:2026, type:'out' },
+  { id:'hc_crook',  name:'Crooked annual',           amt:90,   freq:'once', month:11, day:1,  year:2026, type:'out' },
+  { id:'hc_ham2',   name:'Hamline tuition',          amt:445,  freq:'once', month:0,  day:9,  year:2027, type:'out' },
+  { id:'hc_prog2',  name:'Progressive insurance',    amt:950,  freq:'once', month:0,  day:16, year:2027, type:'out' },
+  { id:'hc_eco4',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:0,  day:19, year:2027, type:'out' },
+  { id:'hc_lp',     name:'LastPass annual',          amt:39,   freq:'once', month:1,  day:1,  year:2027, type:'out' },
+  { id:'hc_eco5',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:3,  day:1,  year:2027, type:'out' },
+];
+
+function getAllBills() {
+  var defaults = DEFAULT_BILLS.slice();
+  var custom = (record && record.bills) ? record.bills : [];
+  // Remove defaults that have been deleted
+  var deleted = (record && record.deletedBills) ? record.deletedBills : [];
+  defaults = defaults.filter(function(b) { return deleted.indexOf(b.id) === -1; });
+  return defaults.concat(custom);
+}
+
+function getBillFreqLabel(b) {
+  if (b.freq === 'monthly') return 'Monthly, day ' + b.day;
+  if (b.freq === 'biweekly') return 'Bi-weekly';
+  if (b.freq === 'annual') return 'Annual, month ' + b.month + ' day ' + b.day;
+  if (b.freq === 'once') {
+    var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return 'One-time: ' + mn[b.month] + ' ' + b.day + ' ' + b.year;
+  }
+  return b.freq;
+}
+
+function renderBillsList() {
+  var bills = getAllBills();
+  var monthly   = bills.filter(function(b) { return b.freq === 'monthly'; });
+  var biweekly  = bills.filter(function(b) { return b.freq === 'biweekly'; });
+  var once      = bills.filter(function(b) { return b.freq === 'once' || b.freq === 'annual'; });
+
+  function renderGroup(listId, group) {
+    var el = document.getElementById(listId);
+    if (!group.length) { el.innerHTML = '<p style="color:var(--text-3);font-style:italic;font-size:14px;padding:8px 0">None</p>'; return; }
+    el.innerHTML = '';
+    group.forEach(function(b) {
+      var row = document.createElement('div');
+      row.className = 'bill-row';
+      var typeColor = b.type === 'in' ? 'var(--grass)' : b.type === 'save' ? 'var(--text-3)' : 'var(--coral)';
+      row.innerHTML = '<div class="bill-info">' +
+        '<div class="bill-name">' + b.name + '</div>' +
+        '<div class="bill-detail">' + getBillFreqLabel(b) + ' &middot; ' + (b.type === 'in' ? 'Income' : b.type === 'save' ? 'Savings' : 'Bill') + '</div>' +
+        '</div>' +
+        '<div class="bill-amt" style="color:' + typeColor + '">$' + b.amt.toLocaleString() + '</div>' +
+        '<button class="bill-edit-btn" onclick="editBill(\'' + b.id + '\')">Edit</button>' +
+        '<button class="bill-del-btn" onclick="deleteBill(\'' + b.id + '\')">&#10005;</button>';
+      el.appendChild(row);
+    });
+  }
+
+  renderGroup('bills-list-monthly',  monthly);
+  renderGroup('bills-list-biweekly', biweekly);
+  renderGroup('bills-list-once',     once);
+}
+
+var editingBillId = null;
+var billFreq = 'monthly';
+var billType = 'out';
+
+function showAddBill() {
+  editingBillId = null;
+  billFreq = 'monthly'; billType = 'out';
+  document.getElementById('bf-name').value = '';
+  document.getElementById('bf-amt').value = '';
+  document.getElementById('bf-day').value = '';
+  document.getElementById('bf-err').style.display = 'none';
+  document.getElementById('bill-form-title').textContent = 'Add bill';
+  updateFreqUI();
+  updateBillTypeUI();
+  document.getElementById('bill-form-wrap').style.display = 'block';
+  document.getElementById('bf-name').focus();
+}
+
+function hideBillForm() {
+  document.getElementById('bill-form-wrap').style.display = 'none';
+  editingBillId = null;
+}
+
+function editBill(id) {
+  var bills = getAllBills();
+  var b = bills.find(function(x) { return x.id === id; });
+  if (!b) return;
+  editingBillId = id;
+  billFreq = b.freq;
+  billType = b.type;
+  document.getElementById('bf-name').value = b.name;
+  document.getElementById('bf-amt').value = b.amt;
+  document.getElementById('bf-day').value = b.day || '';
+  if (b.month !== undefined) document.getElementById('bf-month').value = b.month;
+  if (b.year !== undefined) document.getElementById('bf-year').value = b.year;
+  document.getElementById('bill-form-title').textContent = 'Edit bill';
+  document.getElementById('bf-err').style.display = 'none';
+  updateFreqUI();
+  updateBillTypeUI();
+  document.getElementById('bill-form-wrap').style.display = 'block';
+  document.getElementById('bf-name').focus();
+}
+
+async function deleteBill(id) {
+  if (!confirm('Delete this bill?')) return;
+  var isDefault = DEFAULT_BILLS.some(function(b) { return b.id === id; });
+  if (isDefault) {
+    if (!record.deletedBills) record.deletedBills = [];
+    if (record.deletedBills.indexOf(id) === -1) record.deletedBills.push(id);
+  } else {
+    record.bills = (record.bills || []).filter(function(b) { return b.id !== id; });
+  }
+  await cloudSet(record);
+  renderBillsList();
+  toast('Bill removed');
+}
+
+async function saveBill() {
+  var name = document.getElementById('bf-name').value.trim();
+  var amt  = parseFloat(document.getElementById('bf-amt').value);
+  var day  = parseInt(document.getElementById('bf-day').value);
+  var errEl = document.getElementById('bf-err');
+
+  if (!name) { errEl.textContent = 'Please enter a name'; errEl.style.display = 'block'; return; }
+  if (!amt || amt <= 0) { errEl.textContent = 'Please enter a valid amount'; errEl.style.display = 'block'; return; }
+  if ((billFreq === 'monthly' || billFreq === 'annual' || billFreq === 'once') && (!day || day < 1 || day > 31)) {
+    errEl.textContent = 'Please enter a valid day (1-31)'; errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+
+  var bill = {
+    id: editingBillId || ('custom_' + Date.now()),
+    name: name,
+    amt: amt,
+    freq: billFreq,
+    type: billType,
+    day: day || 1,
+  };
+
+  if (billFreq === 'annual' || billFreq === 'once') {
+    bill.month = parseInt(document.getElementById('bf-month').value);
+    bill.year  = parseInt(document.getElementById('bf-year').value);
+  }
+
+  if (!record.bills) record.bills = [];
+
+  if (editingBillId) {
+    // If editing a default bill, mark it deleted and add custom version
+    var isDefault = DEFAULT_BILLS.some(function(b) { return b.id === editingBillId; });
+    if (isDefault) {
+      if (!record.deletedBills) record.deletedBills = [];
+      if (record.deletedBills.indexOf(editingBillId) === -1) record.deletedBills.push(editingBillId);
+      bill.id = 'custom_' + Date.now();
+      record.bills.push(bill);
+    } else {
+      var idx = record.bills.findIndex(function(b) { return b.id === editingBillId; });
+      if (idx >= 0) record.bills[idx] = bill; else record.bills.push(bill);
+    }
+  } else {
+    record.bills.push(bill);
+  }
+
+  await cloudSet(record);
+  hideBillForm();
+  renderBillsList();
+  toast('Bill saved');
+}
+
+function selectFreq(freq) {
+  billFreq = freq;
+  updateFreqUI();
+}
+
+function updateFreqUI() {
+  document.querySelectorAll('[data-freq]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.freq === billFreq);
+  });
+  var showMonth = billFreq === 'annual' || billFreq === 'once';
+  document.getElementById('bf-month-wrap').style.display = showMonth ? 'block' : 'none';
+  document.getElementById('bf-year-wrap').style.display  = billFreq === 'once' ? 'block' : 'none';
+  // Show/hide day field
+  document.getElementById('bf-day').closest('div').style.display = billFreq === 'biweekly' ? 'none' : 'block';
+}
+
+function selectBillType(t) {
+  billType = t;
+  updateBillTypeUI();
+}
+
+function updateBillTypeUI() {
+  document.querySelectorAll('[data-btype]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.btype === billType);
+  });
+}
+
 // ── BALANCE PROJECTION ENGINE ───────────────────────────────────────────────
 const STARTING_BALANCE = 6500;
 const FLOOR = 2000;
@@ -906,14 +1231,12 @@ function getScheduledEvents() {
   }
   function lastDay(y, m) { return new Date(y, m + 1, 0); }
 
-  // ── INCOME ──────────────────────────────────────────────
-  // Bi-weekly paychecks every 2 weeks from Apr 10
+  // ── INCOME: paychecks are always hardcoded ───────────────────────────────
   var bw = new Date(2026, 3, 10);
   while (bw <= end) {
     events.push({ date: new Date(bw), name: 'Bi-weekly paycheck', amt: 2000, type: 'in' });
     bw.setDate(bw.getDate() + 14);
   }
-  // Semi-monthly: 15th and last day of month
   for (var y = 2026; y <= 2027; y++) {
     for (var m = 0; m < 12; m++) {
       var d15 = adjWknd(new Date(y, m, 15), true);
@@ -925,32 +1248,8 @@ function getScheduledEvents() {
     }
   }
 
-  // ── FIXED MONTHLY BILLS ──────────────────────────────────
-  var bills = [
-    [1,  'Life insurance NW Mutual', 250,  'out'],
-    [9,  'Student loan minimum',     386,  'out'],
-    [15, 'Life insurance NW Mutual', 250,  'out'],
-    [16, 'Mortgage',                 2710, 'out'],
-    [16, 'Solar bill',               266,  'out'],
-    [23, 'Gas bill',                 150,  'out'],
-    [26, 'Car loan',                 414,  'out'],
-    [27, 'T-Mobile',                 397,  'out'],
-  ];
-  for (var y2 = 2026; y2 <= 2027; y2++) {
-    for (var m2 = 0; m2 < 12; m2++) {
-      for (var bi = 0; bi < bills.length; bi++) {
-        var bd = bills[bi];
-        var d = new Date(y2, m2, bd[0]);
-        if (d > start && d <= end)
-          events.push({ date: d, name: bd[1], amt: bd[2], type: bd[3] });
-      }
-    }
-  }
-
-  // ── CREDIT CARD AUTO-PAY ─────────────────────────────────
-  // May 6 2026: last payment on old due date — fixed $6,000
+  // ── CC AUTO-PAY ─────────────────────────────────────────────────────────
   events.push({ date: new Date(2026, 4, 6), name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
-  // 19th each month from May 19 2026 onwards — uses actual CC spend
   for (var y3 = 2026; y3 <= 2027; y3++) {
     for (var m3 = 0; m3 < 12; m3++) {
       var d19 = new Date(y3, m3, 19);
@@ -959,72 +1258,58 @@ function getScheduledEvents() {
     }
   }
 
-  // ── WEEKLY ALLOWANCES (every Friday) ────────────────────
-  var fri = new Date(2026, 3, 10);
-  while (fri.getDay() !== 5) fri.setDate(fri.getDate() + 1);
-  while (fri <= end) {
-    events.push({ date: new Date(fri), name: 'Personal allowances', amt: 300, type: 'out' });
-    fri.setDate(fri.getDate() + 7);
-  }
+  // ── BILLS FROM getAllBills() ─────────────────────────────────────────────
+  var bills = getAllBills();
+  for (var bi = 0; bi < bills.length; bi++) {
+    var b = bills[bi];
 
-  // ── BI-WEEKLY: student loan extra ────────────────────────
-  var bw2 = new Date(2026, 3, 25);
-  while (bw2 <= end) {
-    events.push({ date: new Date(bw2), name: 'Student loan extra', amt: 300, type: 'out' });
-    bw2.setDate(bw2.getDate() + 14);
-  }
+    if (b.freq === 'monthly') {
+      for (var y2 = 2026; y2 <= 2027; y2++) {
+        for (var m2 = 0; m2 < 12; m2++) {
+          try {
+            var dd;
+            if (b.eom) {
+              dd = adjWknd(lastDay(y2, m2), false);
+              dd.setDate(dd.getDate() + 1);
+            } else {
+              dd = new Date(y2, m2, b.day);
+            }
+            if (dd > start && dd <= end)
+              events.push({ date: dd, name: b.name, amt: b.amt, type: b.type });
+          } catch(e) {}
+        }
+      }
+    }
 
-  // ── SINKING FUND TRANSFERS ───────────────────────────────
-  // Total: $1,716/mo split across two paydays
-  // After 15th paycheck: $858 (home/auto $366 + medical $200 + travel $200 + big $150 = $916... use $858)
-  // After last-day paycheck: $858
-  for (var y4 = 2026; y4 <= 2027; y4++) {
-    for (var m4 = 0; m4 < 12; m4++) {
-      // After 15th paycheck
-      var d16 = adjWknd(new Date(y4, m4, 16), true);
-      if (d16 > start && d16 <= end)
-        events.push({ date: d16, name: 'Sinking funds (post 15th)', amt: 858, type: 'save' });
-      // Day after last-day paycheck
-      var ldSave = adjWknd(lastDay(y4, m4), false);
-      ldSave.setDate(ldSave.getDate() + 1);
-      if (ldSave > start && ldSave <= end)
-        events.push({ date: ldSave, name: 'Sinking funds (post EOM)', amt: 858, type: 'save' });
+    else if (b.freq === 'biweekly') {
+      var bwStart = b.startDate ? new Date(b.startDate) : new Date(2026, 3, 10);
+      var bwD = new Date(bwStart);
+      while (bwD <= end) {
+        if (bwD > start)
+          events.push({ date: new Date(bwD), name: b.name, amt: b.amt, type: b.type });
+        bwD.setDate(bwD.getDate() + 14);
+      }
+    }
+
+    else if (b.freq === 'annual') {
+      for (var ay = 2026; ay <= 2027; ay++) {
+        var ad = new Date(ay, b.month, b.day);
+        if (ad > start && ad <= end)
+          events.push({ date: ad, name: b.name, amt: b.amt, type: b.type });
+      }
+    }
+
+    else if (b.freq === 'once') {
+      var od = new Date(b.year, b.month, b.day);
+      if (od > start && od <= end)
+        events.push({ date: od, name: b.name, amt: b.amt, type: b.type });
     }
   }
 
-  // ── IRREGULAR ONE-TIME EVENTS ────────────────────────────
-  var irr = [
-    [2026,3,19, 'Ecoshield quarterly',        141, 'out'],
-    [2026,3,20, 'Hamline tuition',            445, 'out'],
-    [2026,4,2,  'Fairview payment',           200, 'out'],
-    [2026,5,2,  'Fairview last payment',      200, 'out'],
-    [2026,6,16, 'Progressive insurance',      950, 'out'],
-    [2026,6,19, 'Ecoshield quarterly',        141, 'out'],
-    [2026,6,25, 'Noom renewal',               160, 'out'],
-    [2026,9,15, 'Eye clinic/contacts',       1044, 'out'],
-    [2026,9,19, 'Ecoshield quarterly',        141, 'out'],
-    [2026,9,25, 'Noom renewal',               160, 'out'],
-    [2026,10,15,'LinkedIn annual',             43, 'out'],
-    [2026,11,1, 'Calm annual',                 70, 'out'],
-    [2026,11,1, 'Crooked annual',              90, 'out'],
-    [2027,0,9,  'Hamline tuition',            445, 'out'],
-    [2027,0,16, 'Progressive insurance',      950, 'out'],
-    [2027,0,19, 'Ecoshield quarterly',        141, 'out'],
-    [2027,1,1,  'LastPass annual',             39, 'out'],
-    [2027,3,1,  'Ecoshield quarterly',        141, 'out'],
-  ];
-  for (var ii = 0; ii < irr.length; ii++) {
-    var ir = irr[ii];
-    var id = new Date(ir[0], ir[1], ir[2]);
-    if (id > start && id <= end)
-      events.push({ date: id, name: ir[3], amt: ir[4], type: ir[5] });
-  }
-
-  // Sort by date, income first on same day
-  events.sort(function(a, b) {
-    if (a.date - b.date !== 0) return a.date - b.date;
+  events.sort(function(a, b2) {
+    if (a.date - b2.date !== 0) return a.date - b2.date;
     var order = { in: 0, cc: 1, out: 2, save: 3 };
-    return (order[a.type] || 0) - (order[b.type] || 0);
+    return (order[a.type] || 0) - (order[b2.type] || 0);
   });
 
   return events;
@@ -1063,12 +1348,21 @@ function buildProjection() {
         amt = ev.amt; // May 6 fixed $6,000
       } else {
         // 19th payment covers spending logged in the previous month
-        // (e.g. May 19 payment covers April spending)
         var ccYear = ev.date.getFullYear();
         var ccMonth = ev.date.getMonth() - 1;
         if (ccMonth < 0) { ccMonth = 11; ccYear--; }
-        var ccSpend = getCCSpendForMonth(ccYear, ccMonth);
-        amt = ccSpend > 0 ? ccSpend : 3500; // fallback $3,500 estimate
+        // Check for manual override first
+        var overrideKey = 'cc_override_' + ccYear + '_' + ccMonth;
+        var override = localStorage.getItem(overrideKey);
+        if (override) {
+          amt = parseFloat(override);
+        } else {
+          // Use actual CC spend if entries exist, otherwise $6,000 placeholder
+          var ccSpend = getCCSpendForMonth(ccYear, ccMonth);
+          amt = ccSpend > 0 ? ccSpend : 6000;
+        }
+        ev.ccYear = ccYear;
+        ev.ccMonth = ccMonth;
         ev.amt = amt;
       }
     }
@@ -1265,13 +1559,42 @@ function renderBalTimeline() {
     var d = ev.date;
     var dateStr = (d.getMonth()+1) + '/' + d.getDate();
 
+    var ccEditBtn = '';
+    if (ev.type === 'cc' && !ev.fixedAmt) {
+      var overrideKey = 'cc_override_' + ev.ccYear + '_' + ev.ccMonth;
+      var hasOverride = localStorage.getItem(overrideKey);
+      var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var ccLabel = ev.ccYear !== undefined ? monthNames[ev.ccMonth] + ' ' + ev.ccYear : '';
+      var isEstimate = getCCSpendForMonth(ev.ccYear, ev.ccMonth) === 0 && !hasOverride;
+      ccEditBtn = ' <button onclick="editCCPayment(' + (ev.ccYear||0) + ',' + (ev.ccMonth||0) + ',' + Math.round(ev.amt) + ')" style="font-size:11px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">' + (isEstimate ? 'est.' : 'edit') + '</button>';
+    }
     row.innerHTML = '<span class="tl-event-date">' + dateStr + '</span>' +
-      '<span class="tl-event-name">' + ev.name + '</span>' +
+      '<span class="tl-event-name">' + ev.name + ccEditBtn + '</span>' +
       '<span class="tl-event-amt ' + typeClass + '">' + sign + fmt(ev.amt) + '</span>' +
       '<span class="tl-event-amt" style="min-width:80px;color:' + (ev.balance < FLOOR ? 'var(--red)' : ev.balance < 5000 ? 'var(--sun-dim)' : 'var(--grass-dim)') + '">' + fmt(ev.balance) + '</span>';
 
     container.appendChild(row);
   }
+}
+
+
+function editCCPayment(year, month, currentAmt) {
+  var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var label = monthNames[month] + ' ' + year;
+  var val = prompt('CC payment for ' + label + ' spending\n(leave blank to use actual entries or $6,000 estimate)', currentAmt);
+  if (val === null) return; // cancelled
+  var overrideKey = 'cc_override_' + year + '_' + month;
+  if (val === '' || val === '0') {
+    localStorage.removeItem(overrideKey);
+    toast('Reset to actual/estimate');
+  } else {
+    var n = parseFloat(val.replace(/[$,]/g,''));
+    if (!isNaN(n) && n > 0) {
+      localStorage.setItem(overrideKey, n);
+      toast('CC payment updated');
+    }
+  }
+  refreshBalance();
 }
 
 function balMonthNav(dir) {
