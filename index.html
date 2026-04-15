@@ -170,6 +170,23 @@ textarea { resize: none; }
 #toast.show { transform: translateX(-50%) translateY(0); }
 .setup-hint { font-size: 13px; color: var(--text-3); margin-top: 4px; font-style: italic; }
 
+
+/* ── MONTHLY BREAKDOWN ── */
+.monthly-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
+.month-card { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:10px 10px 8px; box-shadow:0 2px 0 var(--border); position:relative; overflow:hidden; }
+.month-card .mc-name { font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
+.month-card .mc-amt { font-size:20px; font-weight:600; color:var(--text); line-height:1.1; }
+.month-card .mc-budget { font-size:11px; color:var(--text-3); margin-top:2px; }
+.month-card .mc-bar { position:absolute; bottom:0; left:0; height:3px; border-radius:0 0 0 0; transition:width 0.4s; }
+.month-card.mc-over { border-color:var(--red); box-shadow:0 2px 0 #AA2222; }
+.month-card.mc-over .mc-amt { color:var(--red); }
+.month-card.mc-warn { border-color:var(--sun); box-shadow:0 2px 0 var(--sun-dim); }
+.month-card.mc-warn .mc-amt { color:var(--sun-dim); }
+.month-card.mc-good { border-color:var(--grass); box-shadow:0 2px 0 var(--grass-dim); }
+.month-card.mc-good .mc-amt { color:var(--grass-dim); }
+.month-card.mc-future { opacity:0.5; }
+.month-card.mc-current { border-width:2px; }
+
 /* ── BILL EDITOR ── */
 .bill-row { display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:0.5px solid var(--border); }
 .bill-row:last-child { border-bottom:none; }
@@ -265,7 +282,7 @@ textarea { resize: none; }
 </div>
 <div style="text-align:left;margin-top:4px">
 <label class="label">Quarterly budget ($)</label>
-<input id="setup-budget" type="number" placeholder="e.g. 6000" />
+<input id="setup-budget" type="number" placeholder="e.g. 10500" />
 </div>
 <p id="setup-err" class="err"></p>
 <button class="btn btn-coral btn-full" style="padding:14px;margin-top:6px;border-radius:var(--radius-sm)" onclick="doSetup()">Create household</button>
@@ -308,6 +325,15 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <div class="stat-box"><div class="s-label">Entries</div><div class="s-val" id="stat-entries" style="color:var(--coral)">0</div></div>
 <div class="stat-box"><div class="s-label">Daily avg</div><div class="s-val" id="stat-daily" style="color:var(--sky)">$0</div></div>
 </div>
+
+<div id="monthly-breakdown" style="margin-bottom:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div class="section-head" style="margin:0">This quarter by month</div>
+    <span id="monthly-budget-label" style="font-size:12px;color:var(--text-3)"></span>
+  </div>
+  <div class="monthly-grid" id="monthly-grid"></div>
+</div>
+
 <button class="btn btn-coral btn-full" style="padding:17px;border-radius:var(--radius-sm);margin-bottom:24px;font-size:18px" onclick="showScreen('screen-add')">+ Add expense</button>
 <div class="section-head">Recent entries</div>
 <div class="card" id="entries-list">
@@ -916,6 +942,7 @@ function refreshMain() {
   const dayOfQ = Math.max(Math.floor((d - qStart) / 86400000) + 1, 1);
   document.getElementById('stat-daily').textContent = fmt(tot / dayOfQ);
   renderEntriesList(entries.slice().reverse().slice(0, 10), 'entries-list', true, qKey);
+  renderMonthlyBreakdown();
 }
 
 function renderEntriesList(entries, containerId, allowDelete, qKey) {
@@ -1606,6 +1633,78 @@ function toggleBalFilter() {
   balShowAll = !balShowAll;
   document.getElementById('bal-filter-btn').textContent = balShowAll ? 'Bills only' : 'All';
   renderBalTimeline();
+}
+
+
+function renderMonthlyBreakdown() {
+  var now = new Date();
+  var qMonth = Math.floor(now.getMonth() / 3) * 3; // first month of current quarter
+  var qYear = now.getFullYear();
+  var monthBudget = Math.round((config.budget || 10500) / 3);
+
+  document.getElementById('monthly-budget-label').textContent = '$' + monthBudget.toLocaleString() + '/mo target';
+
+  var months = [
+    { m: qMonth,     y: qYear },
+    { m: qMonth + 1, y: qYear },
+    { m: qMonth + 2, y: qYear },
+  ];
+  // handle year rollover
+  months = months.map(function(x) {
+    if (x.m > 11) { return { m: x.m - 12, y: x.y + 1 }; }
+    return x;
+  });
+
+  var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var grid = document.getElementById('monthly-grid');
+  grid.innerHTML = '';
+
+  months.forEach(function(mo) {
+    var isFuture = (mo.y > now.getFullYear()) || (mo.y === now.getFullYear() && mo.m > now.getMonth());
+    var isCurrent = mo.y === now.getFullYear() && mo.m === now.getMonth();
+
+    // Sum entries for this month
+    var total = 0;
+    if (!isFuture) {
+      var qKey = mo.y + '_Q' + (Math.floor(mo.m / 3) + 1);
+      var entries = loadEntries(qKey);
+      entries.forEach(function(e) {
+        var d = new Date(e.ts);
+        if (d.getFullYear() === mo.y && d.getMonth() === mo.m) total += e.amt;
+      });
+    }
+
+    var pct = monthBudget > 0 ? Math.min(total / monthBudget * 100, 100) : 0;
+    var over = total > monthBudget;
+    var warn = !over && pct >= 80;
+    var good = !over && !warn && total > 0;
+
+    var card = document.createElement('div');
+    card.className = 'month-card' +
+      (isFuture ? ' mc-future' : '') +
+      (isCurrent ? ' mc-current' : '') +
+      (over ? ' mc-over' : warn ? ' mc-warn' : good ? ' mc-good' : '');
+
+    var barColor = over ? 'var(--red)' : warn ? 'var(--sun)' : 'var(--grass)';
+    var amtDisplay = isFuture ? '—' : ('$' + Math.round(total).toLocaleString());
+    var vsLabel = '';
+    if (!isFuture && total > 0) {
+      var diff = total - monthBudget;
+      vsLabel = (diff > 0 ? '+$' : '-$') + Math.abs(Math.round(diff)).toLocaleString();
+    } else if (isFuture) {
+      vsLabel = 'upcoming';
+    } else {
+      vsLabel = 'no entries yet';
+    }
+
+    card.innerHTML =
+      '<div class="mc-name">' + monthNames[mo.m] + (isCurrent ? ' ●' : '') + '</div>' +
+      '<div class="mc-amt">' + amtDisplay + '</div>' +
+      '<div class="mc-budget">' + vsLabel + '</div>' +
+      '<div class="mc-bar" style="width:' + pct.toFixed(1) + '%;background:' + barColor + '"></div>';
+
+    grid.appendChild(card);
+  });
 }
 
 document.getElementById('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
