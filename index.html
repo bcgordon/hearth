@@ -487,15 +487,18 @@ Non-essential: <strong id="lbl-n">$0</strong>
 
   <div class="card card-sky" style="margin-bottom:12px">
     <div class="bal-hero">
-      <div id="bal-current-amount" class="bal-amount bal-safe">$0</div>
-      <div class="bal-label">projected balance today</div>
+      <div id="bal-current-amount" class="bal-amount bal-safe">—</div>
+      <div class="bal-label">checking balance today</div>
     </div>
-    <div class="bal-input-row">
-      <label class="label" style="margin:0">Actual balance</label>
-      <input id="bal-actual-input" type="number" placeholder="enter real balance" step="0.01"
-        style="flex:1;max-width:180px" onchange="saveActualBalance(this.value)" />
+    <div style="margin-top:14px">
+      <label class="label" style="color:var(--sky)">Enter your actual balance to anchor the projection</label>
+      <div class="bal-input-row" style="margin:6px 0 0">
+        <input id="bal-actual-input" type="number" placeholder="e.g. 8200.00" step="0.01"
+          style="flex:1;font-size:26px;font-weight:600;color:var(--sky);padding:12px 14px;text-align:right"
+          oninput="onActualBalanceInput(this.value)" />
+      </div>
+      <div id="bal-anchor-info" style="font-size:12px;color:var(--text-3);text-align:right;margin-top:5px"></div>
     </div>
-    <div id="bal-variance" style="font-size:13px;color:var(--text-3);text-align:right;margin-top:-8px"></div>
   </div>
 
   <div class="card" style="margin-bottom:12px">
@@ -1386,34 +1389,39 @@ function getCCSpendForMonth(year, month) {
   return total;
 }
 
-// Build running balance projection
+// Build running balance projection anchored from actual balance entered today
 function buildProjection() {
   var events = getScheduledEvents();
-  var balance = STARTING_BALANCE;
   var today = new Date();
   today.setHours(0,0,0,0);
 
+  // Anchor: use actual balance if set, otherwise fall back to STARTING_BALANCE
+  var anchorBalance = balActualBalance !== null ? balActualBalance :
+    (localStorage.getItem('bal_actual') ? parseFloat(localStorage.getItem('bal_actual')) : STARTING_BALANCE);
+  var anchorDate = new Date(today); // anchor is always "today"
+
+  // Walk forward from today only — skip past events
+  var balance = anchorBalance;
   var projection = [];
+
   for (var i = 0; i < events.length; i++) {
     var ev = events[i];
+    if (ev.date < today) continue; // skip events already in the past
+
     var amt = ev.amt;
 
     // For CC auto-pay rows
     if (ev.type === 'cc') {
       if (ev.fixedAmt) {
-        amt = ev.amt; // May 6 fixed $6,000
+        amt = ev.amt;
       } else {
-        // 19th payment covers spending from ~20th of prior month to 19th of this month
-        // For projection purposes we use the current month's entries
         var ccYear = ev.date.getFullYear();
         var ccMonth = ev.date.getMonth();
-        // Check for manual override first
         var overrideKey = 'cc_override_' + ccYear + '_' + ccMonth;
         var override = localStorage.getItem(overrideKey);
         if (override) {
           amt = parseFloat(override);
         } else {
-          // Use actual CC spend if entries exist, otherwise $6,000 placeholder
           var ccSpend = getCCSpendForMonth(ccYear, ccMonth);
           amt = ccSpend > 0 ? ccSpend : 3500;
         }
@@ -1435,7 +1443,10 @@ function buildProjection() {
       amt: amt,
       type: ev.type,
       balance: Math.round(balance),
-      past: ev.date < today,
+      past: false,
+      fixedAmt: ev.fixedAmt,
+      ccYear: ev.ccYear,
+      ccMonth: ev.ccMonth,
     });
   }
   return projection;
@@ -1457,37 +1468,37 @@ function refreshBalance() {
 }
 
 function updateBalHero() {
-  var today = new Date(); today.setHours(0,0,0,0);
-  var current = STARTING_BALANCE;
-  for (var i = 0; i < balProjection.length; i++) {
-    if (balProjection[i].date <= today) current = balProjection[i].balance;
-    else break;
-  }
+  var saved = localStorage.getItem('bal_actual');
+  var savedDate = localStorage.getItem('bal_actual_date');
   var el = document.getElementById('bal-current-amount');
-  el.textContent = '$' + Math.round(Math.abs(current)).toLocaleString('en-US');
-  el.className = 'bal-amount ' + (current >= 5000 ? 'bal-safe' : current >= FLOOR ? 'bal-warn' : 'bal-danger');
+  var infoEl = document.getElementById('bal-anchor-info');
 
-  // Variance
-  var actual = balActualBalance;
-  if (actual === null) {
-    var saved = localStorage.getItem('bal_actual');
-    if (saved) { actual = parseFloat(saved); balActualBalance = actual; }
-  }
-  if (actual !== null) {
-    document.getElementById('bal-actual-input').value = actual;
-    var diff = actual - current;
-    var varEl = document.getElementById('bal-variance');
-    varEl.textContent = (diff >= 0 ? '+' : '') + '$' + Math.round(Math.abs(diff)).toLocaleString() + ' vs projection';
-    varEl.style.color = Math.abs(diff) < 200 ? 'var(--grass)' : Math.abs(diff) < 500 ? 'var(--sun)' : 'var(--red)';
+  if (saved) {
+    var n = parseFloat(saved);
+    balActualBalance = n;
+    document.getElementById('bal-actual-input').value = n;
+    el.textContent = '$' + Math.round(n).toLocaleString('en-US');
+    el.className = 'bal-amount ' + (n >= 5000 ? 'bal-safe' : n >= FLOOR ? 'bal-warn' : 'bal-danger');
+    if (savedDate) {
+      var d = new Date(parseInt(savedDate));
+      var days = Math.round((new Date() - d) / 86400000);
+      infoEl.textContent = 'Last updated ' + (days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago') + ' — projection runs forward from this';
+    }
+  } else {
+    el.textContent = '—';
+    el.className = 'bal-amount bal-warn';
+    infoEl.textContent = 'Enter your actual balance above to start the projection';
   }
 }
 
-function saveActualBalance(val) {
+function onActualBalanceInput(val) {
   var n = parseFloat(val);
-  if (!isNaN(n)) {
+  if (!isNaN(n) && n > 0) {
     balActualBalance = n;
     localStorage.setItem('bal_actual', n);
+    localStorage.setItem('bal_actual_date', Date.now());
     updateBalHero();
+    refreshBalance();
   }
 }
 
