@@ -1647,7 +1647,7 @@ function renderBalTimeline() {
     var evKey = ev.date.getFullYear() + '-' + ev.date.getMonth() + '-' + ev.date.getDate() + '-' + ev.name.replace(/\s/g,'_');
     var today2 = new Date(); today2.setHours(0,0,0,0);
     var isToday = ev.date.getTime() === today2.getTime();
-    var actionBtn = '<button onclick="dismissEvent('' + evKey + '')" style="font-size:11px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">skip</button>';
+    var actionBtn = '<button onclick="dismissEvent(&quot;' + evKey + '&quot;)" style="font-size:11px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">skip</button>';
 
     row.innerHTML = '<span class="tl-event-date">' + dateStr + '</span>' +
       '<span class="tl-event-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">' + ev.name + ccEditBtn + actionBtn + '</span>' +
