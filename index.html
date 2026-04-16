@@ -1782,7 +1782,7 @@ function getScheduledEvents() {
               dd = new Date(y2, m2, b.day);
             }
             if (dd > start && dd <= end && b.paidBy !== 'cc')
-              events.push({ date: dd, name: b.name, amt: b.amt, type: b.type });
+              events.push({ date: dd, name: b.name, amt: b.amt, type: b.type, billId: b.id });
           } catch(e) {}
         }
       }
@@ -1798,7 +1798,7 @@ function getScheduledEvents() {
       }
       while (wkD <= end) {
         if (wkD > start)
-          events.push({ date: new Date(wkD), name: b.name, amt: b.amt, type: b.type });
+          events.push({ date: new Date(wkD), name: b.name, amt: b.amt, type: b.type, billId: b.id });
         wkD.setDate(wkD.getDate() + 7);
       }
     }
@@ -1807,7 +1807,7 @@ function getScheduledEvents() {
       var bwD = new Date(bwStart);
       while (bwD <= end) {
         if (bwD > start)
-          events.push({ date: new Date(bwD), name: b.name, amt: b.amt, type: b.type });
+          events.push({ date: new Date(bwD), name: b.name, amt: b.amt, type: b.type, billId: b.id });
         bwD.setDate(bwD.getDate() + 14);
       }
     }
@@ -1816,14 +1816,14 @@ function getScheduledEvents() {
       for (var ay = 2026; ay <= 2027; ay++) {
         var ad = new Date(ay, b.month, b.day);
         if (ad > start && ad <= end)
-          events.push({ date: ad, name: b.name, amt: b.amt, type: b.type });
+          events.push({ date: ad, name: b.name, amt: b.amt, type: b.type, billId: b.id });
       }
     }
 
     else if (b.freq === 'once') {
       var od = new Date(b.year, b.month, b.day);
       if (od > start && od <= end)
-        events.push({ date: od, name: b.name, amt: b.amt, type: b.type });
+        events.push({ date: od, name: b.name, amt: b.amt, type: b.type, billId: b.id });
     }
   }
 
@@ -1910,6 +1910,17 @@ function buildProjection() {
         }
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
+        ev.amt = amt;
+      }
+    }
+
+    // Apply per-occurrence bill override if set
+    if (ev.billId && ev.type !== 'cc') {
+      var d2 = ev.date;
+      var billOverrideKey = 'bill_override_' + ev.billId + '_' + d2.getFullYear() + '_' + d2.getMonth() + '_' + d2.getDate();
+      var billOverride = localStorage.getItem(billOverrideKey);
+      if (billOverride !== null) {
+        amt = parseFloat(billOverride);
         ev.amt = amt;
       }
     }
@@ -2133,6 +2144,14 @@ function renderBalTimeline() {
       var isEstimate = getCCSpendForMonth(ev.ccYear, ev.ccMonth) === 0 && !hasOverride;
       ccEditBtn = ' <button onclick="editCCPayment(' + (ev.ccYear||0) + ',' + (ev.ccMonth||0) + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">' + (isEstimate ? 'est.' : 'edit') + '</button>';
     }
+    // Bill override edit button for non-CC, non-income bills
+    if (ev.billId && ev.type !== 'in' && ev.type !== 'cc') {
+      var d = ev.date;
+      var billOverrideKey = 'bill_override_' + ev.billId + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate();
+      var hasBillOverride = localStorage.getItem(billOverrideKey);
+      var billEditLabel = hasBillOverride ? 'edit' : 'edit';
+      ccEditBtn += ' <button onclick="editBillEvent(' + JSON.stringify(ev.billId) + ',' + d.getFullYear() + ',' + d.getMonth() + ',' + d.getDate() + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">edit</button>';
+    }
     var evKey = ev.date.getFullYear() + '-' + ev.date.getMonth() + '-' + ev.date.getDate() + '-' + ev.name.replace(/\s/g,'_');
     var today2 = new Date(); today2.setHours(0,0,0,0);
     var isToday = ev.date.getTime() === today2.getTime();
@@ -2182,6 +2201,25 @@ function editCCPayment(year, month, currentAmt) {
   refreshBalance();
 }
 
+
+function editBillEvent(billId, year, month, day, currentAmt) {
+  var billOverrideKey = 'bill_override_' + billId + '_' + year + '_' + month + '_' + day;
+  var d = new Date(year, month, day);
+  var label = (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
+  var val = prompt('Override amount for ' + label + '\n(leave blank to reset to scheduled amount)', currentAmt);
+  if (val === null) return;
+  if (val === '' || val === '0') {
+    localStorage.removeItem(billOverrideKey);
+    toast('Reset to scheduled amount');
+  } else {
+    var n = parseFloat(val.replace(/[$,]/g,''));
+    if (!isNaN(n) && n >= 0) {
+      localStorage.setItem(billOverrideKey, n);
+      toast('Amount updated');
+    }
+  }
+  refreshBalance();
+}
 
 function renderCashflowGrid() {
   var grid = document.getElementById('cf-grid');
