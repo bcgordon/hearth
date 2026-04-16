@@ -1951,19 +1951,27 @@ function refreshBalance() {
 }
 
 function updateBalHero() {
-  var saved = localStorage.getItem('bal_actual');
-  var savedDate = localStorage.getItem('bal_actual_date');
+  // Prefer Supabase record, fall back to localStorage
+  var cloudBal = record && record.balance;
+  var amt = cloudBal ? cloudBal.amt : parseFloat(localStorage.getItem('bal_actual'));
+  var ts = cloudBal ? cloudBal.updated : parseInt(localStorage.getItem('bal_actual_date'));
+
+  // Sync cloud value into localStorage for offline use
+  if (cloudBal) {
+    localStorage.setItem('bal_actual', cloudBal.amt);
+    localStorage.setItem('bal_actual_date', cloudBal.updated);
+  }
+
   var el = document.getElementById('bal-current-amount');
   var infoEl = document.getElementById('bal-anchor-info');
 
-  if (saved) {
-    var n = parseFloat(saved);
-    balActualBalance = n;
-    document.getElementById('bal-actual-input').value = n;
-    el.textContent = '$' + Math.round(n).toLocaleString('en-US');
-    el.className = 'bal-amount ' + (n >= 5000 ? 'bal-safe' : n >= FLOOR ? 'bal-warn' : 'bal-danger');
-    if (savedDate) {
-      var d = new Date(parseInt(savedDate));
+  if (amt && !isNaN(amt)) {
+    balActualBalance = amt;
+    document.getElementById('bal-actual-input').value = amt;
+    el.textContent = '$' + Math.round(amt).toLocaleString('en-US');
+    el.className = 'bal-amount ' + (amt >= 5000 ? 'bal-safe' : amt >= FLOOR ? 'bal-warn' : 'bal-danger');
+    if (ts) {
+      var d = new Date(ts);
       var days = Math.round((new Date() - d) / 86400000);
       infoEl.textContent = 'Last updated ' + (days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago') + ' — projection runs forward from this';
     }
@@ -1978,8 +1986,13 @@ function onActualBalanceInput(val) {
   var n = parseFloat(val);
   if (!isNaN(n) && n > 0) {
     balActualBalance = n;
+    var ts = Date.now();
     localStorage.setItem('bal_actual', n);
-    localStorage.setItem('bal_actual_date', Date.now());
+    localStorage.setItem('bal_actual_date', ts);
+    if (record) {
+      record.balance = { amt: n, updated: ts };
+      cloudSet(record);
+    }
     updateBalHero();
     refreshBalance();
   }
