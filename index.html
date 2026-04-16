@@ -462,6 +462,10 @@ Non-essential: <strong id="lbl-n">$0</strong>
   </div>
 
   <div class="card" style="margin-bottom:12px">
+    <div class="section-head">Income</div>
+    <div id="bills-list-income"></div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
     <div class="section-head">Monthly bills</div>
     <div id="bills-list-monthly"></div>
   </div>
@@ -1054,6 +1058,9 @@ function doLock() {
 // Default hardcoded bills — stored in Supabase under record.bills
 // Users can add/edit/delete custom bills, which merge with the hardcoded ones
 var DEFAULT_BILLS = [
+  { id:'hc_inc_bw',  name:'Bi-weekly paycheck',      amt:2000, freq:'biweekly', startDate:'2026-04-10', type:'in' },
+  { id:'hc_inc_15',  name:'Semi-monthly paycheck (15th)', amt:4300, day:15, freq:'monthly', type:'in' },
+  { id:'hc_inc_eom', name:'Semi-monthly paycheck (last day)', amt:4300, day:28, freq:'monthly', type:'in', eom:true },
   { id:'hc_life1',  name:'Life insurance NW Mutual', amt:250,  day:1,  freq:'monthly', type:'out' },
   { id:'hc_sl_min', name:'Student loan minimum',     amt:386,  day:9,  freq:'monthly', type:'out' },
   { id:'hc_life2',  name:'Life insurance NW Mutual', amt:250,  day:15, freq:'monthly', type:'out' },
@@ -1108,8 +1115,9 @@ function getBillFreqLabel(b) {
 
 function renderBillsList() {
   var bills = getAllBills();
-  var monthly   = bills.filter(function(b) { return b.freq === 'monthly'; });
-  var biweekly  = bills.filter(function(b) { return b.freq === 'biweekly'; });
+  var income    = bills.filter(function(b) { return b.type === 'in'; });
+  var monthly   = bills.filter(function(b) { return b.freq === 'monthly'  && b.type !== 'in'; });
+  var biweekly  = bills.filter(function(b) { return b.freq === 'biweekly' && b.type !== 'in'; });
   var once      = bills.filter(function(b) { return b.freq === 'once' || b.freq === 'annual'; });
 
   function renderGroup(listId, group) {
@@ -1131,6 +1139,7 @@ function renderBillsList() {
     });
   }
 
+  renderGroup('bills-list-income',   income);
   renderGroup('bills-list-monthly',  monthly);
   renderGroup('bills-list-biweekly', biweekly);
   renderGroup('bills-list-once',     once);
@@ -1289,22 +1298,8 @@ function getScheduledEvents() {
   }
   function lastDay(y, m) { return new Date(y, m + 1, 0); }
 
-  // ── INCOME: paychecks are always hardcoded ───────────────────────────────
-  var bw = new Date(2026, 3, 10);
-  while (bw <= end) {
-    events.push({ date: new Date(bw), name: 'Bi-weekly paycheck', amt: 2000, type: 'in' });
-    bw.setDate(bw.getDate() + 14);
-  }
-  for (var y = 2026; y <= 2027; y++) {
-    for (var m = 0; m < 12; m++) {
-      var d15 = adjWknd(new Date(y, m, 15), true);
-      if (d15 > start && d15 <= end)
-        events.push({ date: d15, name: 'Semi-monthly paycheck', amt: 4300, type: 'in' });
-      var ld = adjWknd(lastDay(y, m), false);
-      if (ld > start && ld <= end)
-        events.push({ date: ld, name: 'Semi-monthly paycheck', amt: 4300, type: 'in' });
-    }
-  }
+  // ── INCOME: driven by getAllBills() like everything else ─────────────────
+  // (bi-weekly and semi-monthly paychecks are in DEFAULT_BILLS and editable)
 
   // ── CC AUTO-PAY ─────────────────────────────────────────────────────────
   events.push({ date: new Date(2026, 4, 6), name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
