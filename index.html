@@ -2143,7 +2143,7 @@ function renderBalTimeline() {
       var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       var ccLabel = ev.ccYear !== undefined ? monthNames[ev.ccMonth] + ' ' + ev.ccYear : '';
       var isEstimate = getCCSpendForMonth(ev.ccYear, ev.ccMonth) === 0 && !hasOverride;
-      ccEditBtn = ' <button onclick="editCCPayment(' + (ev.ccYear||0) + ',' + (ev.ccMonth||0) + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">' + (isEstimate ? 'est.' : 'edit') + '</button>';
+      ccEditBtn = ' <button onclick="editCCPayment(' + (ev.ccYear||0) + ',' + (ev.ccMonth||0) + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:6px 10px;min-height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">' + (isEstimate ? 'est.' : 'edit') + '</button>';
     }
     // Bill override edit button for non-CC, non-income bills
     if (ev.billId && ev.type !== 'in' && ev.type !== 'cc') {
@@ -2151,12 +2151,12 @@ function renderBalTimeline() {
       var billOverrideKey = 'bill_override_' + ev.billId + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate();
       var hasBillOverride = localStorage.getItem(billOverrideKey);
       var billEditLabel = hasBillOverride ? 'edit' : 'edit';
-      ccEditBtn += ' <button onclick="editBillEvent(' + JSON.stringify(ev.billId) + ',' + d.getFullYear() + ',' + d.getMonth() + ',' + d.getDate() + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">edit</button>';
+      ccEditBtn += ' <button onclick="editBillEvent(' + JSON.stringify(ev.billId) + ',' + d.getFullYear() + ',' + d.getMonth() + ',' + d.getDate() + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:6px 10px;min-height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">edit</button>';
     }
     var evKey = ev.date.getFullYear() + '-' + ev.date.getMonth() + '-' + ev.date.getDate() + '-' + ev.name.replace(/\s/g,'_');
     var today2 = new Date(); today2.setHours(0,0,0,0);
     var isToday = ev.date.getTime() === today2.getTime();
-    var actionBtn = '<button onclick="dismissEvent(&quot;' + evKey + '&quot;)" style="font-size:14px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">skip</button>';
+    var actionBtn = '<button onclick="dismissEvent(&quot;' + evKey + '&quot;)" style="font-size:14px;padding:6px 10px;min-height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">skip</button>';
 
     row.innerHTML = '<span class="tl-event-date">' + dateStr + '</span>' +
       '<span class="tl-event-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;' + (ev.type === 'save' ? 'color:var(--sky-dim)' : '') + '">' + ev.name + ccEditBtn + actionBtn + '</span>' +
