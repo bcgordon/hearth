@@ -709,6 +709,13 @@ Non-essential: <strong id="lbl-n">$0</strong>
             <button class="freq-pill" data-btype="save" onclick="selectBillType('save')">Savings transfer</button>
           </div>
         </div>
+        <div id="bf-paidby-wrap">
+          <label class="label">Paid by</label>
+          <div class="freq-pills">
+            <button class="freq-pill active" data-paidby="checking" onclick="selectPaidBy('checking')">Checking</button>
+            <button class="freq-pill" data-paidby="cc" onclick="selectPaidBy('cc')">Credit card</button>
+          </div>
+        </div>
         <p id="bf-err" class="err"></p>
         <button class="btn btn-coral btn-full" style="padding:13px" onclick="saveBill()">Save bill</button>
         <button class="btn btn-ghost btn-full" onclick="hideBillForm()">Cancel</button>
@@ -1361,6 +1368,12 @@ var DEFAULT_BILLS = [
   { id:'hc_sf_med',    name:'Medical & pets',         amt:200, day:17, freq:'monthly', type:'save' },
   { id:'hc_sf_travel', name:'Travel fund',            amt:200, day:17, freq:'monthly', type:'save' },
   { id:'hc_sf_big',    name:'Big purchases',          amt:150, day:17, freq:'monthly', type:'save' },
+  { id:'hc_cc_netflix',  name:'Netflix',           amt:27,  day:31, freq:'monthly', type:'out', paidBy:'cc' },
+  { id:'hc_cc_ymca',     name:'YMCA',              amt:0,   day:8,  freq:'monthly', type:'out', paidBy:'cc', note:'check amount' },
+  { id:'hc_cc_apple',    name:'Apple One',          amt:31,  day:8,  freq:'monthly', type:'out', paidBy:'cc' },
+  { id:'hc_cc_vet',      name:'Advanced Vet Care',  amt:59,  day:11, freq:'monthly', type:'out', paidBy:'cc' },
+  { id:'hc_cc_comcast',  name:'Comcast',            amt:117, day:19, freq:'monthly', type:'out', paidBy:'cc' },
+  { id:'hc_cc_spotify',  name:'Spotify',            amt:34,  day:21, freq:'monthly', type:'out', paidBy:'cc' },
   { id:'hc_eco1',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:3,  day:19, year:2026, type:'out' },
   { id:'hc_ham1',   name:'Hamline tuition',          amt:445,  freq:'once', month:3,  day:20, year:2026, type:'out' },
   { id:'hc_fair1',  name:'Fairview payment',         amt:200,  freq:'once', month:4,  day:2,  year:2026, type:'out' },
@@ -1419,7 +1432,7 @@ function renderBillsList() {
       var typeColor = b.type === 'in' ? 'var(--grass)' : b.type === 'save' ? 'var(--text-3)' : 'var(--coral)';
       row.innerHTML = '<div class="bill-info">' +
         '<div class="bill-name">' + b.name + '</div>' +
-        '<div class="bill-detail">' + getBillFreqLabel(b) + ' &middot; ' + (b.type === 'in' ? 'Income' : b.type === 'save' ? 'Savings' : 'Bill') + '</div>' +
+        '<div class="bill-detail">' + getBillFreqLabel(b) + ' &middot; ' + (b.type === 'in' ? 'Income' : b.type === 'save' ? 'Savings' : 'Bill') + (b.paidBy === 'cc' ? ' &middot; <span style="color:var(--sky-dim)">CC</span>' : '') + '</div>' +
         '</div>' +
         '<div class="bill-amt" style="color:' + typeColor + '">$' + b.amt.toLocaleString() + '</div>' +
         '<button class="bill-edit-btn" onclick="editBill(\'' + b.id + '\')">Edit</button>' +
@@ -1437,10 +1450,11 @@ function renderBillsList() {
 var editingBillId = null;
 var billFreq = 'monthly';
 var billType = 'out';
+var billPaidBy = 'checking';
 
 function showAddBill() {
   editingBillId = null;
-  billFreq = 'monthly'; billType = 'out';
+  billFreq = 'monthly'; billType = 'out'; billPaidBy = 'checking';
   document.getElementById('bf-name').value = '';
   document.getElementById('bf-amt').value = '';
   document.getElementById('bf-day').value = '';
@@ -1448,6 +1462,9 @@ function showAddBill() {
   document.getElementById('bill-form-title').textContent = 'Add bill';
   updateFreqUI();
   updateBillTypeUI();
+  selectPaidBy(billPaidBy);
+  var pbWrap = document.getElementById('bf-paidby-wrap');
+  if (pbWrap) pbWrap.style.display = (billType === 'out') ? 'block' : 'none';
   document.getElementById('bill-form-wrap').style.display = 'block';
   document.getElementById('bf-name').focus();
 }
@@ -1464,6 +1481,7 @@ function editBill(id) {
   editingBillId = id;
   billFreq = b.freq;
   billType = b.type;
+  billPaidBy = b.paidBy || 'checking';
   document.getElementById('bf-name').value = b.name;
   document.getElementById('bf-amt').value = b.amt;
   document.getElementById('bf-day').value = b.day || '';
@@ -1510,6 +1528,7 @@ async function saveBill() {
     amt: amt,
     freq: billFreq,
     type: billType,
+    paidBy: billType === 'out' ? billPaidBy : 'checking',
     day: day || 1,
   };
 
@@ -1561,11 +1580,21 @@ function updateFreqUI() {
 function selectBillType(t) {
   billType = t;
   updateBillTypeUI();
+  // Show paidBy only for expenses
+  var pbWrap = document.getElementById('bf-paidby-wrap');
+  if (pbWrap) pbWrap.style.display = (t === 'out') ? 'block' : 'none';
 }
 
 function updateBillTypeUI() {
   document.querySelectorAll('[data-btype]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.btype === billType);
+  });
+}
+
+function selectPaidBy(p) {
+  billPaidBy = p;
+  document.querySelectorAll('[data-paidby]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.paidby === p);
   });
 }
 
@@ -1751,7 +1780,7 @@ function getScheduledEvents() {
             } else {
               dd = new Date(y2, m2, b.day);
             }
-            if (dd > start && dd <= end)
+            if (dd > start && dd <= end && b.paidBy !== 'cc')
               events.push({ date: dd, name: b.name, amt: b.amt, type: b.type });
           } catch(e) {}
         }
@@ -1806,8 +1835,9 @@ function getScheduledEvents() {
   return events;
 }
 
-// Get CC spending total for a given month from Supabase entries
+// Get CC spending total for a given month — app entries PLUS fixed CC-billed bills
 function getCCSpendForMonth(year, month) {
+  // App-logged expenses
   var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
   var entries = loadEntries(qKey);
   var total = 0;
@@ -1816,6 +1846,14 @@ function getCCSpendForMonth(year, month) {
     var d = new Date(e.ts);
     if (d.getFullYear() === year && d.getMonth() === month) {
       total += e.amt;
+    }
+  }
+  // Fixed CC-billed bills (e.g. Netflix, Comcast, etc.)
+  var bills = getAllBills();
+  for (var j = 0; j < bills.length; j++) {
+    var b = bills[j];
+    if (b.paidBy === 'cc' && b.type === 'out' && b.freq === 'monthly' && b.amt > 0) {
+      total += b.amt;
     }
   }
   return total;
