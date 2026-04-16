@@ -1526,6 +1526,12 @@ const STARTING_BALANCE = 6500;
 const FLOOR = 2000;
 
 // All scheduled events — hardcoded since they're fixed
+function parseDateLocal(s) {
+  // Parse YYYY-MM-DD as LOCAL time (not UTC) to avoid timezone shift
+  var p = s.split('-');
+  return new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]));
+}
+
 function getScheduledEvents() {
   var events = [];
   var start = new Date(2026, 3, 10);
@@ -1578,7 +1584,7 @@ function getScheduledEvents() {
     }
 
     else if (b.freq === 'weekly') {
-      var wkStart = b.startDate ? new Date(b.startDate) : new Date(2026, 3, 10);
+      var wkStart = b.startDate ? parseDateLocal(b.startDate) : new Date(2026, 3, 10);
       var wkD = new Date(wkStart);
       // Advance to correct day of week if day specified
       if (b.day) {
@@ -1592,7 +1598,7 @@ function getScheduledEvents() {
       }
     }
     else if (b.freq === 'biweekly') {
-      var bwStart = b.startDate ? new Date(b.startDate) : new Date(2026, 3, 10);
+      var bwStart = b.startDate ? parseDateLocal(b.startDate) : new Date(2026, 3, 10);
       var bwD = new Date(bwStart);
       while (bwD <= end) {
         if (bwD > start)
