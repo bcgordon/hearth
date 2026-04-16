@@ -1300,7 +1300,7 @@ function doLock() {
 var DEFAULT_BILLS = [
   { id:'hc_inc_bw',  name:'Bi-weekly paycheck',      amt:2000, freq:'biweekly', startDate:'2026-04-10', type:'in' },
   { id:'hc_inc_15',  name:'Semi-monthly paycheck (15th)', amt:4300, day:15, freq:'monthly', type:'in' },
-  { id:'hc_inc_eom', name:'Semi-monthly paycheck (last day)', amt:4300, day:28, freq:'monthly', type:'in', eom:true },
+  { id:'hc_inc_eom', name:'Semi-monthly paycheck (last day)', amt:4300, day:1, freq:'monthly', type:'in', eom:true },
   { id:'hc_life1',  name:'Life insurance NW Mutual', amt:250,  day:1,  freq:'monthly', type:'out' },
   { id:'hc_sl_min', name:'Student loan minimum',     amt:386,  day:9,  freq:'monthly', type:'out' },
   { id:'hc_life2',  name:'Life insurance NW Mutual', amt:250,  day:15, freq:'monthly', type:'out' },
@@ -1312,7 +1312,7 @@ var DEFAULT_BILLS = [
   { id:'hc_allow',  name:'Personal allowances',      amt:300,  freq:'weekly',   startDate:'2026-04-10', day:5, type:'out' },
   { id:'hc_sl_ext', name:'Student loan extra',       amt:300,  freq:'biweekly', startDate:'2026-04-25', type:'out' },
   { id:'hc_sf1',    name:'Sinking funds (post 15th)',amt:858,  day:16, freq:'monthly', type:'save' },
-  { id:'hc_sf2',    name:'Sinking funds (post EOM)', amt:858,  day:17, freq:'monthly', type:'save', eom:true },
+  { id:'hc_sf2',    name:'Sinking funds (post EOM)', amt:858,  day:17, freq:'monthly', type:'save' },
   { id:'hc_eco1',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:3,  day:19, year:2026, type:'out' },
   { id:'hc_ham1',   name:'Hamline tuition',          amt:445,  freq:'once', month:3,  day:20, year:2026, type:'out' },
   { id:'hc_fair1',  name:'Fairview payment',         amt:200,  freq:'once', month:4,  day:2,  year:2026, type:'out' },
@@ -1564,8 +1564,9 @@ function getScheduledEvents() {
           try {
             var dd;
             if (b.eom) {
+              // Last working day of month, adjusted backwards (Friday if weekend)
+              // Never adds a day — stays within the correct month
               dd = adjWknd(lastDay(y2, m2), false);
-              dd.setDate(dd.getDate() + 1);
             } else {
               dd = new Date(y2, m2, b.day);
             }
