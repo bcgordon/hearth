@@ -424,6 +424,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
           <label class="label">Frequency</label>
           <div class="freq-pills">
             <button class="freq-pill active" data-freq="monthly" onclick="selectFreq('monthly')">Monthly</button>
+            <button class="freq-pill" data-freq="weekly" onclick="selectFreq('weekly')">Weekly</button>
             <button class="freq-pill" data-freq="biweekly" onclick="selectFreq('biweekly')">Bi-weekly</button>
             <button class="freq-pill" data-freq="annual" onclick="selectFreq('annual')">Annual</button>
             <button class="freq-pill" data-freq="once" onclick="selectFreq('once')">One-time</button>
@@ -470,7 +471,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
     <div id="bills-list-monthly"></div>
   </div>
   <div class="card" style="margin-bottom:12px">
-    <div class="section-head">Bi-weekly</div>
+    <div class="section-head">Weekly &amp; bi-weekly</div>
     <div id="bills-list-biweekly"></div>
   </div>
   <div class="card" style="margin-bottom:12px">
@@ -1070,7 +1071,7 @@ var DEFAULT_BILLS = [
   { id:'hc_gas',    name:'Gas bill',                 amt:150,  day:23, freq:'monthly', type:'out' },
   { id:'hc_car',    name:'Car loan',                 amt:414,  day:26, freq:'monthly', type:'out' },
   { id:'hc_tmob',   name:'T-Mobile',                 amt:397,  day:27, freq:'monthly', type:'out' },
-  { id:'hc_allow',  name:'Personal allowances',      amt:300,  freq:'biweekly', startDate:'2026-04-10', type:'out' },
+  { id:'hc_allow',  name:'Personal allowances',      amt:300,  freq:'weekly',   startDate:'2026-04-10', day:5, type:'out' },
   { id:'hc_sl_ext', name:'Student loan extra',       amt:300,  freq:'biweekly', startDate:'2026-04-25', type:'out' },
   { id:'hc_sf1',    name:'Sinking funds (post 15th)',amt:858,  day:16, freq:'monthly', type:'save' },
   { id:'hc_sf2',    name:'Sinking funds (post EOM)', amt:858,  day:17, freq:'monthly', type:'save', eom:true },
@@ -1105,6 +1106,7 @@ function getAllBills() {
 
 function getBillFreqLabel(b) {
   if (b.freq === 'monthly') return 'Monthly, day ' + b.day;
+  if (b.freq === 'weekly')   return 'Weekly, day ' + b.day;
   if (b.freq === 'biweekly') return 'Bi-weekly';
   if (b.freq === 'annual') return 'Annual, month ' + b.month + ' day ' + b.day;
   if (b.freq === 'once') {
@@ -1118,7 +1120,7 @@ function renderBillsList() {
   var bills = getAllBills();
   var income    = bills.filter(function(b) { return b.type === 'in'; });
   var monthly   = bills.filter(function(b) { return b.freq === 'monthly'  && b.type !== 'in'; });
-  var biweekly  = bills.filter(function(b) { return b.freq === 'biweekly' && b.type !== 'in'; });
+  var biweekly  = bills.filter(function(b) { return (b.freq === 'biweekly' || b.freq === 'weekly') && b.type !== 'in'; });
   var once      = bills.filter(function(b) { return b.freq === 'once' || b.freq === 'annual'; });
 
   function renderGroup(listId, group) {
@@ -1336,6 +1338,20 @@ function getScheduledEvents() {
       }
     }
 
+    else if (b.freq === 'weekly') {
+      var wkStart = b.startDate ? new Date(b.startDate) : new Date(2026, 3, 10);
+      var wkD = new Date(wkStart);
+      // Advance to correct day of week if day specified
+      if (b.day) {
+        var dayMap = { 0:'Sun',1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat' };
+        while (wkD.getDay() !== b.day % 7) wkD.setDate(wkD.getDate() + 1);
+      }
+      while (wkD <= end) {
+        if (wkD > start)
+          events.push({ date: new Date(wkD), name: b.name, amt: b.amt, type: b.type });
+        wkD.setDate(wkD.getDate() + 7);
+      }
+    }
     else if (b.freq === 'biweekly') {
       var bwStart = b.startDate ? new Date(b.startDate) : new Date(2026, 3, 10);
       var bwD = new Date(bwStart);
