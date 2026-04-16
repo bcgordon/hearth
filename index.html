@@ -1026,7 +1026,7 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
   if (id === 'screen-balance') { refreshBalance(); }
-  if (id === 'screen-funds') { renderFunds(); }
+  if (id === 'screen-funds') { refreshFunds(); }
   if (id === 'screen-bills') { renderBillsList(); }
   if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
   if (id === 'screen-settings') {
@@ -1581,18 +1581,24 @@ var FUND_DEFS = [
 ];
 
 function getFundBalance(fundId) {
-  var saved = localStorage.getItem('fund_bal_' + fundId);
-  return saved ? parseFloat(saved) : 0;
+  if (record && record.funds && record.funds[fundId]) {
+    return record.funds[fundId].bal || 0;
+  }
+  return 0;
 }
 
 function getFundBalanceDate(fundId) {
-  var saved = localStorage.getItem('fund_bal_date_' + fundId);
-  return saved ? new Date(parseInt(saved)) : null;
+  if (record && record.funds && record.funds[fundId] && record.funds[fundId].updated) {
+    return new Date(record.funds[fundId].updated);
+  }
+  return null;
 }
 
-function saveFundBalance(fundId, amt) {
-  localStorage.setItem('fund_bal_' + fundId, amt);
-  localStorage.setItem('fund_bal_date_' + fundId, Date.now());
+async function saveFundBalance(fundId, amt) {
+  if (!record) return;
+  if (!record.funds) record.funds = {};
+  record.funds[fundId] = { bal: amt, updated: Date.now() };
+  await cloudSet(record);
 }
 
 function projectFundBalance(fundId, currentBal, monthlyAmt) {
@@ -1675,16 +1681,18 @@ function renderFunds() {
   if (totalBar) totalBar.style.width = Math.min(totalBal / totalTarget * 100, 100).toFixed(1) + '%';
 }
 
-function onFundBalChange(fundId, val) {
+async function onFundBalChange(fundId, val) {
   var n = parseFloat(val);
   if (!isNaN(n) && n >= 0) {
-    saveFundBalance(fundId, n);
+    await saveFundBalance(fundId, n);
     renderFunds();
     toast('Fund balance saved');
   }
 }
 
-function refreshFunds() {
+async function refreshFunds() {
+  var fresh = await cloudGet();
+  if (fresh) { record = fresh; config = record.config; }
   renderFunds();
 }
 
