@@ -1436,7 +1436,7 @@ function renderBillsList() {
   var income    = bills.filter(function(b) { return b.type === 'in'; });
   var monthly   = bills.filter(function(b) { return b.freq === 'monthly'  && b.type !== 'in'; });
   var biweekly  = bills.filter(function(b) { return (b.freq === 'biweekly' || b.freq === 'weekly') && b.type !== 'in'; });
-  var once      = bills.filter(function(b) { return b.freq === 'once' || b.freq === 'annual'; });
+  var once      = bills.filter(function(b) { return b.freq === 'once' || b.freq === 'annual' || b.freq === 'quarterly'; });
 
   function renderGroup(listId, group) {
     var el = document.getElementById(listId);
