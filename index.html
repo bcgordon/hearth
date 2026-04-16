@@ -16,6 +16,9 @@
     <span class="nav-icon">&#128337;</span> History
   </button>
   <div class="sidebar-divider"></div>
+  <button class="nav-btn" id="nav-funds" onclick="ipadNav('screen-funds')">
+    <span class="nav-icon">&#128181;</span> Sinking funds
+  </button>
   <button class="nav-btn" id="nav-bills" onclick="ipadNav('screen-bills')">
     <span class="nav-icon">&#128195;</span> Scheduled bills
   </button>
@@ -244,6 +247,23 @@ textarea { resize: none; }
 .month-card.mc-current { border-width:2px; }
 
 
+
+
+/* ── SINKING FUNDS ── */
+.fund-card { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:10px; box-shadow:0 2px 0 var(--border); }
+.fund-card.fc-emerg  { border-color:var(--grass);  box-shadow:0 2px 0 var(--grass-dim); }
+.fund-card.fc-home   { border-color:var(--sky);    box-shadow:0 2px 0 var(--sky-dim); }
+.fund-card.fc-med    { border-color:var(--rose);   box-shadow:0 2px 0 var(--rose-dim); }
+.fund-card.fc-travel { border-color:var(--sun);    box-shadow:0 2px 0 var(--sun-dim); }
+.fund-card.fc-big    { border-color:var(--coral);  box-shadow:0 2px 0 var(--coral-dim); }
+.fund-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.fund-name   { font-size:17px; font-weight:600; color:var(--text); }
+.fund-bal    { font-size:24px; font-weight:600; }
+.fund-meta   { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--text-3); margin-top:6px; }
+.fund-bar-track { height:10px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-pill); overflow:hidden; margin:8px 0; }
+.fund-bar    { height:100%; border-radius:var(--radius-pill); transition:width 0.4s; }
+.fund-input  { font-size:18px; font-weight:600; padding:8px 12px; width:140px; text-align:right; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; }
+.fund-input:focus { outline:none; border-color:var(--sky); box-shadow:0 0 0 3px rgba(26,126,184,0.12); }
 
 /* ── BILL EDITOR ── */
 .bill-row { display:flex; align-items:center; gap:8px; padding:17px 0; border-bottom:0.5px solid var(--border); }
@@ -544,6 +564,7 @@ textarea { resize: none; }
 <span id="main-quarter-label" class="quarter-badge"></span>
 <div class="top-actions">
 <button class="icon-btn" onclick="showScreen('screen-balance')">Balance</button>
+<button class="icon-btn" onclick="showScreen('screen-funds')">Funds</button>
 <button class="icon-btn" onclick="showScreen('screen-history')">History</button>
 <button class="icon-btn" onclick="showScreen('screen-settings')">Settings</button>
 </div>
@@ -711,6 +732,29 @@ Non-essential: <strong id="lbl-n">$0</strong>
     <div class="section-head">Annual &amp; one-time</div>
     <div id="bills-list-once"></div>
   </div>
+</div>
+
+
+<!-- SINKING FUNDS -->
+<div id="screen-funds" class="screen">
+  <div class="back-row">
+    <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
+    <span style="font-size:20px;font-weight:600;color:var(--sky)">Sinking funds</span>
+    <button class="icon-btn" style="margin-left:auto" onclick="refreshFunds()">Refresh</button>
+  </div>
+
+  <div id="funds-total-card" class="card card-sky" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="section-head" style="margin:0;color:var(--sky)">Total saved</div>
+      <div id="funds-total" style="font-size:28px;font-weight:600;color:var(--sky)">$0</div>
+    </div>
+    <div id="funds-total-bar-track" class="progress-track" style="height:14px;margin-bottom:8px">
+      <div id="funds-total-bar" style="height:100%;background:var(--sky);border-radius:var(--radius-pill);transition:width 0.4s;width:0%"></div>
+    </div>
+    <div style="font-size:13px;color:var(--sky-dim)">Monthly contributions: $1,716 total across all funds</div>
+  </div>
+
+  <div id="funds-list"></div>
 </div>
 
 <!-- BALANCE -->
@@ -982,6 +1026,7 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
   if (id === 'screen-balance') { refreshBalance(); }
+  if (id === 'screen-funds') { renderFunds(); }
   if (id === 'screen-bills') { renderBillsList(); }
   if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
   if (id === 'screen-settings') {
@@ -1522,6 +1567,125 @@ function updateBillTypeUI() {
   document.querySelectorAll('[data-btype]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.btype === billType);
   });
+}
+
+
+// ── SINKING FUNDS ─────────────────────────────────────────────────────────────
+
+var FUND_DEFS = [
+  { id:'hc_sf_emerg',  name:'Emergency fund',      target:21000, color:'var(--grass)',  colorClass:'fc-emerg',  monthlyAmt:800,  note:'Target: $21,000 (~2.2 yrs)' },
+  { id:'hc_sf_home',   name:'Home/auto/insurance', target:6000,  color:'var(--sky)',    colorClass:'fc-home',   monthlyAmt:366,  note:'Annual insurance & repairs' },
+  { id:'hc_sf_med',    name:'Medical & pets',      target:3000,  color:'var(--rose)',   colorClass:'fc-med',    monthlyAmt:200,  note:'Medical expenses & vet bills' },
+  { id:'hc_sf_travel', name:'Travel fund',         target:5000,  color:'var(--sun)',    colorClass:'fc-travel', monthlyAmt:200,  note:'Vacations & trips' },
+  { id:'hc_sf_big',    name:'Big purchases',       target:3000,  color:'var(--coral)',  colorClass:'fc-big',    monthlyAmt:150,  note:'Large one-time purchases' },
+];
+
+function getFundBalance(fundId) {
+  var saved = localStorage.getItem('fund_bal_' + fundId);
+  return saved ? parseFloat(saved) : 0;
+}
+
+function getFundBalanceDate(fundId) {
+  var saved = localStorage.getItem('fund_bal_date_' + fundId);
+  return saved ? new Date(parseInt(saved)) : null;
+}
+
+function saveFundBalance(fundId, amt) {
+  localStorage.setItem('fund_bal_' + fundId, amt);
+  localStorage.setItem('fund_bal_date_' + fundId, Date.now());
+}
+
+function projectFundBalance(fundId, currentBal, monthlyAmt) {
+  // Project balance 12 months out
+  var months = [];
+  var bal = currentBal;
+  var today = new Date();
+  var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  for (var i = 1; i <= 12; i++) {
+    bal += monthlyAmt;
+    var d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    months.push({ label: mn[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2), bal: Math.round(bal) });
+  }
+  return months;
+}
+
+function renderFunds() {
+  var container = document.getElementById('funds-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  var totalBal = 0;
+  var totalTarget = 0;
+
+  FUND_DEFS.forEach(function(fund) {
+    // Check if this fund exists in bills (user may have edited amount/day)
+    var bills = getAllBills();
+    var billEntry = bills.find(function(b) { return b.id === fund.id; });
+    var monthlyAmt = billEntry ? billEntry.amt : fund.monthlyAmt;
+
+    var bal = getFundBalance(fund.id);
+    var balDate = getFundBalanceDate(fund.id);
+    totalBal += bal;
+    totalTarget += fund.target;
+
+    var pct = fund.target > 0 ? Math.min(bal / fund.target * 100, 100) : 0;
+    var monthsToTarget = monthlyAmt > 0 ? Math.ceil((fund.target - bal) / monthlyAmt) : 999;
+    var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+
+    var dateStr = balDate ? 'Updated ' + (balDate.getMonth()+1) + '/' + balDate.getDate() : 'Not set';
+
+    var card = document.createElement('div');
+    card.className = 'fund-card ' + fund.colorClass;
+
+    var projMonths = projectFundBalance(fund.id, bal, monthlyAmt);
+    var proj12 = projMonths[11];
+
+    card.innerHTML =
+      '<div class="fund-header">' +
+        '<div>' +
+          '<div class="fund-name">' + fund.name + '</div>' +
+          '<div style="font-size:13px;color:var(--text-3);margin-top:2px">' + fund.note + '</div>' +
+        '</div>' +
+        '<div style="text-align:right">' +
+          '<div class="fund-bal" style="color:' + fund.color + '">' + fmt(bal) + '</div>' +
+          '<div style="font-size:12px;color:var(--text-3)">' + dateStr + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="fund-bar-track"><div class="fund-bar" style="width:' + pct.toFixed(1) + '%;background:' + fund.color + '"></div></div>' +
+      '<div class="fund-meta">' +
+        '<span>' + pct.toFixed(0) + '% of ' + fmt(fund.target) + ' target</span>' +
+        '<span>' + (monthsToTarget > 0 && bal < fund.target ? monthsToTarget + ' months to target' : bal >= fund.target ? '&#10003; Target reached!' : '') + '</span>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">' +
+        '<div style="font-size:13px;color:var(--text-3)">+' + fmt(monthlyAmt) + '/mo &nbsp;&middot;&nbsp; In 12 months: <strong>' + fmt(proj12.bal) + '</strong></div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<label style="font-size:13px;color:var(--text-2);white-space:nowrap">Current balance</label>' +
+          '<input class="fund-input" type="number" placeholder="0.00" step="0.01" value="' + (bal > 0 ? bal : '') + '" ' +
+            'onchange="onFundBalChange(\'' + fund.id + '\', this.value)" />' +
+        '</div>' +
+      '</div>';
+
+    container.appendChild(card);
+  });
+
+  // Update total card
+  var totalEl = document.getElementById('funds-total');
+  if (totalEl) totalEl.textContent = '$' + Math.round(totalBal).toLocaleString('en-US');
+  var totalBar = document.getElementById('funds-total-bar');
+  if (totalBar) totalBar.style.width = Math.min(totalBal / totalTarget * 100, 100).toFixed(1) + '%';
+}
+
+function onFundBalChange(fundId, val) {
+  var n = parseFloat(val);
+  if (!isNaN(n) && n >= 0) {
+    saveFundBalance(fundId, n);
+    renderFunds();
+    toast('Fund balance saved');
+  }
+}
+
+function refreshFunds() {
+  renderFunds();
 }
 
 // ── BALANCE PROJECTION ENGINE ───────────────────────────────────────────────
