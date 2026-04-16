@@ -1550,11 +1550,11 @@ function getScheduledEvents() {
 
   // ── CC AUTO-PAY ─────────────────────────────────────────────────────────
   events.push({ date: new Date(2026, 4, 6), name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
-  // 19th payments start June 2026 (skip May 19 — May 6 already covers April)
+  // 19th payments start May 2026 — May 19 shows with 'est.' button for manual override
   for (var y3 = 2026; y3 <= 2027; y3++) {
     for (var m3 = 0; m3 < 12; m3++) {
       var d19 = new Date(y3, m3, 19);
-      if (d19 >= new Date(2026, 5, 19) && d19 <= end)
+      if (d19 >= new Date(2026, 4, 19) && d19 <= end)
         events.push({ date: d19, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
     }
   }
