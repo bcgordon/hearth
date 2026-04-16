@@ -682,6 +682,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
             <button class="freq-pill" data-freq="weekly" onclick="selectFreq('weekly')">Weekly</button>
             <button class="freq-pill" data-freq="biweekly" onclick="selectFreq('biweekly')">Bi-weekly</button>
             <button class="freq-pill" data-freq="annual" onclick="selectFreq('annual')">Annual</button>
+            <button class="freq-pill" data-freq="quarterly" onclick="selectFreq('quarterly')">Quarterly</button>
             <button class="freq-pill" data-freq="once" onclick="selectFreq('once')">One-time</button>
           </div>
         </div>
@@ -1422,6 +1423,7 @@ function getBillFreqLabel(b) {
   if (b.freq === 'weekly')   return 'Weekly, day ' + b.day;
   if (b.freq === 'biweekly') return 'Bi-weekly';
   if (b.freq === 'annual') return 'Annual, month ' + b.month + ' day ' + b.day;
+  if (b.freq === 'quarterly') { var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return 'Quarterly, starting ' + mn[b.month] + ' ' + b.day; }
   if (b.freq === 'once') {
     var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return 'One-time: ' + mn[b.month] + ' ' + b.day + ' ' + b.year;
@@ -1531,7 +1533,7 @@ async function saveBill() {
 
   if (!name) { errEl.textContent = 'Please enter a name'; errEl.style.display = 'block'; return; }
   if (!amt || amt <= 0) { errEl.textContent = 'Please enter a valid amount'; errEl.style.display = 'block'; return; }
-  if ((billFreq === 'monthly' || billFreq === 'annual' || billFreq === 'once') && (!day || day < 1 || day > 31)) {
+  if ((billFreq === 'monthly' || billFreq === 'annual' || billFreq === 'once' || billFreq === 'quarterly') && (!day || day < 1 || day > 31)) {
     errEl.textContent = 'Please enter a valid day (1-31)'; errEl.style.display = 'block'; return;
   }
   errEl.style.display = 'none';
@@ -1549,6 +1551,9 @@ async function saveBill() {
   if (billFreq === 'annual' || billFreq === 'once') {
     bill.month = parseInt(document.getElementById('bf-month').value);
     bill.year  = parseInt(document.getElementById('bf-year').value);
+  }
+  if (billFreq === 'quarterly') {
+    bill.month = parseInt(document.getElementById('bf-month').value);
   }
 
   if (!record.bills) record.bills = [];
@@ -1584,7 +1589,7 @@ function updateFreqUI() {
   document.querySelectorAll('[data-freq]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.freq === billFreq);
   });
-  var showMonth = billFreq === 'annual' || billFreq === 'once';
+  var showMonth = billFreq === 'annual' || billFreq === 'once' || billFreq === 'quarterly';
   document.getElementById('bf-month-wrap').style.display = showMonth ? 'block' : 'none';
   document.getElementById('bf-year-wrap').style.display  = billFreq === 'once' ? 'block' : 'none';
   // Show/hide day field
@@ -1830,6 +1835,16 @@ function getScheduledEvents() {
         var ad = new Date(ay, b.month, b.day);
         if (ad > start && ad <= end)
           events.push({ date: ad, name: b.name, amt: b.amt, type: b.type, billId: b.id });
+      }
+    }
+
+    else if (b.freq === 'quarterly') {
+      for (var qi = 0; qi < 8; qi++) {
+        var qm = ((b.month || 0) + qi * 3) % 12;
+        var qy = 2026 + Math.floor(((b.month || 0) + qi * 3) / 12);
+        var qd = new Date(qy, qm, b.day);
+        if (qd > start && qd <= end)
+          events.push({ date: qd, name: b.name, amt: b.amt, type: b.type, billId: b.id });
       }
     }
 
