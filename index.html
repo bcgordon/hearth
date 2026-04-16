@@ -485,6 +485,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
     <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
     <span style="font-size:20px;font-weight:600;color:var(--sky)">Checking balance</span>
     <button class="icon-btn" style="margin-left:auto" onclick="refreshBalance()">Refresh</button>
+    <button class="icon-btn" onclick="clearDismissals()" style="font-size:12px;color:var(--text-3)">Restore skipped</button>
   </div>
 
   <div id="danger-alerts"></div>
@@ -1399,9 +1400,21 @@ function buildProjection() {
   var balance = anchorBalance;
   var projection = [];
 
+  // Build set of manually dismissed events (already reflected in actual balance)
+  var dismissed = JSON.parse(localStorage.getItem('dismissed_events') || '{}');
+
   for (var i = 0; i < events.length; i++) {
     var ev = events[i];
-    if (ev.date < today) continue; // skip events already in the past
+    if (ev.date < today) continue; // skip past events
+
+    // Events dated today: skip unless user marked them as "not yet hit"
+    var evKey = ev.date.getFullYear() + '-' + ev.date.getMonth() + '-' + ev.date.getDate() + '-' + ev.name.replace(/\s/g,'_');
+    if (ev.date.getTime() === today.getTime()) {
+      // Today's events: only include if user explicitly marked as pending
+      if (!dismissed[evKey + '_pending']) continue;
+    }
+    // Future events: skip if user marked as dismissed (already in balance)
+    if (ev.date > today && dismissed[evKey]) continue;
 
     var amt = ev.amt;
 
@@ -1631,8 +1644,13 @@ function renderBalTimeline() {
       var isEstimate = getCCSpendForMonth(ev.ccYear, ev.ccMonth) === 0 && !hasOverride;
       ccEditBtn = ' <button onclick="editCCPayment(' + (ev.ccYear||0) + ',' + (ev.ccMonth||0) + ',' + Math.round(ev.amt) + ')" style="font-size:11px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">' + (isEstimate ? 'est.' : 'edit') + '</button>';
     }
+    var evKey = ev.date.getFullYear() + '-' + ev.date.getMonth() + '-' + ev.date.getDate() + '-' + ev.name.replace(/\s/g,'_');
+    var today2 = new Date(); today2.setHours(0,0,0,0);
+    var isToday = ev.date.getTime() === today2.getTime();
+    var actionBtn = '<button onclick="dismissEvent('' + evKey + '')" style="font-size:11px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">skip</button>';
+
     row.innerHTML = '<span class="tl-event-date">' + dateStr + '</span>' +
-      '<span class="tl-event-name">' + ev.name + ccEditBtn + '</span>' +
+      '<span class="tl-event-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">' + ev.name + ccEditBtn + actionBtn + '</span>' +
       '<span class="tl-event-amt ' + typeClass + '">' + sign + fmt(ev.amt) + '</span>' +
       '<span class="tl-event-amt" style="min-width:80px;color:' + (ev.balance < FLOOR ? 'var(--red)' : ev.balance < 5000 ? 'var(--sun-dim)' : 'var(--grass-dim)') + '">' + fmt(ev.balance) + '</span>';
 
@@ -1640,6 +1658,21 @@ function renderBalTimeline() {
   }
 }
 
+
+
+function dismissEvent(evKey) {
+  var dismissed = JSON.parse(localStorage.getItem('dismissed_events') || '{}');
+  dismissed[evKey] = true;
+  localStorage.setItem('dismissed_events', JSON.stringify(dismissed));
+  refreshBalance();
+  toast('Event skipped from projection');
+}
+
+function clearDismissals() {
+  localStorage.removeItem('dismissed_events');
+  refreshBalance();
+  toast('All skipped events restored');
+}
 
 function editCCPayment(year, month, currentAmt) {
   var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
