@@ -2061,14 +2061,9 @@ function buildProjection() {
     var ev = events[i];
     if (ev.date < today) continue; // skip past events
 
-    // Events dated today: skip unless user marked them as "not yet hit"
+    // Today's and future events: skip if user marked as dismissed
     var evKey = ev.date.getFullYear() + '-' + ev.date.getMonth() + '-' + ev.date.getDate() + '-' + ev.name.replace(/\s/g,'_');
-    if (ev.date.getTime() === today.getTime()) {
-      // Today's events: only include if user explicitly marked as pending
-      if (!dismissed[evKey + '_pending']) continue;
-    }
-    // Future events: skip if user marked as dismissed (already in balance)
-    if (ev.date > today && dismissed[evKey]) continue;
+    if (dismissed[evKey]) continue;
 
     var amt = ev.amt;
 
