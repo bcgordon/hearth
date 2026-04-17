@@ -1402,8 +1402,8 @@ async function historyNav(dir) {
     });
   });
 
-  // Sort by date descending (newest first)
-  rows.sort(function(a, b) { return b.date - a.date; });
+  // Sort by date ascending (oldest first, scroll down to reach newest)
+  rows.sort(function(a, b) { return a.date - b.date; });
 
   // Summary stats
   var totalIn = 0, totalOut = 0;
