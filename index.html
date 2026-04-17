@@ -1049,12 +1049,12 @@ async function cloudSet(data) {
 
 let record = null;
 
-function showScreen(id) {
+async function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
-  if (id === 'screen-balance') { refreshBalance(); }
-  if (id === 'screen-funds') { refreshFunds(); }
+  if (id === 'screen-balance') { await refreshBalance(); }
+  if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { renderBillsList(); }
   if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
   if (id === 'screen-settings') {
