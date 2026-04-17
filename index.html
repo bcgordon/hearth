@@ -750,7 +750,9 @@ Non-essential: <strong id="lbl-n">$0</strong>
   <div class="back-row">
     <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
     <span style="font-size:20px;font-weight:600;color:var(--sky)">Sinking funds</span>
-    <button class="icon-btn" style="margin-left:auto" onclick="refreshFunds()">Refresh</button>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <button class="icon-btn" onclick="refreshFunds()">Refresh</button>
   </div>
 
   <div id="funds-total-card" class="card card-sky" style="margin-bottom:12px">
@@ -772,8 +774,10 @@ Non-essential: <strong id="lbl-n">$0</strong>
   <div class="back-row">
     <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
     <span style="font-size:17px;font-weight:600;color:var(--sky)">Checking balance</span>
-    <button class="icon-btn" style="margin-left:auto" onclick="refreshBalance()">Refresh</button>
-    <button class="icon-btn" onclick="clearDismissals()" style="font-size:19px;color:var(--text-3)">Restore skipped</button>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
+    <button class="icon-btn" onclick="refreshBalance()">Refresh</button>
+    <button class="icon-btn" style="font-size:19px;color:var(--text-3)" onclick="clearDismissals()">Restore skipped</button>
   </div>
 
   <div id="danger-alerts"></div>
