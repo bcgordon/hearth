@@ -1390,6 +1390,45 @@ async function historyNav(dir) {
     });
   });
 
+  // Add CC-billed fixed bills (excluded from projection but should show in register)
+  var allBills = getAllBills();
+  allBills.forEach(function(b) {
+    if (b.paidBy !== 'cc' || b.type !== 'out' || !b.amt) return;
+    if (b.freq === 'monthly') {
+      for (var m2 = 0; m2 < 3; m2++) {
+        var bm = qStartMonth + m2;
+        var by2 = qYear + Math.floor(bm / 12);
+        var bm2 = bm % 12;
+        var bd = new Date(by2, bm2, b.day);
+        if (bd >= qStart && bd <= qEnd) {
+          rows.push({
+            date: bd,
+            name: b.name,
+            note: 'CC billed',
+            amt: b.amt,
+            type: 'cc_bill',
+            isPast: bd <= today,
+            isBill: true,
+          });
+        }
+      }
+    } else if (b.freq === 'quarterly') {
+      for (var qi = 0; qi < 8; qi++) {
+        var qm2 = ((b.month || 0) + qi * 3) % 12;
+        var qy2 = 2026 + Math.floor(((b.month || 0) + qi * 3) / 12);
+        var qd2 = new Date(qy2, qm2, b.day);
+        if (qd2 >= qStart && qd2 <= qEnd) {
+          rows.push({ date: qd2, name: b.name, note: 'CC billed', amt: b.amt, type: 'cc_bill', isPast: qd2 <= today, isBill: true });
+        }
+      }
+    } else if (b.freq === 'once') {
+      var od2 = new Date(b.year, b.month, b.day);
+      if (od2 >= qStart && od2 <= qEnd) {
+        rows.push({ date: od2, name: b.name, note: 'CC billed', amt: b.amt, type: 'cc_bill', isPast: od2 <= today, isBill: true });
+      }
+    }
+  });
+
   // Add manually logged entries (avoid double-counting by checking they aren't already a scheduled event)
   entries.forEach(function(e) {
     var d = new Date(e.ts);
@@ -1445,9 +1484,9 @@ async function historyNav(dir) {
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);opacity:' + (r.isPast ? '1' : '0.6');
 
     // Color by type
-    var color = r.type === 'in' ? 'var(--grass)' : r.type === 'cc_entry' ? 'var(--sky)' : r.type === 'cc' ? 'var(--sky-dim)' : 'var(--coral)';
+    var color = r.type === 'in' ? 'var(--grass)' : (r.type === 'cc_entry' || r.type === 'cc_bill') ? 'var(--sky)' : r.type === 'cc' ? 'var(--sky-dim)' : 'var(--coral)';
     var sign = r.type === 'in' ? '+' : '-';
-    var label = r.type === 'cc_entry' ? '💳' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : '↑';
+    var label = (r.type === 'cc_entry' || r.type === 'cc_bill') ? '💳' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : '↑';
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
     row.innerHTML =
