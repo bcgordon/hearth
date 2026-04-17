@@ -1987,7 +1987,9 @@ var balMonthOffset = 0;
 var balShowAll = true;
 var balActualBalance = null;
 
-function refreshBalance() {
+async function refreshBalance() {
+  const fresh = await cloudGet();
+  if (fresh) { record = fresh; config = record.config; }
   balProjection = buildProjection();
   renderBalChart();
   renderBalTimeline();
