@@ -639,6 +639,10 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <div id="pill-users" class="pill-row"></div>
 </div>
 <div>
+<label class="label" style="color:var(--text-3)">Date</label>
+<input id="add-date" type="date" style="font-size:17px;font-family:inherit;" />
+</div>
+<div>
 <label class="label" style="color:var(--text-3)">Note <span style="font-size:20px;text-transform:none;letter-spacing:0;font-style:italic;font-weight:400">(optional)</span></label>
 <input id="add-note" type="text" placeholder="e.g. weekly shop..." />
 </div>
@@ -1054,7 +1058,11 @@ let record = null;
 async function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
+  if (id === 'screen-add' && config) {
+    buildCategoryGrid(getCategorySpend());
+    var td = new Date(); var mm = String(td.getMonth()+1).padStart(2,'0'); var dd2 = String(td.getDate()).padStart(2,'0');
+    var dateEl = document.getElementById('add-date'); if (dateEl) dateEl.value = td.getFullYear() + '-' + mm + '-' + dd2;
+  }
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
@@ -1245,17 +1253,23 @@ async function submitEntry() {
   }
   const btn = document.querySelector('#screen-add .btn-coral');
   btn.textContent = 'Saving…'; btn.disabled = true;
-  const qKey = getCurrentQuarterKey();
+  // Use selected date or default to today
+  var dateVal = document.getElementById('add-date').value;
+  var entryDate = dateVal ? new Date(dateVal + 'T12:00:00') : new Date();
+  var entryTs = entryDate.getTime();
+  var entryQNum = Math.floor(entryDate.getMonth() / 3) + 1;
+  var qKey = entryDate.getFullYear() + '_Q' + entryQNum;
+
   const fresh = await cloudGet();
   if (fresh) record = fresh;
   const entries = loadEntries(qKey);
-  entries.push({ id: Date.now(), amt: Math.round(amt * 100) / 100, type: addType, user: addUser, note, cat: finalCategory, ts: Date.now() });
+  entries.push({ id: Date.now(), amt: Math.round(amt * 100) / 100, type: addType, user: addUser, note, cat: finalCategory, ts: entryTs });
   await saveEntries(qKey, entries);
 
   // Fire sync to Google Sheets (non-blocking — app saves regardless)
   callSheetsSync(entries[entries.length - 1]);
 
-  document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = '';
+  document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = ''; var dateEl2 = document.getElementById('add-date'); if (dateEl2) { var td2 = new Date(); var mm2 = String(td2.getMonth()+1).padStart(2,'0'); var dd3 = String(td2.getDate()).padStart(2,'0'); dateEl2.value = td2.getFullYear() + '-' + mm2 + '-' + dd3; }
   addType = null; addUser = null; addCategory = null;
   document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
   (config.names || []).forEach(n => { const el = document.getElementById('pill-u-' + n); if (el) el.className = 'pill'; });
