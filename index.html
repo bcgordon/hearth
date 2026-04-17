@@ -851,6 +851,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <button class="hist-nav-btn" onclick="historyNav(1)">Next &#8594;</button>
 </div>
 <div id="history-summary" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"></div>
+<input id="history-search" type="text" placeholder="Search register..." oninput="filterHistoryList(this.value)" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:inherit;margin-bottom:12px">
 <div class="card card-sun" id="history-list"></div>
 </div>
 <!-- SETTINGS -->
@@ -1057,7 +1058,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
+  if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
   if (id === 'screen-settings') {
     updateSyncBadge();
     
@@ -1435,6 +1436,7 @@ async function historyNav(dir) {
       sep.style.cssText = 'font-size:13px;font-weight:600;color:var(--text-3);padding:10px 0 4px;border-top:0.5px solid var(--border);margin-top:4px;letter-spacing:0.04em;text-transform:uppercase';
       sep.textContent = isToday ? 'Today — ' + dateStr : dateStr;
       if (!r.isPast) sep.style.color = 'var(--sky-dim)';
+      sep.setAttribute('data-sep', '1');
       cont.appendChild(sep);
       lastDateStr = dateStr;
     }
@@ -1447,6 +1449,7 @@ async function historyNav(dir) {
     var sign = r.type === 'in' ? '+' : '-';
     var label = r.type === 'cc_entry' ? '💳' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : '↑';
 
+    row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
     row.innerHTML =
       '<span style="font-size:18px;min-width:20px;text-align:center">' + label + '</span>' +
       '<div style="flex:1;min-width:0">' +
@@ -1549,6 +1552,26 @@ function getBillFreqLabel(b) {
     return 'One-time: ' + mn[b.month] + ' ' + b.day + ' ' + b.year;
   }
   return b.freq;
+}
+
+function filterHistoryList(query) {
+  var q = query.toLowerCase().trim();
+  var cont = document.getElementById('history-list');
+  if (!cont) return;
+  cont.querySelectorAll('div[data-name]').forEach(function(row) {
+    var name = row.getAttribute('data-name') || '';
+    row.style.display = (!q || name.toLowerCase().includes(q)) ? '' : 'none';
+  });
+  // Hide date separators with no visible rows
+  cont.querySelectorAll('div[data-sep]').forEach(function(sep) {
+    var next = sep.nextElementSibling;
+    var hasVisible = false;
+    while (next && !next.hasAttribute('data-sep')) {
+      if (next.style.display !== 'none') hasVisible = true;
+      next = next.nextElementSibling;
+    }
+    sep.style.display = hasVisible ? '' : 'none';
+  });
 }
 
 function filterBillsList(query) {
