@@ -654,7 +654,8 @@ Non-essential: <strong id="lbl-n">$0</strong>
     <button class="back-btn" onclick="showScreen('screen-settings')">&#8592;</button>
     <span style="font-size:17px;font-weight:600;color:var(--sky)">Scheduled bills</span>
   </div>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+    <input id="bills-search" type="text" placeholder="Search bills..." oninput="filterBillsList(this.value)" style="flex:1;font-size:16px;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:inherit">
     <button class="icon-btn" onclick="showAddBill()">+ Add</button>
   </div>
 
@@ -1055,7 +1056,7 @@ async function showScreen(id) {
   if (id === 'screen-add' && config) { buildCategoryGrid(getCategorySpend()); }
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
-  if (id === 'screen-bills') { renderBillsList(); }
+  if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
   if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); historyNav(0); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -1548,6 +1549,14 @@ function getBillFreqLabel(b) {
     return 'One-time: ' + mn[b.month] + ' ' + b.day + ' ' + b.year;
   }
   return b.freq;
+}
+
+function filterBillsList(query) {
+  var q = query.toLowerCase().trim();
+  document.querySelectorAll('#bills-list-income .bill-row, #bills-list-monthly .bill-row, #bills-list-biweekly .bill-row, #bills-list-once .bill-row').forEach(function(row) {
+    var name = (row.querySelector('.bill-name') || {}).textContent || '';
+    row.style.display = (!q || name.toLowerCase().includes(q)) ? '' : 'none';
+  });
 }
 
 function renderBillsList() {
