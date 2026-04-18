@@ -1483,7 +1483,7 @@ function renderEntriesList(entries, containerId, allowDelete, qKey) {
 async function deleteEntry(id, qKey) {
   const fresh = await cloudGet(); if (fresh) record = fresh;
   await saveEntries(qKey, loadEntries(qKey).filter(e => e.id !== id));
-  refreshMain();
+  refreshMain(); updateCCBalanceCard();
   if (document.getElementById('screen-history').classList.contains('active')) historyNav(0);
   toast('Entry removed');
 }
@@ -1581,7 +1581,7 @@ async function eeDelete() {
   const fresh = await cloudGet(); if (fresh) record = fresh;
   await saveEntries(_eeQKey, loadEntries(_eeQKey).filter(function(e) { return e.id !== _eeEntry.id; }));
   _eeEntry = null; _eeQKey = null;
-  refreshMain(); historyNav(0); toast('Entry deleted');
+  refreshMain(); historyNav(0); updateCCBalanceCard(); toast('Entry deleted');
 }
 
 async function eeSave() {
@@ -1604,7 +1604,7 @@ async function eeSave() {
   newEntries.push(Object.assign({}, _eeEntry, { amt: Math.round(amt * 100) / 100, cat: cat, type: _eeType, note: note, ts: newTs }));
   await saveEntries(newQKey, newEntries);
   _eeEntry = null; _eeQKey = null;
-  refreshMain(); historyNav(0); toast('Entry updated');
+  refreshMain(); historyNav(0); updateCCBalanceCard(); toast('Entry updated');
 }
 
 async function historyNav(dir) {
