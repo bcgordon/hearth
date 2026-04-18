@@ -1077,8 +1077,9 @@ let addType = null;
 let addPayMethod = null;
 let addCategory = null;
 let historyQOffset = 0;
-let historyView = 'quarter'; // 'quarter' or 'month'
+let historyView = 'quarter'; // 'quarter' or 'month' or 'cccycle' or 'category'
 let historyMonthOffset = 0;
+let historyCategoryFilter = null;
 
 const BUDGET_CATEGORIES = [
   { name: 'Groceries',                   budget: 900,  essential: true  },
@@ -1222,7 +1223,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { if (historyView !== 'cccycle') { historyQOffset = 0; historyMonthOffset = 0; if (!historyView || historyView === 'quarter') historyView = 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
+  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category') { historyQOffset = 0; historyMonthOffset = 0; if (!historyView || historyView === 'quarter') historyView = 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
   if (id === 'screen-budget') { renderBudgetScreen(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -1529,7 +1530,7 @@ function renderBudgetScreen() {
     html += '<div style="display:flex;gap:16px">';
     html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(mBudget) + '</span>';
     html += '<span style="font-size:15px;color:var(--text-3);min-width:60px;text-align:right">' + fmt(qBudget) + '</span>';
-    html += '<span style="font-size:15px;font-weight:600;color:' + color + ';min-width:60px;text-align:right">' + fmt(spent) + '</span>';
+    html += '<span style="font-size:15px;font-weight:600;color:' + color + ';min-width:60px;text-align:right;cursor:pointer;text-decoration:underline dotted" data-cat="' + cat.name + '" onclick="showCategoryRegister(this.dataset.cat)">' + fmt(spent) + '</span>';
     html += '</div></div>';
     html += '<div style="height:4px;background:var(--border);border-radius:2px">';
     html += '<div style="height:100%;width:' + pct.toFixed(1) + '%;background:' + (over ? 'var(--red)' : 'var(--grass)') + ';border-radius:2px;transition:width 0.4s"></div>';
@@ -1694,6 +1695,7 @@ function setHistoryView(view) {
   historyView = view;
   historyQOffset = 0;
   historyMonthOffset = 0;
+  historyCategoryFilter = null;
   document.getElementById('hist-view-q').className = 'pill' + (view === 'quarter' ? ' sel-e' : '');
   document.getElementById('hist-view-m').className = 'pill' + (view === 'month' ? ' sel-e' : '');
   var ccPill = document.getElementById('hist-view-cc'); if (ccPill) ccPill.className = 'pill' + (view === 'cccycle' ? ' sel-n' : '');
@@ -1749,6 +1751,8 @@ function openEntryEdit(entryId, qKey) {
   document.getElementById('ee-amt').value = entry.amt;
   document.getElementById('ee-note').value = entry.note || '';
   document.getElementById('ee-fund').value = entry.fundCoverage || '';
+  // Store fundBillId on _eeEntry so we can reverse it if coverage changes
+  if (!_eeEntry.fundBillId && entry.fundBillId) _eeEntry.fundBillId = entry.fundBillId;
   var eeD = new Date(entry.ts);
   var eeMm = String(eeD.getMonth()+1).padStart(2,'0');
   var eeDd = String(eeD.getDate()).padStart(2,'0');
@@ -1803,11 +1807,70 @@ async function eeSave() {
   await saveEntries(_eeQKey, oldEntries);
   // Add to new quarter (may be same)
   var newEntries = loadEntries(newQKey);
-  var fundCoverage = document.getElementById('ee-fund').value;
-  newEntries.push(Object.assign({}, _eeEntry, { amt: Math.round(amt * 100) / 100, cat: cat, type: _eeType, note: note, ts: newTs, fundCoverage: fundCoverage || null }));
+  var fundCoverage = document.getElementById('ee-fund').value || null;
+  var entryAmt = Math.round(amt * 100) / 100;
+  var prevCoverage = _eeEntry.fundCoverage || null;
+  var prevBillId = _eeEntry.fundBillId || null;
+
+  // Fund ID map
+  var fundIdMap = { medical: 'hc_sf_med', home: 'hc_sf_home', travel: 'hc_sf_travel', big: 'hc_sf_big' };
+  var fundNameMap = { medical: 'Medical & pets', home: 'Home/auto/insurance', travel: 'Travel fund', big: 'Big purchases' };
+
+  // Reverse previous fund effect if coverage changed or removed
+  if (prevCoverage && prevBillId) {
+    // Remove old income bill from projection
+    record.bills = (record.bills || []).filter(function(b) { return b.id !== prevBillId; });
+    // Restore fund balance (add back what was deducted)
+    var prevFundId = fundIdMap[prevCoverage];
+    if (prevFundId && record.funds && record.funds[prevFundId]) {
+      var prevBal = record.funds[prevFundId].bal || 0;
+      record.funds[prevFundId] = { bal: Math.round((prevBal + (_eeEntry.amt || 0)) * 100) / 100, updated: Date.now() };
+    }
+  }
+
+  // Apply new fund coverage
+  var newBillId = null;
+  if (fundCoverage) {
+    var fundId = fundIdMap[fundCoverage];
+    var fundName = fundNameMap[fundCoverage];
+
+    // Deduct from fund balance
+    if (fundId) {
+      if (!record.funds) record.funds = {};
+      var curBal = (record.funds[fundId] && record.funds[fundId].bal) || 0;
+      record.funds[fundId] = { bal: Math.round((curBal - entryAmt) * 100) / 100, updated: Date.now() };
+    }
+
+    // Create one-time checking income (transfer from savings)
+    newBillId = 'fund_transfer_' + Date.now();
+    if (!record.bills) record.bills = [];
+    var entryDate2 = new Date(newTs);
+    record.bills.push({
+      id: newBillId,
+      name: fundName + ' → Checking',
+      amt: entryAmt,
+      freq: 'once',
+      month: entryDate2.getMonth(),
+      day: entryDate2.getDate(),
+      year: entryDate2.getFullYear(),
+      type: 'in',
+      paidBy: 'checking',
+      isFundTransfer: true,
+    });
+    await cloudSet(record);
+  } else if (prevCoverage) {
+    // Coverage was removed — just save the reversal
+    await cloudSet(record);
+  }
+
+  newEntries.push(Object.assign({}, _eeEntry, {
+    amt: entryAmt, cat: cat, type: _eeType, note: note, ts: newTs,
+    fundCoverage: fundCoverage,
+    fundBillId: newBillId,
+  }));
   await saveEntries(newQKey, newEntries);
   _eeEntry = null; _eeQKey = null;
-  refreshMain(); historyNav(0); updateCCBalanceCard(); toast('Entry updated');
+  refreshMain(); refreshFunds(); historyNav(0); updateCCBalanceCard(); toast('Entry updated');
 }
 
 async function historyNav(dir) {
@@ -1827,7 +1890,17 @@ async function historyNav(dir) {
     qYear = 2026; qStartMonth = 3; // April
     key = '2026_Q2';
     document.getElementById('history-label').textContent = '4/12 – 5/11';
-    // Hide prev/next nav for CC cycle view
+    document.querySelector('.hist-nav').style.display = 'none';
+  } else if (historyView === 'category') {
+    // Full current quarter filtered by category
+    key = getQuarterKeyOffset(0);
+    var _cp = key.split('_');
+    var _qNum = parseInt(_cp[1].replace('Q',''));
+    qYear = parseInt(_cp[0]);
+    qStartMonth = (_qNum - 1) * 3;
+    qStart = new Date(qYear, qStartMonth, 1);
+    qEnd = new Date(qYear, qStartMonth + 3, 0, 23, 59, 59);
+    document.getElementById('history-label').textContent = historyCategoryFilter || 'Category';
     document.querySelector('.hist-nav').style.display = 'none';
   } else {
     document.querySelector('.hist-nav').style.display = '';
@@ -1940,9 +2013,15 @@ async function historyNav(dir) {
     }
   });
 
+  // Filter entries by category if in category view
+  var filteredEntries = historyView === 'category' && historyCategoryFilter
+    ? entries.filter(function(e) { return e.cat === historyCategoryFilter; })
+    : entries;
+
   // Add manually logged entries
-  entries.forEach(function(e) {
+  filteredEntries.forEach(function(e) {
     var d = new Date(e.ts);
+    if (d < qStart || d > qEnd) return; // date filter still applies
     var pmLabel = e.payMethod === 'checking' ? '🏦' : e.user ? e.user : '';
     var entryName = e.cat || (e.payMethod === 'income' ? (e.note || 'Income') : (e.payMethod === 'checking' ? (e.note || 'Checking expense') : 'CC expense'));
     rows.push({
@@ -2849,6 +2928,18 @@ function updateCCBalanceCard() {
     if (infoEl) infoEl.textContent = '';
     var td2 = document.getElementById('cc-tracked-delta'); if (td2) td2.textContent = '';
   }
+}
+
+function showCategoryRegister(catName) {
+  historyQOffset = 0;
+  historyMonthOffset = 0;
+  historyView = 'category';
+  historyCategoryFilter = catName;
+  document.getElementById('hist-view-q').className = 'pill';
+  document.getElementById('hist-view-m').className = 'pill';
+  var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill';
+  var hs = document.getElementById('history-search'); if (hs) hs.value = '';
+  showScreen('screen-history');
 }
 
 function showCCCycleRegister() {
