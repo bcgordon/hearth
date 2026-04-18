@@ -829,8 +829,8 @@ Non-essential: <strong id="lbl-n">$0</strong>
 
     <label class="label" style="color:var(--sky)">Enter total card balance</label>
     <div style="margin-top:6px">
-      <input id="cc-actual-input" type="number" inputmode="decimal" placeholder="e.g. 7017.20" step="0.01" min="0"
-        style="width:100%;box-sizing:border-box;font-size:20px;font-weight:600;color:var(--sky);padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:inherit;-webkit-appearance:none"
+      <input id="cc-actual-input" type="text" inputmode="decimal" placeholder="e.g. 7017.20"
+        style="width:100%;box-sizing:border-box;font-size:20px;font-weight:600;color:var(--sky);padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:inherit"
         oninput="onCCActualInput(this.value)" />
     </div>
   </div>
@@ -2544,6 +2544,12 @@ function updateCCBalanceCard() {
   var cycCurEl = document.getElementById('cc-current-cycle');
 
   // Actual card balance from localStorage
+  // Prefer Supabase record, fall back to localStorage
+  var cloudCC = record && record.ccBalance;
+  if (cloudCC) {
+    localStorage.setItem('cc_actual_bal', cloudCC.amt);
+    localStorage.setItem('cc_actual_bal_date', cloudCC.updated);
+  }
   var saved = localStorage.getItem('cc_actual_bal');
   var savedDate = localStorage.getItem('cc_actual_bal_date');
   var actualEl = document.getElementById('cc-actual-display');
@@ -2554,7 +2560,7 @@ function updateCCBalanceCard() {
   if (saved) {
     var actual = parseFloat(saved);
     if (actualEl) actualEl.textContent = fmt(actual);
-    if (inputEl) inputEl.value = actual;
+    if (inputEl && document.activeElement !== inputEl) inputEl.value = actual;
 
     // Current cycle = total minus next bill
     var currentCycle = Math.max(0, actual - nextBill);
@@ -2613,10 +2619,17 @@ function showCCCycleRegister() {
 }
 
 function onCCActualInput(val) {
-  var n = parseFloat(val);
+  // Strip anything that isn't a digit or decimal point
+  var clean = val.replace(/[^0-9.]/g, '');
+  var n = parseFloat(clean);
   if (!isNaN(n) && n >= 0) {
+    var ts = Date.now();
     localStorage.setItem('cc_actual_bal', n);
-    localStorage.setItem('cc_actual_bal_date', Date.now());
+    localStorage.setItem('cc_actual_bal_date', ts);
+    if (record) {
+      record.ccBalance = { amt: n, updated: ts };
+      cloudSet(record);
+    }
     updateCCBalanceCard();
   }
 }
