@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Home Finance</title>
+<title>Hearth</title>
 <link rel="apple-touch-icon" href="hf-icon.png">
 <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAD60lEQVR42u3bP2pUURjG4bMeVyPZibauwS64ABuxF+xTprHJIhQUQkRBzD8UAgkhOM49d+53zvsM/Hr57vtIZiZpbaDX56NnN6pf8zJuQWL0gsHoFY/Bg1UkBg9RsRA8OEUi8LAUC8EDUiQCD0WxEDwIxSLwABSLwOEVi8DBFYvAoRWLwIEVi8BhFYvAQRWNwDEVC8AhFYvAARWNwPEUC8DhFIvAwRSNwLEUC8ChFI3AkQSAlAjAgQ7f5bcv7lAFgeMAAIAOOv673GNjAA6z3fghKIDAUbYdPwAAxAOAYCMADlJj/BBshMAx6owfAACixw8BAABAAED6+CEAIH78AAAQPX4IAAAAAgDSxw/AigAcov74IVgRgSOMMX4IAAAAAACSxw8BAPHjhwCA4cd/fXX5KAgA8LcA7gOAvwVwJwAAEAAACAAABAAAAgAAAQCAAABAAAAgAAAQAAAIAAAEAAACAAABAIAA8PcAAmAUBO4CwM5dvH2tQgFg8BoURDN8JUNoxq9kBM34lYygGb+SETTjVzICAASA8SsVAQACAAABAIAA2G78P08+KKBqCAAQAAAIAAAEwLZvgA1k/vEDAAAAADz9EaihzD1+AHb4DsBg5h0/ADt+CWY4c44fgP/4FtiA5hs/AHv8GoQxzTF8ADr9HpCRjTV4AP7R1xfPFRQAAAAAAAAAAAAAAAAYBQAACAAABAAAAgAAAQCAAABAAAAgAAAQAAAIAAAEAAACAAABAIAAAEAAAHDz6+y0TBXHd378alEAFAVQafgVISwdfk8IAHQGUHn8FRD0Hv9SBAAAAAAAAIw8/iUIAPAeAAAAfAoEAAC+BwAAAEMFAAABAIAAAEAAACAAABAAAKgngN+fXi4KAACGBLB0+E9BAACA8gB6j/8+AgCKAfjx8d3wAQBA5PDXgLDW+O8CoACAGcffCwEAAAAAAAAAAOA9gPcAAPgUKOtTIAB8DxAdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADQqvxDjDUDQKXxAwAAAAAAAMBEAL6/f7N6AABQDsEhhj8ihEoAqo1/GgBbjB+C8f/3LwdgXwQA1AdQcfwlAeyDAIDDI5hh/H8B/HlBMP+b4V4QZvix58H4qwKo/OOQj1fHH/8QAHxHYPgAAGHwAEgASABIAEgASJ0AQKDo8QMgABxFyQAgUPT4ARAAjqNkABAoevwACABHUjIACBQ9fgAUDwACRY8fAsWPHwDFA4BA0eOHQPHjB0DxACBQ9PghUPz4IVD8+CFQ/PghUPz4QVD88CGQ8YMgw4dAxg+CDB8GGT0MMnoYZPSQGHfJ1y10gyjlVZVH7QAAAABJRU5ErkJggg==">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Home Finance">
+<meta name="apple-mobile-web-app-title" content="Hearth">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -473,7 +473,7 @@ textarea { resize: none; }
 <div id="app" style="width:100%;max-width:100%;overflow-x:hidden;box-sizing:border-box">
 <!-- iPad Sidebar (hidden on mobile via CSS) -->
 <div id="ipad-sidebar" style="display:none">
-  <div class="sidebar-logo">&#127968; Home Finance</div>
+  <div class="sidebar-logo">&#127968; Hearth</div>
   <div id="ipad-quarter-badge"></div>
   <button class="nav-btn active" id="nav-main" onclick="ipadNav('screen-main')">
     <span class="nav-icon">&#128200;</span> Dashboard
@@ -521,7 +521,8 @@ textarea { resize: none; }
 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
 </div>
 <div>
-<div class="lock-title">Home Finance</div>
+<div class="lock-title">Hearth</div>
+<div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
 </div>
 <div class="lock-form">
@@ -932,17 +933,17 @@ let addCategory = null;
 let historyQOffset = 0;
 
 const BUDGET_CATEGORIES = [
-  { name: 'Groceries',                   budget: 900,  essential: true  },
-  { name: 'Eating Out',             budget: 600,  essential: false },
-  { name: 'Wine & spirits',              budget: 200,  essential: false },
-  { name: 'Shopping',           budget: 350,  essential: false },
-  { name: 'Books',                       budget: 150,  essential: false },
-  { name: 'Medical',          budget: 375,  essential: true  },
-  { name: 'Pets',                        budget: 300,  essential: true  },
+  { name: 'Groceries',       budget: 900,  essential: true  },
+  { name: 'Eating Out',      budget: 600,  essential: false },
+  { name: 'Shopping',        budget: 350,  essential: false },
+  { name: 'Personal & gifts',budget: 175,  essential: false },
   { name: 'Entertainment',   budget: 400,  essential: false },
-  { name: 'Gas & transit',                           budget: 175,  essential: true  },
-  { name: 'Personal & gifts',                        budget: 175,  essential: false },
-  { name: 'Other',                       budget: null, essential: null  },
+  { name: 'Medical',         budget: 375,  essential: true  },
+  { name: 'Pets',            budget: 300,  essential: true  },
+  { name: 'Gas & transit',   budget: 175,  essential: true  },
+  { name: 'Wine & spirits',  budget: 200,  essential: false },
+  { name: 'Books',           budget: 150,  essential: false },
+  { name: 'Other',           budget: null, essential: null  },
 ];
 
 function buildCategoryGrid(spendMap) {
