@@ -823,7 +823,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
     <!-- App tracked vs actual -->
     <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
       <div style="font-size:13px;color:var(--text-3)">App tracked this cycle</div>
-      <div id="cc-app-total" style="font-size:16px;font-weight:600;color:var(--sky)">—</div>
+      <div id="cc-app-total" style="font-size:16px;font-weight:600;color:var(--sky);cursor:pointer;text-decoration:underline dotted" onclick="showCCCycleRegister()">—</div>
     </div>
 
     <label class="label" style="color:var(--sky)">Enter total card balance</label>
@@ -896,9 +896,10 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
 <span style="font-size:17px;font-weight:600;color:var(--sky)">Register</span>
 </div>
-<div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px">
+<div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
   <button id="hist-view-q" class="pill sel-e" onclick="setHistoryView('quarter')">Quarter</button>
   <button id="hist-view-m" class="pill" onclick="setHistoryView('month')">Month</button>
+  <button id="hist-view-cc" class="pill" onclick="setHistoryView('cccycle')">CC Cycle</button>
 </div>
 <div class="hist-nav">
 <button class="hist-nav-btn" onclick="historyNav(-1)">&#8592; Prev</button>
@@ -1159,7 +1160,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { historyQOffset = 0; historyMonthOffset = 0; historyView = 'quarter'; document.getElementById('hist-view-q').className = 'pill sel-e'; document.getElementById('hist-view-m').className = 'pill'; var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
+  if (id === 'screen-history') { if (historyView !== 'cccycle') { historyQOffset = 0; historyMonthOffset = 0; if (!historyView || historyView === 'quarter') historyView = 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
   if (id === 'screen-settings') {
     updateSyncBadge();
     
@@ -1496,6 +1497,7 @@ function setHistoryView(view) {
   historyMonthOffset = 0;
   document.getElementById('hist-view-q').className = 'pill' + (view === 'quarter' ? ' sel-e' : '');
   document.getElementById('hist-view-m').className = 'pill' + (view === 'month' ? ' sel-e' : '');
+  var ccPill = document.getElementById('hist-view-cc'); if (ccPill) ccPill.className = 'pill' + (view === 'cccycle' ? ' sel-n' : '');
   var hs = document.getElementById('history-search'); if (hs) hs.value = '';
   historyNav(0);
 }
@@ -1617,21 +1619,33 @@ async function historyNav(dir) {
   const fresh = await cloudGet(); if (fresh) { record = fresh; config = record.config; }
 
   var qStart, qEnd, key, qYear, qStartMonth;
-  if (historyView === 'month') {
-    var mr = getMonthRange(historyMonthOffset);
-    qStart = mr.start; qEnd = mr.end;
-    qYear = mr.year; qStartMonth = mr.month;
-    key = mr.year + '_Q' + (Math.floor(mr.month / 3) + 1);
-    document.getElementById('history-label').textContent = getMonthLabel(historyMonthOffset);
+  if (historyView === 'cccycle') {
+    // CC billing cycle — April 12 to May 11
+    qStart = new Date(CC_CYCLE_START);
+    qEnd = new Date(CC_CYCLE_END);
+    qYear = 2026; qStartMonth = 3; // April
+    key = '2026_Q2';
+    document.getElementById('history-label').textContent = '4/12 – 5/11';
+    // Hide prev/next nav for CC cycle view
+    document.querySelector('.hist-nav').style.display = 'none';
   } else {
-    key = getQuarterKeyOffset(historyQOffset);
-    document.getElementById('history-label').textContent = quarterLabel(key);
-    var _parts = key.split('_');
-    var qNum = parseInt(_parts[1].replace('Q',''));
-    qYear = parseInt(_parts[0]);
-    qStartMonth = (qNum - 1) * 3;
-    qStart = new Date(qYear, qStartMonth, 1);
-    qEnd = new Date(qYear, qStartMonth + 3, 0, 23, 59, 59);
+    document.querySelector('.hist-nav').style.display = '';
+    if (historyView === 'month') {
+      var mr = getMonthRange(historyMonthOffset);
+      qStart = mr.start; qEnd = mr.end;
+      qYear = mr.year; qStartMonth = mr.month;
+      key = mr.year + '_Q' + (Math.floor(mr.month / 3) + 1);
+      document.getElementById('history-label').textContent = getMonthLabel(historyMonthOffset);
+    } else {
+      key = getQuarterKeyOffset(historyQOffset);
+      document.getElementById('history-label').textContent = quarterLabel(key);
+      var _parts = key.split('_');
+      var qNum = parseInt(_parts[1].replace('Q',''));
+      qYear = parseInt(_parts[0]);
+      qStartMonth = (qNum - 1) * 3;
+      qStart = new Date(qYear, qStartMonth, 1);
+      qEnd = new Date(qYear, qStartMonth + 3, 0, 23, 59, 59);
+    }
   }
   const today = new Date(); today.setHours(23,59,59,0);
 
@@ -2570,6 +2584,17 @@ function updateCCBalanceCard() {
     if (deltaEl) { deltaEl.textContent = 'Enter total card balance to see breakdown'; deltaEl.style.color = 'var(--text-3)'; }
     if (infoEl) infoEl.textContent = '';
   }
+}
+
+function showCCCycleRegister() {
+  // Switch to history screen in a special CC cycle mode
+  historyQOffset = 0;
+  historyMonthOffset = 0;
+  historyView = 'cccycle';
+  document.getElementById('hist-view-q').className = 'pill';
+  document.getElementById('hist-view-m').className = 'pill';
+  var hs = document.getElementById('history-search'); if (hs) hs.value = '';
+  showScreen('screen-history');
 }
 
 function onCCActualInput(val) {
