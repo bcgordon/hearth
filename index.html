@@ -1547,8 +1547,9 @@ async function historyNav(dir) {
   const allEvents = getScheduledEvents();
   const qEvents = allEvents.filter(ev => ev.date >= qStart && ev.date <= qEnd);
 
-  // 2. Get manually logged CC entries for this quarter
-  const entries = loadEntries(key);
+  // 2. Get manually logged entries — filter to date range for month view
+  const allQEntries = loadEntries(key);
+  const entries = allQEntries.filter(function(e) { var d = new Date(e.ts); return d >= qStart && d <= qEnd; });
 
   // 3. Build unified register rows
   var rows = [];
