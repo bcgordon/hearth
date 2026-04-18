@@ -630,16 +630,18 @@ Non-essential: <strong id="lbl-n">$0</strong>
 </div>
 </div>
 <div>
+<label class="label" style="color:var(--coral)">Payment method</label>
+<div class="pill-row">
+<button id="pill-cc" class="pill" onclick="selectPayMethod('cc')">💳 Credit card</button>
+<button id="pill-chk" class="pill" onclick="selectPayMethod('checking')">🏦 Checking</button>
+</div>
+</div>
+<div>
 <label class="label" style="color:var(--coral)">Type</label>
 <div class="pill-row">
 <button id="pill-e" class="pill" onclick="selectType('essential')">Essential</button>
 <button id="pill-n" class="pill" onclick="selectType('nonessential')">Non-essential</button>
-<button id="pill-t" class="pill" onclick="selectType('transfer')">Checking transfer</button>
 </div>
-</div>
-<div>
-<label class="label" style="color:var(--coral)">Who</label>
-<div id="pill-users" class="pill-row"></div>
 </div>
 <div>
 <label class="label" style="color:var(--text-3)">Date</label>
@@ -928,22 +930,22 @@ Non-essential: <strong id="lbl-n">$0</strong>
 let householdCode = '';
 let config = null;
 let addType = null;
-let addUser = null;
+let addPayMethod = null;
 let addCategory = null;
 let historyQOffset = 0;
 
 const BUDGET_CATEGORIES = [
-  { name: 'Groceries',       budget: 900,  essential: true  },
-  { name: 'Eating Out',      budget: 600,  essential: false },
-  { name: 'Shopping',        budget: 350,  essential: false },
-  { name: 'Personal & gifts',budget: 175,  essential: false },
-  { name: 'Entertainment',   budget: 400,  essential: false },
-  { name: 'Medical',         budget: 375,  essential: true  },
-  { name: 'Pets',            budget: 300,  essential: true  },
-  { name: 'Gas & transit',   budget: 175,  essential: true  },
-  { name: 'Wine & spirits',  budget: 200,  essential: false },
-  { name: 'Books',           budget: 150,  essential: false },
-  { name: 'Other',           budget: null, essential: null  },
+  { name: 'Groceries',                   budget: 900,  essential: true  },
+  { name: 'Eating Out',                  budget: 600,  essential: false },
+  { name: 'Wine & spirits',              budget: 200,  essential: false },
+  { name: 'Shopping',                    budget: 350,  essential: false },
+  { name: 'Books',                       budget: 150,  essential: false },
+  { name: 'Medical',                     budget: 375,  essential: true  },
+  { name: 'Pets',                        budget: 300,  essential: true  },
+  { name: 'Entertainment',               budget: 400,  essential: false },
+  { name: 'Gas & transit',               budget: 175,  essential: true  },
+  { name: 'Personal & gifts',            budget: 175,  essential: false },
+  { name: 'Other',                       budget: null, essential: null  },
 ];
 
 function buildCategoryGrid(spendMap) {
@@ -1002,6 +1004,8 @@ function selectCategory(catName) {
   if (cat && cat.essential !== null && !addType) {
     selectType(cat.essential ? 'essential' : 'nonessential');
   }
+  // Auto-select CC as default payment method if not set
+  if (!addPayMethod) selectPayMethod('cc');
   const otherWrap = document.getElementById('category-other-wrap');
   if (otherWrap) otherWrap.style.display = catName === 'Other' ? 'block' : 'none';
 }
@@ -1065,6 +1069,7 @@ async function showScreen(id) {
     buildCategoryGrid(getCategorySpend());
     var td = new Date(); var mm = String(td.getMonth()+1).padStart(2,'0'); var dd2 = String(td.getDate()).padStart(2,'0');
     var dateEl = document.getElementById('add-date'); if (dateEl) dateEl.value = td.getFullYear() + '-' + mm + '-' + dd2;
+    if (!addPayMethod) selectPayMethod('cc');
   }
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
@@ -1132,7 +1137,7 @@ async function doSetup() {
   enterApp();
 }
 
-function enterApp() { buildUserPills(); buildCategoryGrid(getCategorySpend()); refreshMain(); showScreen('screen-main'); }
+function enterApp() { buildCategoryGrid(getCategorySpend()); refreshMain(); showScreen('screen-main'); }
 
 function buildUserPills() {
   const cont = document.getElementById('pill-users'); cont.innerHTML = '';
@@ -1147,7 +1152,12 @@ function selectType(t) {
   addType = t;
   document.getElementById('pill-e').className = 'pill' + (t === 'essential' ? ' sel-e' : '');
   document.getElementById('pill-n').className = 'pill' + (t === 'nonessential' ? ' sel-n' : '');
-  var pt = document.getElementById('pill-t'); if (pt) pt.className = 'pill' + (t === 'transfer' ? ' sel-n' : '');
+}
+
+function selectPayMethod(m) {
+  addPayMethod = m;
+  document.getElementById('pill-cc').className = 'pill' + (m === 'cc' ? ' sel-n' : '');
+  document.getElementById('pill-chk').className = 'pill' + (m === 'checking' ? ' sel-e' : '');
 }
 
 function selectUser(u) {
@@ -1249,7 +1259,7 @@ async function submitEntry() {
   if (!amtRaw || isNaN(amt) || amt <= 0) { err.textContent = 'Please enter a valid amount'; err.style.display = 'block'; return; }
   if (!addCategory) { err.textContent = 'Please select a budget category'; err.style.display = 'block'; return; }
   if (!addType) { err.textContent = 'Please select a type'; err.style.display = 'block'; return; }
-  if (!addUser) { err.textContent = 'Please select who is entering this'; err.style.display = 'block'; return; }
+  if (!addPayMethod) { err.textContent = 'Please select Credit Card or Checking'; err.style.display = 'block'; return; }
   let finalCategory = addCategory;
   if (addCategory === 'Other') {
     const otherInput = document.getElementById('category-other-input');
@@ -1267,16 +1277,37 @@ async function submitEntry() {
   const fresh = await cloudGet();
   if (fresh) record = fresh;
   const entries = loadEntries(qKey);
-  entries.push({ id: Date.now(), amt: Math.round(amt * 100) / 100, type: addType, user: addUser, note, cat: finalCategory, ts: entryTs });
+  const entryAmt = Math.round(amt * 100) / 100;
+  entries.push({ id: Date.now(), amt: entryAmt, type: addType, payMethod: addPayMethod, note, cat: finalCategory, ts: entryTs });
   await saveEntries(qKey, entries);
+
+  // If paid by checking, create a one-time checking outflow in the projection
+  if (addPayMethod === 'checking') {
+    if (!record.bills) record.bills = [];
+    var transferNote = (finalCategory || '') + (note ? ' — ' + note : '');
+    record.bills.push({
+      id: 'transfer_' + Date.now(),
+      name: 'Transfer: ' + (finalCategory || 'expense'),
+      amt: entryAmt,
+      freq: 'once',
+      month: entryDate.getMonth(),
+      day: entryDate.getDate(),
+      year: entryDate.getFullYear(),
+      type: 'out',
+      paidBy: 'checking',
+      note: transferNote,
+      isTransfer: true,
+    });
+    await cloudSet(record);
+  }
 
   // Fire sync to Google Sheets (non-blocking — app saves regardless)
   callSheetsSync(entries[entries.length - 1]);
 
   document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = ''; var dateEl2 = document.getElementById('add-date'); if (dateEl2) { var td2 = new Date(); var mm2 = String(td2.getMonth()+1).padStart(2,'0'); var dd3 = String(td2.getDate()).padStart(2,'0'); dateEl2.value = td2.getFullYear() + '-' + mm2 + '-' + dd3; }
-  addType = null; addUser = null; addCategory = null;
-  document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill'; var pt2 = document.getElementById('pill-t'); if (pt2) pt2.className = 'pill';
-  (config.names || []).forEach(n => { const el = document.getElementById('pill-u-' + n); if (el) el.className = 'pill'; });
+  addType = null; addPayMethod = null; addCategory = null;
+  document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
+  document.getElementById('pill-cc').className = 'pill'; document.getElementById('pill-chk').className = 'pill';
   document.querySelectorAll('.cat-pill-btn').forEach(b => b.classList.remove('sel-cat'));
   const otherWrap = document.getElementById('category-other-wrap');
   if (otherWrap) otherWrap.style.display = 'none';
@@ -1330,7 +1361,8 @@ function renderEntriesList(entries, containerId, allowDelete, qKey) {
     const meta = document.createElement('div');
     const d = new Date(e.ts);
     const catBadge = e.cat ? '<span class="entry-cat">' + e.cat + '</span>' : '';
-    meta.innerHTML = '<div class="entry-who">' + e.user + (e.note ? ' · ' + e.note : '') + ' · ' + (d.getMonth()+1) + '/' + d.getDate() + catBadge + '</div>';
+    var pmLabel = e.payMethod === 'checking' ? '🏦 Checking' : '💳 CC';
+    meta.innerHTML = '<div class="entry-who">' + pmLabel + (e.note ? ' · ' + e.note : '') + ' · ' + (d.getMonth()+1) + '/' + d.getDate() + catBadge + '</div>';
     left.appendChild(top); left.appendChild(meta); row.appendChild(left);
     if (allowDelete) {
       const del = document.createElement('button'); del.className = 'del-btn'; del.innerHTML = '&#10005;';
@@ -1405,6 +1437,7 @@ async function historyNav(dir) {
       type: ev.type,
       isPast: isPast,
       isBill: true,
+      isTransfer: ev.isTransfer || false,
     });
   });
 
@@ -1502,9 +1535,9 @@ async function historyNav(dir) {
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);opacity:' + (r.isPast ? '1' : '0.6');
 
     // Color by type
-    var color = r.type === 'in' ? 'var(--grass)' : (r.type === 'cc_entry' || r.type === 'cc_bill') ? 'var(--sky)' : r.type === 'cc' ? 'var(--sky-dim)' : 'var(--coral)';
+    var color = r.type === 'in' ? 'var(--grass)' : (r.type === 'cc_entry' || r.type === 'cc_bill') ? 'var(--sky)' : r.type === 'cc' ? 'var(--sky-dim)' : r.isTransfer ? 'var(--sun)' : 'var(--coral)';
     var sign = r.type === 'in' ? '+' : '-';
-    var label = (r.type === 'cc_entry' || r.type === 'cc_bill') ? '💳' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : '↑';
+    var label = (r.type === 'cc_entry' || r.type === 'cc_bill') ? '💳' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : r.isTransfer ? '⇄' : '↑';
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
     row.innerHTML =
@@ -1528,7 +1561,7 @@ async function saveSettings() {
   if (!record) record = { config, entries: {} };
   record.config = config;
   await cloudSet(record);
-  buildUserPills(); refreshMain(); showScreen('screen-main'); toast('Settings saved');
+  refreshMain(); showScreen('screen-main'); toast('Settings saved');
 }
 
 function doLock() {
@@ -2008,7 +2041,7 @@ function getScheduledEvents() {
               dd = new Date(y2, m2, b.day);
             }
             if (dd > start && dd <= end && b.paidBy !== 'cc')
-              events.push({ date: dd, name: b.name, amt: b.amt, type: b.type, billId: b.id });
+              events.push({ date: dd, name: b.name, amt: b.amt, type: b.type, billId: b.id, isTransfer: b.isTransfer || false });
           } catch(e) {}
         }
       }
@@ -2059,7 +2092,7 @@ function getScheduledEvents() {
     else if (b.freq === 'once') {
       var od = new Date(b.year, b.month, b.day);
       if (od > start && od <= end)
-        events.push({ date: od, name: b.name, amt: b.amt, type: b.type, billId: b.id });
+        events.push({ date: od, name: b.name, amt: b.amt, type: b.type, billId: b.id, isTransfer: b.isTransfer || false });
     }
   }
 
@@ -2173,6 +2206,7 @@ function buildProjection() {
       ccYear: ev.ccYear,
       ccMonth: ev.ccMonth,
       billId: ev.billId,
+      isTransfer: ev.isTransfer || false,
     });
   }
   return projection;
