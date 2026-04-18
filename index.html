@@ -119,6 +119,7 @@ textarea { resize: none; }
 .tag { font-size: 17px; font-weight: 600; padding: 3px 17px; border-radius: var(--radius-pill); letter-spacing: 0.02em; }
 .tag-e { background: var(--grass-bg); color: var(--grass-dim); border: 1px solid var(--grass); }
 .tag-n { background: var(--sun-bg); color: var(--sun-dim); border: 1px solid var(--sun); }
+.tag-t { background: var(--sky-bg); color: var(--sky-dim); border: 1px solid var(--sky); }
 .progress-track { height: 22px; background: var(--surface2); border: 1.5px solid var(--border); border-radius: var(--radius-pill); overflow: hidden; display: flex; }
 .prog-e { background: var(--grass); height: 100%; transition: width 0.5s cubic-bezier(.4,0,.2,1); border-radius: var(--radius-pill) 0 0 var(--radius-pill); }
 .prog-n { background: var(--sun); height: 100%; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
@@ -632,6 +633,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <div class="pill-row">
 <button id="pill-e" class="pill" onclick="selectType('essential')">Essential</button>
 <button id="pill-n" class="pill" onclick="selectType('nonessential')">Non-essential</button>
+<button id="pill-t" class="pill" onclick="selectType('transfer')">Checking transfer</button>
 </div>
 </div>
 <div>
@@ -1144,6 +1146,7 @@ function selectType(t) {
   addType = t;
   document.getElementById('pill-e').className = 'pill' + (t === 'essential' ? ' sel-e' : '');
   document.getElementById('pill-n').className = 'pill' + (t === 'nonessential' ? ' sel-n' : '');
+  var pt = document.getElementById('pill-t'); if (pt) pt.className = 'pill' + (t === 'transfer' ? ' sel-n' : '');
 }
 
 function selectUser(u) {
@@ -1244,7 +1247,7 @@ async function submitEntry() {
   const amt = parseFloat(amtRaw);
   if (!amtRaw || isNaN(amt) || amt <= 0) { err.textContent = 'Please enter a valid amount'; err.style.display = 'block'; return; }
   if (!addCategory) { err.textContent = 'Please select a budget category'; err.style.display = 'block'; return; }
-  if (!addType) { err.textContent = 'Please select Essential or Non-essential'; err.style.display = 'block'; return; }
+  if (!addType) { err.textContent = 'Please select a type'; err.style.display = 'block'; return; }
   if (!addUser) { err.textContent = 'Please select who is entering this'; err.style.display = 'block'; return; }
   let finalCategory = addCategory;
   if (addCategory === 'Other') {
@@ -1271,7 +1274,7 @@ async function submitEntry() {
 
   document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = ''; var dateEl2 = document.getElementById('add-date'); if (dateEl2) { var td2 = new Date(); var mm2 = String(td2.getMonth()+1).padStart(2,'0'); var dd3 = String(td2.getDate()).padStart(2,'0'); dateEl2.value = td2.getFullYear() + '-' + mm2 + '-' + dd3; }
   addType = null; addUser = null; addCategory = null;
-  document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
+  document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill'; var pt2 = document.getElementById('pill-t'); if (pt2) pt2.className = 'pill';
   (config.names || []).forEach(n => { const el = document.getElementById('pill-u-' + n); if (el) el.className = 'pill'; });
   document.querySelectorAll('.cat-pill-btn').forEach(b => b.classList.remove('sel-cat'));
   const otherWrap = document.getElementById('category-other-wrap');
@@ -1288,7 +1291,7 @@ function refreshMain() {
   const entries = loadEntries(qKey);
   const budget = config.budget || 0;
   let totE = 0, totN = 0;
-  entries.forEach(e => { if (e.type === 'essential') totE += e.amt; else totN += e.amt; });
+  entries.forEach(e => { if (e.type === 'essential') totE += e.amt; else totN += e.amt; }); // transfer counts as nonessential
   const tot = totE + totN;
   const pctE = budget > 0 ? Math.min(totE / budget * 100, 100) : 0;
   const pctN = budget > 0 ? Math.min(totN / budget * 100, 100 - pctE) : 0;
@@ -1320,8 +1323,8 @@ function renderEntriesList(entries, containerId, allowDelete, qKey) {
     const amt = document.createElement('span'); amt.className = 'entry-amt';
     amt.textContent = '$' + e.amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const tag = document.createElement('span');
-    tag.className = 'tag ' + (e.type === 'essential' ? 'tag-e' : 'tag-n');
-    tag.textContent = e.type === 'essential' ? 'Essential' : 'Non-essential';
+    tag.className = 'tag ' + (e.type === 'essential' ? 'tag-e' : e.type === 'transfer' ? 'tag-t' : 'tag-n');
+    tag.textContent = e.type === 'essential' ? 'Essential' : e.type === 'transfer' ? 'Transfer' : 'Non-essential';
     top.appendChild(amt); top.appendChild(tag);
     const meta = document.createElement('div');
     const d = new Date(e.ts);
