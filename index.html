@@ -1441,7 +1441,9 @@ function renderEntriesList(entries, containerId, allowDelete, qKey) {
 async function deleteEntry(id, qKey) {
   const fresh = await cloudGet(); if (fresh) record = fresh;
   await saveEntries(qKey, loadEntries(qKey).filter(e => e.id !== id));
-  refreshMain(); toast('Entry removed');
+  refreshMain();
+  if (document.getElementById('screen-history').classList.contains('active')) historyNav(0);
+  toast('Entry removed');
 }
 
 // ── HISTORY VIEW TOGGLE ──────────────────────────────────────────────────────
@@ -1511,6 +1513,19 @@ function openEntryEdit(entryId, qKey) {
 
   document.getElementById('entry-edit-modal').style.display = 'flex';
   setTimeout(function() { document.getElementById('ee-amt').focus(); document.getElementById('ee-amt').select(); }, 100);
+}
+
+async function deleteBillFromRegister(billId) {
+  const fresh = await cloudGet(); if (fresh) record = fresh;
+  var before = (record.bills || []).length;
+  record.bills = (record.bills || []).filter(function(b) { return b.id !== billId; });
+  if (record.bills.length < before) {
+    await cloudSet(record);
+    historyNav(0);
+    toast('Deleted');
+  } else {
+    toast('Could not find bill to delete');
+  }
 }
 
 function eeCancel() {
@@ -1624,6 +1639,7 @@ async function historyNav(dir) {
       isPast: isPast,
       isBill: true,
       isTransfer: ev.isTransfer || false,
+      billId: ev.billId || null,
     });
   });
 
@@ -1646,6 +1662,7 @@ async function historyNav(dir) {
             type: 'cc_bill',
             isPast: bd <= today,
             isBill: true,
+            billId: b.id || null,
           });
         }
       }
@@ -1733,7 +1750,12 @@ async function historyNav(dir) {
     var label = isIncomeEntry ? '↓' : r.type === 'cc_bill' ? '💳' : r.type === 'cc_entry' && !isCheckingEntry ? '💳' : isCheckingEntry ? '🏦' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : r.isTransfer ? '⇄' : '↑';
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
-    var editBtn = r.entryId ? '<button onclick="openEntryEdit(' + r.entryId + ',\'' + r.entryQKey + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>' : '';
+    var editBtn = '';
+    if (r.entryId) {
+      editBtn = '<button onclick="openEntryEdit(' + r.entryId + ',\'' + r.entryQKey + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>';
+    } else if (r.billId && r.billId.toString().startsWith('income_') || r.billId && r.billId.toString().startsWith('chk_') || r.billId && r.billId.toString().startsWith('custom_') || r.billId && r.billId.toString().startsWith('transfer_')) {
+      editBtn = '<button onclick="deleteBillFromRegister(\'' + r.billId + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--red);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">delete</button>';
+    }
     row.innerHTML =
       '<span style="font-size:18px;min-width:20px;text-align:center">' + label + '</span>' +
       '<div style="flex:1;min-width:0">' +
