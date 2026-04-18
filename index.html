@@ -2382,6 +2382,22 @@ function getScheduledEvents() {
 }
 
 // Get CC spending total for a given month — app entries PLUS fixed CC-billed bills
+function getCCSpendForCyclePart(year, month, dayStart, dayEnd) {
+  // Sum CC entries for a partial month (e.g. days 1-11)
+  var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
+  var entries = loadEntries(qKey);
+  var total = 0;
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    if (e.payMethod === 'checking' || e.payMethod === 'income') continue;
+    var d = new Date(e.ts);
+    if (d.getFullYear() === year && d.getMonth() === month && d.getDate() >= dayStart && d.getDate() <= dayEnd) {
+      total += e.amt;
+    }
+  }
+  return total;
+}
+
 function getCCSpendForMonth(year, month) {
   // App-logged expenses
   var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
@@ -2391,6 +2407,7 @@ function getCCSpendForMonth(year, month) {
     var e = entries[i];
     var d = new Date(e.ts);
     if (d.getFullYear() === year && d.getMonth() === month) {
+      if (e.payMethod === 'checking' || e.payMethod === 'income') continue;
       total += e.amt;
     }
   }
@@ -2445,8 +2462,14 @@ function buildProjection() {
         if (override) {
           amt = parseFloat(override);
         } else {
-          var ccSpend = getCCSpendForMonth(ccYear, ccMonth);
-          amt = ccSpend > 0 ? ccSpend : 3500;
+          // CC payment on the 19th pays for the prior billing cycle (12th-11th)
+          // So look at the previous month's entries as the primary cycle
+          var prevMonth = ccMonth === 0 ? 11 : ccMonth - 1;
+          var prevYear = ccMonth === 0 ? ccYear - 1 : ccYear;
+          var ccSpend = getCCSpendForMonth(prevYear, prevMonth);
+          // Also add partial current month (1st-11th) entries
+          var partialSpend = getCCSpendForCyclePart(ccYear, ccMonth, 1, 11);
+          amt = (ccSpend + partialSpend) > 0 ? (ccSpend + partialSpend) : 3500;
         }
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
