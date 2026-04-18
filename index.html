@@ -821,14 +821,15 @@ Non-essential: <strong id="lbl-n">$0</strong>
     </div>
 
     <!-- App tracked vs actual -->
-    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
       <div style="font-size:13px;color:var(--text-3)">App tracked this cycle</div>
       <div id="cc-app-total" style="font-size:16px;font-weight:600;color:var(--sky);cursor:pointer;text-decoration:underline dotted" onclick="showCCCycleRegister()">—</div>
     </div>
+    <div id="cc-tracked-delta" style="font-size:14px;font-weight:600;text-align:right;padding:0 4px;margin-bottom:12px"></div>
 
     <label class="label" style="color:var(--sky)">Enter total card balance</label>
     <div style="margin-top:6px">
-      <input id="cc-actual-input" type="number" placeholder="e.g. 7017.20" step="0.01"
+      <input id="cc-actual-input" type="text" inputmode="decimal" placeholder="e.g. 7017.20"
         style="width:100%;box-sizing:border-box;font-size:20px;font-weight:600;color:var(--sky);padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:inherit"
         oninput="onCCActualInput(this.value)" />
     </div>
@@ -2573,6 +2574,19 @@ function updateCCBalanceCard() {
         deltaEl.style.color = 'var(--red)';
       }
     }
+    var trackedDeltaEl = document.getElementById('cc-tracked-delta');
+    if (trackedDeltaEl) {
+      if (Math.abs(delta) < 0.50) {
+        trackedDeltaEl.textContent = '✓ balanced';
+        trackedDeltaEl.style.color = 'var(--grass)';
+      } else if (delta > 0) {
+        trackedDeltaEl.textContent = fmt(delta) + ' still to enter';
+        trackedDeltaEl.style.color = 'var(--sun-dim)';
+      } else {
+        trackedDeltaEl.textContent = fmt(Math.abs(delta)) + ' over-entered';
+        trackedDeltaEl.style.color = 'var(--red)';
+      }
+    }
     if (savedDate && infoEl) {
       var d = new Date(parseInt(savedDate));
       var days = Math.round((new Date() - d) / 86400000);
@@ -2583,6 +2597,7 @@ function updateCCBalanceCard() {
     if (cycCurEl) cycCurEl.textContent = fmt(appTotal);
     if (deltaEl) { deltaEl.textContent = 'Enter total card balance to see breakdown'; deltaEl.style.color = 'var(--text-3)'; }
     if (infoEl) infoEl.textContent = '';
+    var td2 = document.getElementById('cc-tracked-delta'); if (td2) td2.textContent = '';
   }
 }
 
