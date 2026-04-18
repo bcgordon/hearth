@@ -1521,20 +1521,20 @@ async function historyNav(dir) {
 
   const fresh = await cloudGet(); if (fresh) { record = fresh; config = record.config; }
 
-  var qStart, qEnd, key;
+  var qStart, qEnd, key, qYear, qStartMonth;
   if (historyView === 'month') {
     var mr = getMonthRange(historyMonthOffset);
     qStart = mr.start; qEnd = mr.end;
+    qYear = mr.year; qStartMonth = mr.month;
     key = mr.year + '_Q' + (Math.floor(mr.month / 3) + 1);
     document.getElementById('history-label').textContent = getMonthLabel(historyMonthOffset);
   } else {
     key = getQuarterKeyOffset(historyQOffset);
     document.getElementById('history-label').textContent = quarterLabel(key);
-    // Quarter date range
-    const [y, q2] = key.split('_');
-    const qNum = parseInt(q2.replace('Q',''));
-    const qYear = parseInt(y);
-    const qStartMonth = (qNum - 1) * 3;
+    var _parts = key.split('_');
+    var qNum = parseInt(_parts[1].replace('Q',''));
+    qYear = parseInt(_parts[0]);
+    qStartMonth = (qNum - 1) * 3;
     qStart = new Date(qYear, qStartMonth, 1);
     qEnd = new Date(qYear, qStartMonth + 3, 0, 23, 59, 59);
   }
