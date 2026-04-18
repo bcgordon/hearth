@@ -1335,8 +1335,8 @@ async function submitEntry() {
     if (!record.bills) record.bills = [];
     var transferNote = (finalCategory || '') + (note ? ' — ' + note : '');
     record.bills.push({
-      id: 'transfer_' + Date.now(),
-      name: 'Transfer: ' + (finalCategory || 'expense'),
+      id: 'chk_' + Date.now(),
+      name: (finalCategory && finalCategory !== 'Other' ? finalCategory : (note || 'Checking expense')),
       amt: entryAmt,
       freq: 'once',
       month: entryDate.getMonth(),
@@ -1345,7 +1345,6 @@ async function submitEntry() {
       type: 'out',
       paidBy: 'checking',
       note: transferNote,
-      isTransfer: true,
     });
     await cloudSet(record);
   }
