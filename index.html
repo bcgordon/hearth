@@ -1421,13 +1421,13 @@ function renderEntriesList(entries, containerId, allowDelete, qKey) {
     const amt = document.createElement('span'); amt.className = 'entry-amt';
     amt.textContent = '$' + e.amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const tag = document.createElement('span');
-    tag.className = 'tag ' + (e.type === 'essential' ? 'tag-e' : e.type === 'transfer' ? 'tag-t' : 'tag-n');
-    tag.textContent = e.type === 'essential' ? 'Essential' : e.type === 'transfer' ? 'Transfer' : 'Non-essential';
+    tag.className = 'tag ' + (e.type === 'essential' ? 'tag-e' : e.type === 'transfer' ? 'tag-t' : e.payMethod === 'income' ? 'tag-e' : 'tag-n');
+    tag.textContent = e.type === 'essential' ? 'Essential' : e.type === 'transfer' ? 'Transfer' : e.payMethod === 'income' ? 'Income' : 'Non-essential';
     top.appendChild(amt); top.appendChild(tag);
     const meta = document.createElement('div');
     const d = new Date(e.ts);
     const catBadge = e.cat ? '<span class="entry-cat">' + e.cat + '</span>' : '';
-    var pmLabel = e.payMethod === 'checking' ? '🏦 Checking' : '💳 CC';
+    var pmLabel = e.payMethod === 'checking' ? '🏦 Checking' : e.payMethod === 'income' ? '↓ Income' : '💳 CC';
     meta.innerHTML = '<div class="entry-who">' + pmLabel + (e.note ? ' · ' + e.note : '') + ' · ' + (d.getMonth()+1) + '/' + d.getDate() + catBadge + '</div>';
     left.appendChild(top); left.appendChild(meta); row.appendChild(left);
     if (allowDelete) {
