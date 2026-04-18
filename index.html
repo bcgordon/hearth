@@ -1726,9 +1726,10 @@ async function historyNav(dir) {
 
     // Color by type
     var isCheckingEntry = r.type === 'cc_entry' && r.payMethod === 'checking';
-    var color = r.type === 'in' ? 'var(--grass)' : r.type === 'cc_bill' ? 'var(--sky)' : r.type === 'cc_entry' && !isCheckingEntry ? 'var(--sky)' : isCheckingEntry ? 'var(--coral)' : r.type === 'cc' ? 'var(--sky-dim)' : r.isTransfer ? 'var(--sun)' : 'var(--coral)';
-    var sign = r.type === 'in' ? '+' : '-';
-    var label = r.type === 'cc_bill' ? '💳' : r.type === 'cc_entry' && !isCheckingEntry ? '💳' : isCheckingEntry ? '🏦' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : r.isTransfer ? '⇄' : '↑';
+    var isIncomeEntry = r.type === 'cc_entry' && r.payMethod === 'income';
+    var color = isIncomeEntry ? 'var(--grass)' : r.type === 'in' ? 'var(--grass)' : r.type === 'cc_bill' ? 'var(--sky)' : r.type === 'cc_entry' && !isCheckingEntry ? 'var(--sky)' : isCheckingEntry ? 'var(--coral)' : r.type === 'cc' ? 'var(--sky-dim)' : r.isTransfer ? 'var(--sun)' : 'var(--coral)';
+    var sign = isIncomeEntry ? '+' : r.type === 'in' ? '+' : '-';
+    var label = isIncomeEntry ? '↓' : r.type === 'cc_bill' ? '💳' : r.type === 'cc_entry' && !isCheckingEntry ? '💳' : isCheckingEntry ? '🏦' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : r.isTransfer ? '⇄' : '↑';
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
     var editBtn = r.entryId ? '<button onclick="openEntryEdit(' + r.entryId + ',\'' + r.entryQKey + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>' : '';
