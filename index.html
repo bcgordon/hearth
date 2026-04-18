@@ -634,6 +634,7 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <div class="pill-row">
 <button id="pill-cc" class="pill" onclick="selectPayMethod('cc')">💳 Credit card</button>
 <button id="pill-chk" class="pill" onclick="selectPayMethod('checking')">🏦 Checking</button>
+<button id="pill-inc" class="pill" onclick="selectPayMethod('income')">↓ Income</button>
 </div>
 </div>
 <div>
@@ -1107,6 +1108,7 @@ async function showScreen(id) {
     var td = new Date(); var mm = String(td.getMonth()+1).padStart(2,'0'); var dd2 = String(td.getDate()).padStart(2,'0');
     var dateEl = document.getElementById('add-date'); if (dateEl) dateEl.value = td.getFullYear() + '-' + mm + '-' + dd2;
     if (!addPayMethod) selectPayMethod('cc');
+    var saveBtn = document.querySelector('#screen-add .btn-coral'); if (saveBtn) saveBtn.textContent = 'Save expense';
   }
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
@@ -1195,6 +1197,10 @@ function selectPayMethod(m) {
   addPayMethod = m;
   document.getElementById('pill-cc').className = 'pill' + (m === 'cc' ? ' sel-n' : '');
   document.getElementById('pill-chk').className = 'pill' + (m === 'checking' ? ' sel-e' : '');
+  var pi = document.getElementById('pill-inc'); if (pi) pi.className = 'pill' + (m === 'income' ? ' sel-e' : '');
+  // Hide essential/non-essential for income — not relevant
+  var typeRow = document.getElementById('pill-e').closest('div').parentElement;
+  if (typeRow) typeRow.style.display = m === 'income' ? 'none' : '';
 }
 
 function selectUser(u) {
@@ -1294,9 +1300,11 @@ async function submitEntry() {
   const err = document.getElementById('add-err');
   const amt = parseFloat(amtRaw);
   if (!amtRaw || isNaN(amt) || amt <= 0) { err.textContent = 'Please enter a valid amount'; err.style.display = 'block'; return; }
-  if (!addCategory) { err.textContent = 'Please select a budget category'; err.style.display = 'block'; return; }
-  if (!addType) { err.textContent = 'Please select a type'; err.style.display = 'block'; return; }
-  if (!addPayMethod) { err.textContent = 'Please select Credit Card or Checking'; err.style.display = 'block'; return; }
+  if (!addCategory && addPayMethod !== 'income') { err.textContent = 'Please select a budget category'; err.style.display = 'block'; return; }
+  if (!addType && addPayMethod !== 'income') { err.textContent = 'Please select a type'; err.style.display = 'block'; return; }
+  if (!addPayMethod) { err.textContent = 'Please select a payment method'; err.style.display = 'block'; return; }
+  var saveBtn2 = document.querySelector('#screen-add .btn-coral');
+  if (saveBtn2 && addPayMethod === 'income') saveBtn2.textContent = 'Save income';
   let finalCategory = addCategory;
   if (addCategory === 'Other') {
     const otherInput = document.getElementById('category-other-input');
@@ -1338,13 +1346,31 @@ async function submitEntry() {
     await cloudSet(record);
   }
 
+  // If income, create a one-time checking inflow in the projection
+  if (addPayMethod === 'income') {
+    if (!record.bills) record.bills = [];
+    record.bills.push({
+      id: 'income_' + Date.now(),
+      name: note || 'Additional income',
+      amt: entryAmt,
+      freq: 'once',
+      month: entryDate.getMonth(),
+      day: entryDate.getDate(),
+      year: entryDate.getFullYear(),
+      type: 'in',
+      paidBy: 'checking',
+    });
+    await cloudSet(record);
+  }
+
   // Fire sync to Google Sheets (non-blocking — app saves regardless)
   callSheetsSync(entries[entries.length - 1]);
 
   document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = ''; var dateEl2 = document.getElementById('add-date'); if (dateEl2) { var td2 = new Date(); var mm2 = String(td2.getMonth()+1).padStart(2,'0'); var dd3 = String(td2.getDate()).padStart(2,'0'); dateEl2.value = td2.getFullYear() + '-' + mm2 + '-' + dd3; }
   addType = null; addPayMethod = null; addCategory = null;
   document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
-  document.getElementById('pill-cc').className = 'pill'; document.getElementById('pill-chk').className = 'pill';
+  var typeRowEl = document.getElementById('pill-e').closest('div').parentElement; if (typeRowEl) typeRowEl.style.display = '';
+  document.getElementById('pill-cc').className = 'pill'; document.getElementById('pill-chk').className = 'pill'; var pi2 = document.getElementById('pill-inc'); if (pi2) pi2.className = 'pill';
   document.querySelectorAll('.cat-pill-btn').forEach(b => b.classList.remove('sel-cat'));
   const otherWrap = document.getElementById('category-other-wrap');
   if (otherWrap) otherWrap.style.display = 'none';
@@ -2767,16 +2793,20 @@ function renderMonthlyBreakdown() {
     var isFuture = (mo.y > now.getFullYear()) || (mo.y === now.getFullYear() && mo.m > now.getMonth());
     var isCurrent = mo.y === now.getFullYear() && mo.m === now.getMonth();
 
-    // Sum entries for this month
-    var total = 0;
+    // Sum entries for this month split by payment method
+    var totCC = 0, totChk = 0;
     if (!isFuture) {
       var qKey = mo.y + '_Q' + (Math.floor(mo.m / 3) + 1);
       var entries = loadEntries(qKey);
       entries.forEach(function(e) {
         var d = new Date(e.ts);
-        if (d.getFullYear() === mo.y && d.getMonth() === mo.m) total += e.amt;
+        if (d.getFullYear() === mo.y && d.getMonth() === mo.m) {
+          if (e.payMethod === 'checking') totChk += e.amt;
+          else totCC += e.amt;
+        }
       });
     }
+    var total = totCC + totChk;
 
     var pct = monthBudget > 0 ? Math.min(total / monthBudget * 100, 100) : 0;
     var over = total > monthBudget;
@@ -2790,7 +2820,18 @@ function renderMonthlyBreakdown() {
       (over ? ' mc-over' : warn ? ' mc-warn' : good ? ' mc-good' : '');
 
     var barColor = over ? 'var(--red)' : warn ? 'var(--sun)' : 'var(--grass)';
-    var amtDisplay = isFuture ? '—' : ('$' + Math.round(total).toLocaleString());
+    var fmt = function(n) { return '$' + Math.round(n).toLocaleString(); };
+
+    var breakdown = '';
+    if (!isFuture) {
+      breakdown =
+        '<div style="margin-top:6px;font-size:13px;line-height:1.7">' +
+        '<span style="color:var(--sky-dim)">💳 ' + fmt(totCC) + '</span><br>' +
+        '<span style="color:var(--grass-dim)">🏦 ' + fmt(totChk) + '</span><br>' +
+        '<span style="font-weight:600;color:' + (over ? 'var(--red)' : 'var(--text)') + '">∑ ' + fmt(total) + '</span>' +
+        '</div>';
+    }
+
     var vsLabel = '';
     if (!isFuture && total > 0) {
       var diff = total - monthBudget;
@@ -2803,7 +2844,7 @@ function renderMonthlyBreakdown() {
 
     card.innerHTML =
       '<div class="mc-name">' + monthNames[mo.m] + (isCurrent ? ' ●' : '') + '</div>' +
-      '<div class="mc-amt">' + amtDisplay + '</div>' +
+      (isFuture ? '<div class="mc-amt">—</div>' : breakdown) +
       '<div class="mc-budget">' + vsLabel + '</div>' +
       '<div class="mc-bar" style="width:' + pct.toFixed(1) + '%;background:' + barColor + '"></div>';
 
