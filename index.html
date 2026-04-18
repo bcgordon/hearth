@@ -1928,7 +1928,7 @@ async function historyNav(dir) {
 
   // 1. Get scheduled events for this quarter from the projection engine
   const allEvents = getScheduledEvents();
-  const qEvents = allEvents.filter(ev => ev.date >= qStart && ev.date <= qEnd);
+  const qEvents = historyView === 'category' ? [] : allEvents.filter(ev => ev.date >= qStart && ev.date <= qEnd);
 
   // 2. Get manually logged entries — filter to date range for month view
   const allQEntries = loadEntries(key);
@@ -1974,7 +1974,8 @@ async function historyNav(dir) {
   });
 
   // Add CC-billed fixed bills (excluded from projection but should show in register)
-  var allBills = getAllBills();
+  if (historyView === 'category') { /* skip scheduled bills in category view */ }
+  var allBills = historyView === 'category' ? [] : getAllBills();
   allBills.forEach(function(b) {
     if (b.paidBy !== 'cc' || b.type !== 'out' || !b.amt) return;
     if (b.freq === 'monthly') {
