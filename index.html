@@ -950,6 +950,10 @@ Non-essential: <strong id="lbl-n">$0</strong>
         <button id="ee-pill-n" class="pill" onclick="eeSelectType('nonessential')" style="flex:1">Non-essential</button>
       </div>
     </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Date</label>
+      <input id="ee-date" type="date" style="width:100%;box-sizing:border-box;font-size:17px;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);font-family:inherit;margin-top:4px">
+    </div>
     <div style="margin-bottom:16px">
       <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Note</label>
       <input id="ee-note" type="text" placeholder="optional..." style="width:100%;box-sizing:border-box;font-size:17px;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);font-family:inherit;margin-top:4px">
@@ -1500,6 +1504,10 @@ function openEntryEdit(entryId, qKey) {
 
   document.getElementById('ee-amt').value = entry.amt;
   document.getElementById('ee-note').value = entry.note || '';
+  var eeD = new Date(entry.ts);
+  var eeMm = String(eeD.getMonth()+1).padStart(2,'0');
+  var eeDd = String(eeD.getDate()).padStart(2,'0');
+  document.getElementById('ee-date').value = eeD.getFullYear() + '-' + eeMm + '-' + eeDd;
   eeSelectType(entry.type);
 
   document.getElementById('entry-edit-modal').style.display = 'flex';
@@ -1526,14 +1534,19 @@ async function eeSave() {
   if (isNaN(amt) || amt <= 0) { toast('Please enter a valid amount'); return; }
   var cat = document.getElementById('ee-cat').value;
   var note = document.getElementById('ee-note').value.trim();
+  var dateVal = document.getElementById('ee-date').value;
+  var newTs = dateVal ? new Date(dateVal + 'T12:00:00').getTime() : _eeEntry.ts;
+  var newQNum = Math.floor(new Date(newTs).getMonth() / 3) + 1;
+  var newQKey = new Date(newTs).getFullYear() + '_Q' + newQNum;
   document.getElementById('entry-edit-modal').style.display = 'none';
   const fresh = await cloudGet(); if (fresh) record = fresh;
-  var entries = loadEntries(_eeQKey);
-  var idx = entries.findIndex(function(e) { return e.id === _eeEntry.id; });
-  if (idx >= 0) {
-    entries[idx] = Object.assign({}, entries[idx], { amt: Math.round(amt * 100) / 100, cat: cat, type: _eeType, note: note });
-  }
-  await saveEntries(_eeQKey, entries);
+  // Remove from old quarter
+  var oldEntries = loadEntries(_eeQKey).filter(function(e) { return e.id != _eeEntry.id; });
+  await saveEntries(_eeQKey, oldEntries);
+  // Add to new quarter (may be same)
+  var newEntries = loadEntries(newQKey);
+  newEntries.push(Object.assign({}, _eeEntry, { amt: Math.round(amt * 100) / 100, cat: cat, type: _eeType, note: note, ts: newTs }));
+  await saveEntries(newQKey, newEntries);
   _eeEntry = null; _eeQKey = null;
   refreshMain(); historyNav(0); toast('Entry updated');
 }
