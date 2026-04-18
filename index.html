@@ -854,6 +854,10 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
 <span style="font-size:17px;font-weight:600;color:var(--sky)">Register</span>
 </div>
+<div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px">
+  <button id="hist-view-q" class="pill sel-e" onclick="setHistoryView('quarter')">Quarter</button>
+  <button id="hist-view-m" class="pill" onclick="setHistoryView('month')">Month</button>
+</div>
 <div class="hist-nav">
 <button class="hist-nav-btn" onclick="historyNav(-1)">&#8592; Prev</button>
 <span id="history-label" style="font-size:18px;font-weight:600;color:var(--sun-dim);min-width:80px;text-align:center"></span>
@@ -926,6 +930,37 @@ Non-essential: <strong id="lbl-n">$0</strong>
     </div>
   </div>
 </div>
+
+<div id="entry-edit-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom)">
+  <div style="background:var(--surface);border-radius:16px 16px 0 0;padding:24px 20px 32px;width:100%;max-width:480px;box-sizing:border-box;">
+    <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:16px">Edit expense</div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Amount ($)</label>
+      <input id="ee-amt" type="number" inputmode="decimal" style="width:100%;box-sizing:border-box;font-size:22px;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);font-family:inherit;margin-top:4px">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Category</label>
+      <select id="ee-cat" style="width:100%;box-sizing:border-box;font-size:17px;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);font-family:inherit;margin-top:4px"></select>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Type</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button id="ee-pill-e" class="pill" onclick="eeSelectType('essential')" style="flex:1">Essential</button>
+        <button id="ee-pill-n" class="pill" onclick="eeSelectType('nonessential')" style="flex:1">Non-essential</button>
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Note</label>
+      <input id="ee-note" type="text" placeholder="optional..." style="width:100%;box-sizing:border-box;font-size:17px;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);font-family:inherit;margin-top:4px">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="eeCancel()" style="flex:1;padding:12px;font-size:16px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text-2);cursor:pointer;font-family:inherit;">Cancel</button>
+      <button onclick="eeDelete()" style="flex:1;padding:12px;font-size:16px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--red);cursor:pointer;font-family:inherit;">Delete</button>
+      <button onclick="eeSave()" style="flex:2;padding:12px;font-size:16px;border:none;border-radius:10px;background:var(--coral);color:#fff;cursor:pointer;font-family:inherit;font-weight:600;">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let householdCode = '';
 let config = null;
@@ -933,6 +968,8 @@ let addType = null;
 let addPayMethod = null;
 let addCategory = null;
 let historyQOffset = 0;
+let historyView = 'quarter'; // 'quarter' or 'month'
+let historyMonthOffset = 0;
 
 const BUDGET_CATEGORIES = [
   { name: 'Groceries',                   budget: 900,  essential: true  },
@@ -1074,7 +1111,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { historyQOffset = 0; document.getElementById('history-label').textContent = quarterLabel(getCurrentQuarterKey()); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
+  if (id === 'screen-history') { historyQOffset = 0; historyMonthOffset = 0; historyView = 'quarter'; document.getElementById('hist-view-q').className = 'pill sel-e'; document.getElementById('hist-view-m').className = 'pill'; var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
   if (id === 'screen-settings') {
     updateSyncBadge();
     
@@ -1378,19 +1415,129 @@ async function deleteEntry(id, qKey) {
   refreshMain(); toast('Entry removed');
 }
 
+// ── HISTORY VIEW TOGGLE ──────────────────────────────────────────────────────
+
+function setHistoryView(view) {
+  historyView = view;
+  historyQOffset = 0;
+  historyMonthOffset = 0;
+  document.getElementById('hist-view-q').className = 'pill' + (view === 'quarter' ? ' sel-e' : '');
+  document.getElementById('hist-view-m').className = 'pill' + (view === 'month' ? ' sel-e' : '');
+  var hs = document.getElementById('history-search'); if (hs) hs.value = '';
+  historyNav(0);
+}
+
+function getMonthLabel(offset) {
+  var d = new Date(); d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return mn[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function getMonthRange(offset) {
+  var d = new Date(); d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  var start = new Date(d.getFullYear(), d.getMonth(), 1);
+  var end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+  return { start, end, year: d.getFullYear(), month: d.getMonth() };
+}
+
+// ── ENTRY EDIT MODAL ─────────────────────────────────────────────────────────
+
+var _eeEntry = null;
+var _eeQKey = null;
+var _eeType = null;
+
+function eeSelectType(t) {
+  _eeType = t;
+  document.getElementById('ee-pill-e').className = 'pill' + (t === 'essential' ? ' sel-e' : '');
+  document.getElementById('ee-pill-n').className = 'pill' + (t === 'nonessential' ? ' sel-n' : '');
+}
+
+function openEntryEdit(entryId, qKey) {
+  var entries = loadEntries(qKey);
+  var entry = entries.find(function(e) { return e.id === entryId; });
+  if (!entry) return;
+  _eeEntry = entry;
+  _eeQKey = qKey;
+  _eeType = entry.type;
+
+  // Populate category dropdown
+  var sel = document.getElementById('ee-cat');
+  sel.innerHTML = '';
+  CATEGORIES.forEach(function(c) {
+    var opt = document.createElement('option');
+    opt.value = c.name; opt.textContent = c.name;
+    if (c.name === entry.cat) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  document.getElementById('ee-amt').value = entry.amt;
+  document.getElementById('ee-note').value = entry.note || '';
+  eeSelectType(entry.type);
+
+  document.getElementById('entry-edit-modal').style.display = 'flex';
+  setTimeout(function() { document.getElementById('ee-amt').focus(); document.getElementById('ee-amt').select(); }, 100);
+}
+
+function eeCancel() {
+  document.getElementById('entry-edit-modal').style.display = 'none';
+  _eeEntry = null; _eeQKey = null;
+}
+
+async function eeDelete() {
+  if (!_eeEntry || !_eeQKey) return;
+  document.getElementById('entry-edit-modal').style.display = 'none';
+  const fresh = await cloudGet(); if (fresh) record = fresh;
+  await saveEntries(_eeQKey, loadEntries(_eeQKey).filter(function(e) { return e.id !== _eeEntry.id; }));
+  _eeEntry = null; _eeQKey = null;
+  refreshMain(); historyNav(0); toast('Entry deleted');
+}
+
+async function eeSave() {
+  if (!_eeEntry || !_eeQKey) return;
+  var amt = parseFloat(document.getElementById('ee-amt').value);
+  if (isNaN(amt) || amt <= 0) { toast('Please enter a valid amount'); return; }
+  var cat = document.getElementById('ee-cat').value;
+  var note = document.getElementById('ee-note').value.trim();
+  document.getElementById('entry-edit-modal').style.display = 'none';
+  const fresh = await cloudGet(); if (fresh) record = fresh;
+  var entries = loadEntries(_eeQKey);
+  var idx = entries.findIndex(function(e) { return e.id === _eeEntry.id; });
+  if (idx >= 0) {
+    entries[idx] = Object.assign({}, entries[idx], { amt: Math.round(amt * 100) / 100, cat: cat, type: _eeType, note: note });
+  }
+  await saveEntries(_eeQKey, entries);
+  _eeEntry = null; _eeQKey = null;
+  refreshMain(); historyNav(0); toast('Entry updated');
+}
+
 async function historyNav(dir) {
-  historyQOffset += dir;
-  const key = getQuarterKeyOffset(historyQOffset);
-  document.getElementById('history-label').textContent = quarterLabel(key);
+  if (historyView === 'month') {
+    historyMonthOffset += dir;
+  } else {
+    historyQOffset += dir;
+  }
+
   const fresh = await cloudGet(); if (fresh) { record = fresh; config = record.config; }
 
-  // Quarter date range
-  const [y, q] = key.split('_');
-  const qNum = parseInt(q.replace('Q',''));
-  const qYear = parseInt(y);
-  const qStartMonth = (qNum - 1) * 3;
-  const qStart = new Date(qYear, qStartMonth, 1);
-  const qEnd = new Date(qYear, qStartMonth + 3, 0, 23, 59, 59);
+  var qStart, qEnd, key;
+  if (historyView === 'month') {
+    var mr = getMonthRange(historyMonthOffset);
+    qStart = mr.start; qEnd = mr.end;
+    key = mr.year + '_Q' + (Math.floor(mr.month / 3) + 1);
+    document.getElementById('history-label').textContent = getMonthLabel(historyMonthOffset);
+  } else {
+    key = getQuarterKeyOffset(historyQOffset);
+    document.getElementById('history-label').textContent = quarterLabel(key);
+    // Quarter date range
+    const [y, q2] = key.split('_');
+    const qNum = parseInt(q2.replace('Q',''));
+    const qYear = parseInt(y);
+    const qStartMonth = (qNum - 1) * 3;
+    qStart = new Date(qYear, qStartMonth, 1);
+    qEnd = new Date(qYear, qStartMonth + 3, 0, 23, 59, 59);
+  }
   const today = new Date(); today.setHours(23,59,59,0);
 
   const fmt = n => '$' + Math.round(Math.abs(n)).toLocaleString('en-US');
@@ -1480,17 +1627,20 @@ async function historyNav(dir) {
     }
   });
 
-  // Add manually logged entries (avoid double-counting by checking they aren't already a scheduled event)
+  // Add manually logged entries
   entries.forEach(function(e) {
     var d = new Date(e.ts);
+    var pmLabel = e.payMethod === 'checking' ? '🏦' : e.user ? e.user : '';
     rows.push({
       date: d,
       name: e.cat || 'CC expense',
-      note: (e.user ? e.user : '') + (e.note ? ' · ' + e.note : ''),
+      note: (pmLabel ? pmLabel + ' ' : '') + (e.note ? e.note : ''),
       amt: e.amt,
       type: 'cc_entry',
       isPast: true,
       isBill: false,
+      entryId: e.id,
+      entryQKey: key,
     });
   });
 
@@ -1540,6 +1690,7 @@ async function historyNav(dir) {
     var label = (r.type === 'cc_entry' || r.type === 'cc_bill') ? '💳' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : r.isTransfer ? '⇄' : '↑';
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
+    var editBtn = r.entryId ? '<button onclick="openEntryEdit(' + r.entryId + ',\'' + r.entryQKey + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>' : '';
     row.innerHTML =
       '<span style="font-size:18px;min-width:20px;text-align:center">' + label + '</span>' +
       '<div style="flex:1;min-width:0">' +
@@ -1547,7 +1698,10 @@ async function historyNav(dir) {
         (r.note ? '<div style="font-size:13px;color:var(--text-3)">' + r.note + '</div>' : '') +
         (!r.isPast ? '<div style="font-size:12px;color:var(--sky-dim)">projected</div>' : '') +
       '</div>' +
-      '<div style="font-size:17px;font-weight:600;color:' + color + ';white-space:nowrap">' + sign + fmtAmt(r.amt) + '</div>';
+      '<div style="display:flex;align-items:center;gap:4px">' +
+        '<div style="font-size:17px;font-weight:600;color:' + color + ';white-space:nowrap">' + sign + fmtAmt(r.amt) + '</div>' +
+        editBtn +
+      '</div>';
 
     cont.appendChild(row);
   });
