@@ -1670,9 +1670,10 @@ async function historyNav(dir) {
   entries.forEach(function(e) {
     var d = new Date(e.ts);
     var pmLabel = e.payMethod === 'checking' ? '🏦' : e.user ? e.user : '';
+    var entryName = e.cat || (e.payMethod === 'income' ? (e.note || 'Income') : (e.payMethod === 'checking' ? (e.note || 'Checking expense') : 'CC expense'));
     rows.push({
       date: d,
-      name: e.cat || 'CC expense',
+      name: entryName,
       note: (pmLabel ? pmLabel + ' ' : '') + (e.note ? e.note : ''),
       amt: e.amt,
       type: 'cc_entry',
