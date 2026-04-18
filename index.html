@@ -1515,25 +1515,47 @@ function renderBudgetScreen() {
   html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Quarter</span>';
   html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Spent</span></div></div>';
 
+  // Get current month spent per category
+  var mCatSpend = {};
+  qEntries.forEach(function(e) {
+    if (e.payMethod === 'income' || e.fundCoverage) return;
+    var d = new Date(e.ts);
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+      var cat2 = e.cat || 'Other';
+      mCatSpend[cat2] = (mCatSpend[cat2] || 0) + e.amt;
+    }
+  });
+
   BUDGET_CATEGORIES.forEach(function(cat) {
     if (!cat.budget) return; // skip Other
     var qBudget = cat.budget;
     var mBudget = Math.round(qBudget / 3);
-    var spent = catSpend[cat.name] || 0;
-    var pct = Math.min(spent / qBudget * 100, 100);
-    var over = spent > qBudget;
-    var color = over ? 'var(--red)' : spent > qBudget * 0.8 ? 'var(--sun-dim)' : 'var(--grass-dim)';
+    var qSpent = catSpend[cat.name] || 0;
+    var mSpent = mCatSpend[cat.name] || 0;
+
+    // Color based on monthly spend vs monthly budget
+    var mPct = mBudget > 0 ? mSpent / mBudget * 100 : 0;
+    var spentColor = mSpent >= mBudget ? 'var(--red)' : mPct >= 75 ? 'var(--sun-dim)' : 'var(--grass-dim)';
+
+    // Progress bar based on quarterly
+    var qPct = Math.min(qSpent / qBudget * 100, 100);
+    var barColor = qSpent > qBudget ? 'var(--red)' : qSpent > qBudget * 0.8 ? 'var(--sun)' : 'var(--grass)';
 
     html += '<div style="margin-bottom:12px">';
     html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">';
     html += '<span style="font-size:16px;font-weight:500;color:var(--text)">' + cat.name + '</span>';
-    html += '<div style="display:flex;gap:16px">';
-    html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(mBudget) + '</span>';
-    html += '<span style="font-size:15px;color:var(--text-3);min-width:60px;text-align:right">' + fmt(qBudget) + '</span>';
-    html += '<span style="font-size:15px;font-weight:600;color:' + color + ';min-width:60px;text-align:right;cursor:pointer;text-decoration:underline dotted" data-cat="' + cat.name + '" onclick="showCategoryRegister(this.dataset.cat)">' + fmt(spent) + '</span>';
+    html += '<div style="display:flex;gap:16px;align-items:baseline">';
+    html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(mBudget) + '/mo</span>';
+    html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(qBudget) + '/qtr</span>';
+    html += '<span style="font-size:16px;font-weight:700;color:' + spentColor + ';min-width:60px;text-align:right;cursor:pointer;text-decoration:underline dotted" data-cat="' + cat.name + '" onclick="showCategoryRegister(this.dataset.cat)" title="' + fmt(mSpent) + ' this month / ' + fmt(qSpent) + ' this quarter">' + fmt(mSpent) + '</span>';
     html += '</div></div>';
     html += '<div style="height:4px;background:var(--border);border-radius:2px">';
-    html += '<div style="height:100%;width:' + pct.toFixed(1) + '%;background:' + (over ? 'var(--red)' : 'var(--grass)') + ';border-radius:2px;transition:width 0.4s"></div>';
+    html += '<div style="height:100%;width:' + qPct.toFixed(1) + '%;background:' + barColor + ';border-radius:2px;transition:width 0.4s"></div>';
+    html += '</div>';
+    // Monthly mini bar
+    var mPctCapped = Math.min(mPct, 100);
+    html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:2px">';
+    html += '<div style="height:100%;width:' + mPctCapped.toFixed(1) + '%;background:' + spentColor + ';border-radius:2px;transition:width 0.4s"></div>';
     html += '</div></div>';
   });
 
