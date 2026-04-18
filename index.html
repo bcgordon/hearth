@@ -1482,7 +1482,7 @@ function eeSelectType(t) {
 
 function openEntryEdit(entryId, qKey) {
   var entries = loadEntries(qKey);
-  var entry = entries.find(function(e) { return e.id === entryId; });
+  var entry = entries.find(function(e) { return e.id == entryId; }); // loose equality handles string/number mismatch
   if (!entry) return;
   _eeEntry = entry;
   _eeQKey = qKey;
@@ -1491,7 +1491,7 @@ function openEntryEdit(entryId, qKey) {
   // Populate category dropdown
   var sel = document.getElementById('ee-cat');
   sel.innerHTML = '';
-  CATEGORIES.forEach(function(c) {
+  BUDGET_CATEGORIES.forEach(function(c) {
     var opt = document.createElement('option');
     opt.value = c.name; opt.textContent = c.name;
     if (c.name === entry.cat) opt.selected = true;
