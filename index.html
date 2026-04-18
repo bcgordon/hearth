@@ -499,11 +499,11 @@ textarea { resize: none; }
   </button>
   <div class="sidebar-stats">
     <div class="sidebar-stat">
-      <span class="sidebar-stat-label">Quarter budget</span>
+      <span class="sidebar-stat-label">Monthly budget</span>
       <span class="sidebar-stat-val" id="sb-budget">—</span>
     </div>
     <div class="sidebar-stat">
-      <span class="sidebar-stat-label">Spent so far</span>
+      <span class="sidebar-stat-label">This month</span>
       <span class="sidebar-stat-val" id="sb-spent">—</span>
     </div>
     <div class="sidebar-stat">
@@ -571,38 +571,75 @@ textarea { resize: none; }
 <button class="icon-btn" onclick="showScreen('screen-settings')">Settings</button>
 </div>
 </div>
+<!-- Monthly budget card (primary) -->
 <div class="card card-sky" style="margin-bottom:12px">
-<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
-<span class="section-head" style="margin-bottom:0;color:var(--sky)">Quarterly budget</span>
-<span id="budget-fraction" style="font-size:18px;font-weight:600;color:var(--sky)"></span>
-</div>
-<div class="progress-track" style="margin-bottom:12px">
-<div id="bar-e" class="prog-e" style="width:0%"></div>
-<div id="bar-n" class="prog-n" style="width:0%"></div>
-</div>
-<div style="display:flex;gap:22px">
-<span style="font-size:17px;color:var(--grass-dim);display:flex;align-items:center;gap:6px;font-weight:500">
-<span style="width:10px;height:10px;background:var(--grass);border-radius:50%;display:inline-block"></span>
-Essential: <strong id="lbl-e">$0</strong>
-</span>
-<span style="font-size:17px;color:var(--sun-dim);display:flex;align-items:center;gap:6px;font-weight:500">
-<span style="width:10px;height:10px;background:var(--sun);border-radius:50%;display:inline-block"></span>
-Non-essential: <strong id="lbl-n">$0</strong>
-</span>
-</div>
-</div>
-<div class="stats-grid" style="margin-bottom:14px">
-<div class="stat-box"><div class="s-label">Remaining</div><div class="s-val" id="stat-remaining">$0</div></div>
-<div class="stat-box"><div class="s-label">Entries</div><div class="s-val" id="stat-entries" style="color:var(--coral)">0</div></div>
-<div class="stat-box"><div class="s-label">Daily avg</div><div class="s-val" id="stat-daily" style="color:var(--sky)">$0</div></div>
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+    <span class="section-head" style="margin:0;color:var(--sky)" id="dash-month-label">This month</span>
+    <span style="font-size:13px;color:var(--sky-dim)" id="dash-month-budget-label"></span>
+  </div>
+  <div class="progress-track" style="margin-bottom:10px">
+    <div id="bar-e" class="prog-e" style="width:0%"></div>
+    <div id="bar-n" class="prog-n" style="width:0%"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+    <div style="text-align:center">
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Spent</div>
+      <div style="font-size:20px;font-weight:600;color:var(--sky)" id="stat-month-spent">$0</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Funded</div>
+      <div style="font-size:20px;font-weight:600;color:var(--grass)" id="stat-month-funded">$0</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Remaining</div>
+      <div style="font-size:20px;font-weight:600" id="stat-remaining">$0</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap">
+    <span style="font-size:15px;color:var(--grass-dim);display:flex;align-items:center;gap:5px">
+      <span style="width:8px;height:8px;background:var(--grass);border-radius:50%;display:inline-block"></span>
+      Essential: <strong id="lbl-e">$0</strong>
+    </span>
+    <span style="font-size:15px;color:var(--sun-dim);display:flex;align-items:center;gap:5px">
+      <span style="width:8px;height:8px;background:var(--sun);border-radius:50%;display:inline-block"></span>
+      Non-essential: <strong id="lbl-n">$0</strong>
+    </span>
+    <span style="font-size:15px;color:var(--text-3);display:flex;align-items:center;gap:5px" id="lbl-funded-wrap" style="display:none">
+      <span style="width:8px;height:8px;background:var(--grass);border-radius:50%;display:inline-block"></span>
+      Fund-covered: <strong id="lbl-funded">$0</strong>
+    </span>
+  </div>
 </div>
 
+<!-- Quarter tracker (replaces monthly cards) -->
 <div id="monthly-breakdown" style="margin-bottom:14px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-    <div class="section-head" style="margin:0">This quarter by month</div>
-    <span id="monthly-budget-label" style="font-size:19px;color:var(--text-3)"></span>
+    <div class="section-head" style="margin:0">Quarter tracker</div>
+    <span id="monthly-budget-label" style="font-size:14px;color:var(--text-3)"></span>
   </div>
-  <div class="monthly-grid" id="monthly-grid"></div>
+  <div style="display:flex;gap:8px">
+    <div style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center">
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px" id="qt-m1-label">Apr</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text)" id="qt-m1-amt">—</div>
+      <div style="font-size:11px;color:var(--text-3)" id="qt-m1-sub"></div>
+    </div>
+    <div style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center">
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px" id="qt-m2-label">May</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text)" id="qt-m2-amt">—</div>
+      <div style="font-size:11px;color:var(--text-3)" id="qt-m2-sub"></div>
+    </div>
+    <div style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center">
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px" id="qt-m3-label">Jun</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text)" id="qt-m3-amt">—</div>
+      <div style="font-size:11px;color:var(--text-3)" id="qt-m3-sub"></div>
+    </div>
+  </div>
+  <div style="background:var(--surface2);border-radius:var(--radius);padding:8px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:14px;color:var(--text-3)">Quarter total</span>
+    <span style="font-size:16px;font-weight:600" id="qt-total">—</span>
+    <span style="font-size:13px;color:var(--text-3)" id="budget-fraction"></span>
+  </div>
+  <div id="monthly-grid" style="display:none"></div>
 </div>
 
 <button class="btn btn-coral btn-full" style="padding:19px;border-radius:var(--radius-sm);margin-bottom:24px;font-size:17px" onclick="showScreen('screen-add')">+ Add expense</button>
@@ -911,12 +948,26 @@ Non-essential: <strong id="lbl-n">$0</strong>
 <input id="history-search" type="text" placeholder="Search register..." oninput="filterHistoryList(this.value)" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:inherit;margin-bottom:12px">
 <div class="card card-sun" id="history-list"></div>
 </div>
+<!-- BUDGET -->
+<div id="screen-budget" class="screen">
+<div class="back-row">
+<button class="back-btn" onclick="showScreen('screen-settings')">&#8592;</button>
+<span style="font-size:17px;font-weight:600;color:var(--sky)">Budget targets</span>
+</div>
+<div id="budget-screen-content"></div>
+</div>
+
 <!-- SETTINGS -->
 <div id="screen-settings" class="screen">
 <div class="back-row">
 <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
 <span style="font-size:17px;font-weight:600;color:var(--sky)">Settings</span>
 </div>
+<div class="card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;padding:14px 17px;cursor:pointer" onclick="showScreen('screen-budget')">
+  <span style="font-size:17px;font-weight:500;color:var(--text)">📊 Budget targets</span>
+  <span style="color:var(--text-3)">›</span>
+</div>
+
 <div class="card card-sky" style="display:flex;flex-direction:column;gap:18px">
 <div>
 <label class="label">Quarterly budget ($)</label>
@@ -997,9 +1048,19 @@ Non-essential: <strong id="lbl-n">$0</strong>
       <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Date</label>
       <input id="ee-date" type="date" style="width:100%;box-sizing:border-box;font-size:17px;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);font-family:inherit;margin-top:4px">
     </div>
-    <div style="margin-bottom:16px">
+    <div style="margin-bottom:12px">
       <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Note</label>
       <input id="ee-note" type="text" placeholder="optional..." style="width:100%;box-sizing:border-box;font-size:17px;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);font-family:inherit;margin-top:4px">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Covered by sinking fund</label>
+      <select id="ee-fund" style="width:100%;box-sizing:border-box;font-size:17px;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);font-family:inherit;margin-top:4px">
+        <option value="">None — counts toward budget</option>
+        <option value="medical">Medical & pets fund</option>
+        <option value="home">Home/auto/insurance fund</option>
+        <option value="travel">Travel fund</option>
+        <option value="big">Big purchases fund</option>
+      </select>
     </div>
     <div style="display:flex;gap:10px;">
       <button onclick="eeCancel()" style="flex:1;padding:12px;font-size:16px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text-2);cursor:pointer;font-family:inherit;">Cancel</button>
@@ -1162,6 +1223,7 @@ async function showScreen(id) {
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
   if (id === 'screen-history') { if (historyView !== 'cccycle') { historyQOffset = 0; historyMonthOffset = 0; if (!historyView || historyView === 'quarter') historyView = 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
+  if (id === 'screen-budget') { renderBudgetScreen(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
     
@@ -1427,29 +1489,165 @@ async function submitEntry() {
   btn.textContent = 'Save expense'; btn.disabled = false;
 }
 
+function renderBudgetScreen() {
+  var cont = document.getElementById('budget-screen-content');
+  if (!cont) return;
+  var now = new Date();
+  var budget = config.budget || 0;
+  var monthlyBudget = Math.round(budget / 3);
+  var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  var qKey = getCurrentQuarterKey();
+  var qEntries = loadEntries(qKey);
+
+  // Sum current quarter by category, excluding fund-covered and income
+  var catSpend = {};
+  qEntries.forEach(function(e) {
+    if (e.payMethod === 'income' || e.fundCoverage) return;
+    var cat = e.cat || 'Other';
+    catSpend[cat] = (catSpend[cat] || 0) + e.amt;
+  });
+
+  var html = '<div class="card" style="margin-bottom:12px;padding:14px 17px">';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:12px">';
+  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Category</span>';
+  html += '<div style="display:flex;gap:16px"><span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:50px;text-align:right">Monthly</span>';
+  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Quarter</span>';
+  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Spent</span></div></div>';
+
+  BUDGET_CATEGORIES.forEach(function(cat) {
+    if (!cat.budget) return; // skip Other
+    var qBudget = cat.budget;
+    var mBudget = Math.round(qBudget / 3);
+    var spent = catSpend[cat.name] || 0;
+    var pct = Math.min(spent / qBudget * 100, 100);
+    var over = spent > qBudget;
+    var color = over ? 'var(--red)' : spent > qBudget * 0.8 ? 'var(--sun-dim)' : 'var(--grass-dim)';
+
+    html += '<div style="margin-bottom:12px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">';
+    html += '<span style="font-size:16px;font-weight:500;color:var(--text)">' + cat.name + '</span>';
+    html += '<div style="display:flex;gap:16px">';
+    html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(mBudget) + '</span>';
+    html += '<span style="font-size:15px;color:var(--text-3);min-width:60px;text-align:right">' + fmt(qBudget) + '</span>';
+    html += '<span style="font-size:15px;font-weight:600;color:' + color + ';min-width:60px;text-align:right">' + fmt(spent) + '</span>';
+    html += '</div></div>';
+    html += '<div style="height:4px;background:var(--border);border-radius:2px">';
+    html += '<div style="height:100%;width:' + pct.toFixed(1) + '%;background:' + (over ? 'var(--red)' : 'var(--grass)') + ';border-radius:2px;transition:width 0.4s"></div>';
+    html += '</div></div>';
+  });
+
+  html += '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;display:flex;justify-content:space-between">';
+  html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Total</span>';
+  html += '<div style="display:flex;gap:16px">';
+  html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(monthlyBudget) + '</span>';
+  html += '<span style="font-size:15px;color:var(--text-3);min-width:60px;text-align:right">' + fmt(budget) + '</span>';
+  var totalSpent = Object.values(catSpend).reduce(function(a,b){ return a+b; }, 0);
+  html += '<span style="font-size:15px;font-weight:600;color:' + (totalSpent > budget ? 'var(--red)' : 'var(--grass-dim)') + ';min-width:60px;text-align:right">' + fmt(totalSpent) + '</span>';
+  html += '</div></div>';
+  html += '</div>';
+
+  // Sinking funds section
+  html += '<div class="card" style="margin-bottom:12px">';
+  html += '<div class="section-head" style="margin-bottom:10px">Sinking fund targets</div>';
+  var funds = [
+    { name: 'Emergency fund', monthly: 800, target: 21000 },
+    { name: 'Home/auto/insurance', monthly: 366, target: 6000 },
+    { name: 'Medical & pets', monthly: 200, target: 3000 },
+    { name: 'Travel fund', monthly: 200, target: 5000 },
+    { name: 'Big purchases', monthly: 150, target: 3000 },
+  ];
+  funds.forEach(function(f) {
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">';
+    html += '<span style="font-size:15px;color:var(--text)">' + f.name + '</span>';
+    html += '<div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">' + fmt(f.monthly) + '/mo</div>';
+    html += '<div style="font-size:12px;color:var(--text-3)">target ' + fmt(f.target) + '</div></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  cont.innerHTML = html;
+}
+
+function getMonthEntries(year, month) {
+  var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
+  var entries = loadEntries(qKey);
+  return entries.filter(function(e) {
+    var d = new Date(e.ts);
+    return d.getFullYear() === year && d.getMonth() === month;
+  });
+}
+
+function getEntryDiscretionary(e) {
+  // Returns amount that counts against budget (excludes fund-covered and income)
+  if (e.payMethod === 'income') return 0;
+  if (e.fundCoverage) return 0;
+  return e.amt;
+}
+
 function refreshMain() {
+  const now = new Date();
   const qKey = getCurrentQuarterKey();
   document.getElementById('main-quarter-label').textContent = quarterLabel(qKey);
-  const entries = loadEntries(qKey);
+  const qEntries = loadEntries(qKey);
   const budget = config.budget || 0;
-  let totE = 0, totN = 0;
-  entries.forEach(e => { if (e.type === 'essential') totE += e.amt; else totN += e.amt; }); // transfer counts as nonessential
-  const tot = totE + totN;
-  const pctE = budget > 0 ? Math.min(totE / budget * 100, 100) : 0;
-  const pctN = budget > 0 ? Math.min(totN / budget * 100, 100 - pctE) : 0;
+  const monthlyBudget = Math.round(budget / 3);
+  const fmt = n => '$' + Math.round(n).toLocaleString('en-US');
+
+  // Current month stats
+  const monthEntries = getMonthEntries(now.getFullYear(), now.getMonth());
+  let totE = 0, totN = 0, totFunded = 0;
+  monthEntries.forEach(function(e) {
+    if (e.payMethod === 'income') return;
+    if (e.fundCoverage) { totFunded += e.amt; return; }
+    if (e.type === 'essential') totE += e.amt;
+    else totN += e.amt;
+  });
+  const totMonth = totE + totN;
+  const pctE = monthlyBudget > 0 ? Math.min(totE / monthlyBudget * 100, 100) : 0;
+  const pctN = monthlyBudget > 0 ? Math.min(totN / monthlyBudget * 100, 100 - pctE) : 0;
+
+  // Month label
+  var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('dash-month-label').textContent = mn[now.getMonth()] + ' spending';
+  document.getElementById('dash-month-budget-label').textContent = fmt(monthlyBudget) + '/mo target';
   document.getElementById('bar-e').style.width = pctE.toFixed(1) + '%';
   document.getElementById('bar-n').style.width = pctN.toFixed(1) + '%';
-  const fmt = n => '$' + Math.round(n).toLocaleString('en-US');
-  document.getElementById('budget-fraction').textContent = fmt(tot) + ' / ' + fmt(budget);
   document.getElementById('lbl-e').textContent = fmt(totE);
   document.getElementById('lbl-n').textContent = fmt(totN);
-  document.getElementById('stat-remaining').textContent = fmt(Math.max(budget - tot, 0));
-  document.getElementById('stat-entries').textContent = entries.length;
-  const d = new Date();
-  const qStart = new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1);
-  const dayOfQ = Math.max(Math.floor((d - qStart) / 86400000) + 1, 1);
-  document.getElementById('stat-daily').textContent = fmt(tot / dayOfQ);
-  renderEntriesList(entries.slice().reverse().slice(0, 10), 'entries-list', true, qKey);
+  document.getElementById('stat-month-spent').textContent = fmt(totMonth);
+  document.getElementById('stat-month-funded').textContent = fmt(totFunded);
+  var remEl = document.getElementById('stat-remaining');
+  var rem = monthlyBudget - totMonth;
+  remEl.textContent = fmt(Math.abs(rem));
+  remEl.style.color = rem >= 0 ? 'var(--grass)' : 'var(--red)';
+  var fundedWrap = document.getElementById('lbl-funded-wrap');
+  if (fundedWrap) fundedWrap.style.display = totFunded > 0 ? '' : 'none';
+  var fundedEl = document.getElementById('lbl-funded');
+  if (fundedEl) fundedEl.textContent = fmt(totFunded);
+
+  // Quarter tracker
+  var qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+  var mnShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var qtTot = 0;
+  for (var i = 0; i < 3; i++) {
+    var mo = (qStart.getMonth() + i) % 12;
+    var yr = qStart.getFullYear() + Math.floor((qStart.getMonth() + i) / 12);
+    var isFuture = yr > now.getFullYear() || (yr === now.getFullYear() && mo > now.getMonth());
+    var mEntries = getMonthEntries(yr, mo);
+    var mTot = 0;
+    mEntries.forEach(function(e) { mTot += getEntryDiscretionary(e); });
+    qtTot += mTot;
+    var diff = mTot - monthlyBudget;
+    document.getElementById('qt-m' + (i+1) + '-label').textContent = mnShort[mo];
+    document.getElementById('qt-m' + (i+1) + '-amt').textContent = isFuture ? '—' : fmt(mTot);
+    document.getElementById('qt-m' + (i+1) + '-amt').style.color = isFuture ? 'var(--text-3)' : mTot > monthlyBudget ? 'var(--red)' : 'var(--grass-dim)';
+    document.getElementById('qt-m' + (i+1) + '-sub').textContent = isFuture ? '' : (diff > 0 ? '+' + fmt(diff) : fmt(Math.abs(diff)) + ' under');
+  }
+  document.getElementById('qt-total').textContent = fmt(qtTot);
+  document.getElementById('qt-total').style.color = qtTot > budget ? 'var(--red)' : 'var(--text)';
+  document.getElementById('budget-fraction').textContent = fmt(qtTot) + ' / ' + fmt(budget);
+
+  renderEntriesList(qEntries.slice().reverse().slice(0, 10), 'entries-list', true, qKey);
   renderMonthlyBreakdown();
   updateSidebar();
 }
@@ -1550,6 +1748,7 @@ function openEntryEdit(entryId, qKey) {
 
   document.getElementById('ee-amt').value = entry.amt;
   document.getElementById('ee-note').value = entry.note || '';
+  document.getElementById('ee-fund').value = entry.fundCoverage || '';
   var eeD = new Date(entry.ts);
   var eeMm = String(eeD.getMonth()+1).padStart(2,'0');
   var eeDd = String(eeD.getDate()).padStart(2,'0');
@@ -1604,7 +1803,8 @@ async function eeSave() {
   await saveEntries(_eeQKey, oldEntries);
   // Add to new quarter (may be same)
   var newEntries = loadEntries(newQKey);
-  newEntries.push(Object.assign({}, _eeEntry, { amt: Math.round(amt * 100) / 100, cat: cat, type: _eeType, note: note, ts: newTs }));
+  var fundCoverage = document.getElementById('ee-fund').value;
+  newEntries.push(Object.assign({}, _eeEntry, { amt: Math.round(amt * 100) / 100, cat: cat, type: _eeType, note: note, ts: newTs, fundCoverage: fundCoverage || null }));
   await saveEntries(newQKey, newEntries);
   _eeEntry = null; _eeQKey = null;
   refreshMain(); historyNav(0); updateCCBalanceCard(); toast('Entry updated');
@@ -1756,6 +1956,7 @@ async function historyNav(dir) {
       entryId: e.id,
       entryQKey: key,
       payMethod: e.payMethod || 'cc',
+      fundCoverage: e.fundCoverage || null,
     });
   });
 
@@ -1807,6 +2008,11 @@ async function historyNav(dir) {
     var label = isIncomeEntry ? '↓' : r.type === 'cc_bill' ? '💳' : r.type === 'cc_entry' && !isCheckingEntry ? '💳' : isCheckingEntry ? '🏦' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : r.isTransfer ? '⇄' : '↑';
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
+    var fundBadge = '';
+    if (r.fundCoverage) {
+      var fundNames = { medical: 'Medical fund', home: 'Home fund', travel: 'Travel fund', big: 'Big purchases fund' };
+      fundBadge = '<span style="font-size:11px;background:var(--grass-bg);color:var(--grass-dim);border:1px solid var(--grass);border-radius:4px;padding:1px 5px;margin-left:4px">🏦 ' + (fundNames[r.fundCoverage] || r.fundCoverage) + '</span>';
+    }
     var editBtn = '';
     if (r.entryId) {
       editBtn = '<button onclick="openEntryEdit(' + r.entryId + ',\'' + r.entryQKey + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>';
@@ -1816,7 +2022,7 @@ async function historyNav(dir) {
     row.innerHTML =
       '<span style="font-size:18px;min-width:20px;text-align:center">' + label + '</span>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</div>' +
+        '<div style="font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + fundBadge + '</div>' +
         (r.note ? '<div style="font-size:13px;color:var(--text-3)">' + r.note + '</div>' : '') +
         (!r.isPast ? '<div style="font-size:12px;color:var(--sky-dim)">projected</div>' : '') +
       '</div>' +
@@ -3147,15 +3353,23 @@ function updateSidebar() {
   entries.forEach(function(e) { tot += e.amt; });
   var budget = config.budget || 0;
   var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  // Show monthly stats in sidebar
+  var now2 = new Date();
+  var mEntries = entries.filter(function(e) {
+    var d = new Date(e.ts); return d.getFullYear() === now2.getFullYear() && d.getMonth() === now2.getMonth();
+  });
+  var mTot = 0;
+  mEntries.forEach(function(e) { if (!e.fundCoverage && e.payMethod !== 'income') mTot += e.amt; });
+  var monthlyBudget = Math.round(budget / 3);
   var sbBudget = document.getElementById('sb-budget');
   var sbSpent = document.getElementById('sb-spent');
   var sbRemaining = document.getElementById('sb-remaining');
-  if (sbBudget) sbBudget.textContent = fmt(budget);
-  if (sbSpent) sbSpent.textContent = fmt(tot);
+  if (sbBudget) sbBudget.textContent = fmt(monthlyBudget) + '/mo';
+  if (sbSpent) sbSpent.textContent = fmt(mTot);
   if (sbRemaining) {
-    var rem = budget - tot;
+    var rem = monthlyBudget - mTot;
     sbRemaining.textContent = fmt(Math.max(rem, 0));
-    sbRemaining.style.color = rem < 0 ? 'var(--red)' : rem < budget * 0.2 ? 'var(--sun-dim)' : 'var(--grass-dim)';
+    sbRemaining.style.color = rem < 0 ? 'var(--red)' : rem < monthlyBudget * 0.2 ? 'var(--sun-dim)' : 'var(--grass-dim)';
   }
 
   // Move screens into ipad-content if not already there
