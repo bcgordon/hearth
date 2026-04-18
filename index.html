@@ -793,29 +793,45 @@ Non-essential: <strong id="lbl-n">$0</strong>
 
   <div id="danger-alerts"></div>
 
-  <div class="card" style="margin-bottom:12px;border-color:var(--sky);background:var(--surface)">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-      <div class="section-head" style="margin:0;color:var(--sky)">Credit card balance</div>
-      <div id="cc-cycle-label" style="font-size:13px;color:var(--text-3)"></div>
+  <div class="card" style="margin-bottom:12px;border-color:var(--sky)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+      <div class="section-head" style="margin:0;color:var(--sky)">Credit card</div>
+      <div id="cc-anchor-info" style="font-size:13px;color:var(--text-3)"></div>
     </div>
+
+    <!-- Total card balance — biggest number -->
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Total card balance</div>
+      <div id="cc-actual-display" style="font-size:36px;font-weight:600;color:var(--sky)">—</div>
+      <div id="cc-delta-row" style="font-size:14px;color:var(--text-3);margin-top:4px"></div>
+    </div>
+
+    <!-- Two sub-figures -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
       <div style="background:var(--surface2);border-radius:var(--radius);padding:12px;text-align:center">
-        <div style="font-size:13px;color:var(--text-3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em">App total</div>
-        <div id="cc-app-total" style="font-size:24px;font-weight:600;color:var(--sky)">—</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Next bill due</div>
+        <div style="font-size:20px;font-weight:600;color:var(--coral)">$6,000</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:2px">Due May 6</div>
       </div>
       <div style="background:var(--surface2);border-radius:var(--radius);padding:12px;text-align:center">
-        <div style="font-size:13px;color:var(--text-3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Actual card</div>
-        <div id="cc-actual-display" style="font-size:24px;font-weight:600;color:var(--text)">—</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Current cycle</div>
+        <div id="cc-current-cycle" style="font-size:20px;font-weight:600;color:var(--sky)">—</div>
+        <div id="cc-cycle-label" style="font-size:12px;color:var(--text-3);margin-top:2px"></div>
       </div>
     </div>
-    <div id="cc-delta-row" style="font-size:15px;color:var(--text-3);text-align:center;margin-bottom:12px"></div>
-    <label class="label" style="color:var(--sky)">Enter actual card balance</label>
-    <div style="display:flex;gap:8px;margin-top:6px">
-      <input id="cc-actual-input" type="number" placeholder="e.g. 1240.00" step="0.01"
-        style="flex:1;font-size:20px;font-weight:600;color:var(--sky);padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:inherit"
+
+    <!-- App tracked vs actual -->
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:13px;color:var(--text-3)">App tracked this cycle</div>
+      <div id="cc-app-total" style="font-size:16px;font-weight:600;color:var(--sky)">—</div>
+    </div>
+
+    <label class="label" style="color:var(--sky)">Enter total card balance</label>
+    <div style="margin-top:6px">
+      <input id="cc-actual-input" type="number" placeholder="e.g. 7017.20" step="0.01"
+        style="width:100%;box-sizing:border-box;font-size:20px;font-weight:600;color:var(--sky);padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:inherit"
         oninput="onCCActualInput(this.value)" />
     </div>
-    <div id="cc-anchor-info" style="font-size:14px;color:var(--text-3);margin-top:6px"></div>
   </div>
 
   <div class="card card-sky" style="margin-bottom:12px">
@@ -2478,14 +2494,14 @@ async function refreshBalance() {
 // ── CC BALANCE CARD ──────────────────────────────────────────────────────────
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
-var CC_CYCLE_START = new Date(2026, 2, 13); // March 13
-var CC_CYCLE_END   = new Date(2026, 3, 11, 23, 59, 59); // April 11
+var CC_CYCLE_START = new Date(2026, 3, 12); // April 12
+var CC_CYCLE_END   = new Date(2026, 4, 11, 23, 59, 59); // May 11
 
 function getCCAppTotal() {
   // Sum all CC-method entries within the current billing cycle
   var total = 0;
-  // Check Q1 and Q2 since cycle spans both
-  ['2026_Q1', '2026_Q2'].forEach(function(qKey) {
+  // All entries are in Q2 (app started April 10, backdated entries also stored in Q2)
+  ['2026_Q2'].forEach(function(qKey) {
     var entries = loadEntries(qKey);
     entries.forEach(function(e) {
       if (e.payMethod === 'checking' || e.payMethod === 'income') return;
@@ -2498,15 +2514,19 @@ function getCCAppTotal() {
 
 function updateCCBalanceCard() {
   var appTotal = getCCAppTotal();
+  var nextBill = 6000; // May 6 fixed payment
   var fmt = function(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 
   // Cycle label
   var cycleEl = document.getElementById('cc-cycle-label');
-  if (cycleEl) cycleEl.textContent = '3/13 – 4/11 · Due 5/6';
+  if (cycleEl) cycleEl.textContent = '4/12 – 5/11';
 
-  // App total
+  // App tracked this cycle
   var appEl = document.getElementById('cc-app-total');
   if (appEl) appEl.textContent = fmt(appTotal);
+
+  // Current cycle card (app total for now, updates when actual entered)
+  var cycCurEl = document.getElementById('cc-current-cycle');
 
   // Actual card balance from localStorage
   var saved = localStorage.getItem('cc_actual_bal');
@@ -2520,24 +2540,34 @@ function updateCCBalanceCard() {
     var actual = parseFloat(saved);
     if (actualEl) actualEl.textContent = fmt(actual);
     if (inputEl) inputEl.value = actual;
-    var delta = actual - appTotal;
+
+    // Current cycle = total minus next bill
+    var currentCycle = Math.max(0, actual - nextBill);
+    if (cycCurEl) cycCurEl.textContent = fmt(currentCycle);
+
+    // Delta between current cycle actual and app tracked
+    var delta = currentCycle - appTotal;
     if (deltaEl) {
       if (Math.abs(delta) < 0.50) {
-        deltaEl.textContent = '✓ App matches card balance';
+        deltaEl.textContent = '✓ All current cycle charges tracked';
         deltaEl.style.color = 'var(--grass)';
+      } else if (delta > 0) {
+        deltaEl.textContent = fmt(delta) + ' in current cycle not yet entered';
+        deltaEl.style.color = 'var(--sun-dim)';
       } else {
-        deltaEl.textContent = (delta > 0 ? '+' : '') + fmt(delta) + ' untracked in app';
-        deltaEl.style.color = delta > 0 ? 'var(--sun-dim)' : 'var(--red)';
+        deltaEl.textContent = fmt(Math.abs(delta)) + ' more entered than card shows';
+        deltaEl.style.color = 'var(--red)';
       }
     }
     if (savedDate && infoEl) {
       var d = new Date(parseInt(savedDate));
       var days = Math.round((new Date() - d) / 86400000);
-      infoEl.textContent = 'Last updated ' + (days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago');
+      infoEl.textContent = 'Updated ' + (days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago');
     }
   } else {
     if (actualEl) actualEl.textContent = '—';
-    if (deltaEl) deltaEl.textContent = 'Enter your actual card balance to compare';
+    if (cycCurEl) cycCurEl.textContent = fmt(appTotal);
+    if (deltaEl) { deltaEl.textContent = 'Enter total card balance to see breakdown'; deltaEl.style.color = 'var(--text-3)'; }
     if (infoEl) infoEl.textContent = '';
   }
 }
