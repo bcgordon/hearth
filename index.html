@@ -1091,7 +1091,9 @@ const BUDGET_CATEGORIES = [
   { name: 'Entertainment',               budget: 400,  essential: false },
   { name: 'Gas & transit',               budget: 175,  essential: true  },
   { name: 'Personal & gifts',            budget: 175,  essential: false },
-  { name: 'Subscriptions',               budget: 150,  essential: false },
+  { name: 'House Subscriptions',          budget: 300,  essential: false },
+  { name: 'Digital Subscriptions',        budget: 450,  essential: false },
+  { name: 'Runaway Anchor',               budget: null, essential: null  },
   { name: 'Other',                       budget: null, essential: null  },
 ];
 
@@ -2212,6 +2214,9 @@ var DEFAULT_BILLS = [
   { id:'hc_cc_vet',      name:'Advanced Vet Care',  amt:59,  day:11, freq:'monthly', type:'out', paidBy:'cc' },
   { id:'hc_cc_comcast',  name:'Comcast',            amt:117, day:19, freq:'monthly', type:'out', paidBy:'cc' },
   { id:'hc_cc_spotify',  name:'Spotify',            amt:34,  day:21, freq:'monthly', type:'out', paidBy:'cc' },
+  { id:'hc_cc_youtube',  name:'YouTube Premium',    amt:21.52, day:21, freq:'monthly', type:'out', paidBy:'cc' },
+  { id:'hc_cc_icloud',   name:'iCloud Plus',        amt:9.99,  day:9,  freq:'monthly', type:'out', paidBy:'cc' },
+  { id:'hc_cc_ms365',    name:'Microsoft 365',      amt:11.87, day:11, freq:'monthly', type:'out', paidBy:'cc' },
   { id:'hc_eco1',   name:'Ecoshield quarterly',      amt:141,  freq:'once', month:3,  day:19, year:2026, type:'out' },
   { id:'hc_ham1',   name:'Hamline tuition',          amt:445,  freq:'once', month:3,  day:20, year:2026, type:'out' },
   { id:'hc_fair1',  name:'Fairview payment',         amt:200,  freq:'once', month:4,  day:2,  year:2026, type:'out' },
