@@ -1064,6 +1064,7 @@ textarea { resize: none; }
         <option value="home">Home/auto/insurance fund</option>
         <option value="travel">Travel fund</option>
         <option value="big">Big purchases fund</option>
+        <option value="personal">Personal savings</option>
       </select>
     </div>
     <div style="display:flex;gap:10px;">
@@ -1885,7 +1886,7 @@ async function eeSave() {
 
   // Fund ID map
   var fundIdMap = { medical: 'hc_sf_med', home: 'hc_sf_home', travel: 'hc_sf_travel', big: 'hc_sf_big' };
-  var fundNameMap = { medical: 'Medical & pets', home: 'Home/auto/insurance', travel: 'Travel fund', big: 'Big purchases' };
+  var fundNameMap = { medical: 'Medical & pets', home: 'Home/auto/insurance', travel: 'Travel fund', big: 'Big purchases', personal: 'Personal savings' };
 
   // Reverse previous fund effect if coverage changed or removed
   if (prevCoverage && prevBillId) {
@@ -1893,7 +1894,7 @@ async function eeSave() {
     record.bills = (record.bills || []).filter(function(b) { return b.id !== prevBillId; });
     // Restore fund balance (add back what was deducted)
     var prevFundId = fundIdMap[prevCoverage];
-    if (prevFundId && record.funds && record.funds[prevFundId]) {
+    if (prevFundId && prevCoverage !== 'personal' && record.funds && record.funds[prevFundId]) {
       var prevBal = record.funds[prevFundId].bal || 0;
       record.funds[prevFundId] = { bal: Math.round((prevBal + (_eeEntry.amt || 0)) * 100) / 100, updated: Date.now() };
     }
@@ -1905,8 +1906,8 @@ async function eeSave() {
     var fundId = fundIdMap[fundCoverage];
     var fundName = fundNameMap[fundCoverage];
 
-    // Deduct from fund balance
-    if (fundId) {
+    // Deduct from fund balance (skip for personal savings — not tracked in app)
+    if (fundId && fundCoverage !== 'personal') {
       if (!record.funds) record.funds = {};
       var curBal = (record.funds[fundId] && record.funds[fundId].bal) || 0;
       record.funds[fundId] = { bal: Math.round((curBal - entryAmt) * 100) / 100, updated: Date.now() };
