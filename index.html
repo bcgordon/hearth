@@ -955,6 +955,10 @@ textarea { resize: none; }
   <button id="hist-view-m" class="pill" onclick="setHistoryView('month')">Month</button>
   <button id="hist-view-cc" class="pill" onclick="setHistoryView('cccycle')">CC Cycle</button>
 </div>
+<div id="hist-cat-filters" style="display:none;justify-content:center;gap:8px;margin-bottom:14px">
+  <button id="hist-cat-e" class="pill" onclick="toggleCatTypeFilter('essential')">Essential</button>
+  <button id="hist-cat-n" class="pill" onclick="toggleCatTypeFilter('nonessential')">Non-essential</button>
+</div>
 <div class="hist-nav">
 <button class="hist-nav-btn" onclick="historyNav(-1)">&#8592; Prev</button>
 <span id="history-label" style="font-size:18px;font-weight:600;color:var(--sun-dim);min-width:80px;text-align:center"></span>
@@ -1099,6 +1103,7 @@ let historyMonthOffset = 0;
 let historyCategoryFilter = null;
 let historyTypeFilter = null;
 let historyBackTo = 'screen-main'; // screen to return to when hitting back
+let historyCategoryTypeFilter = null; // sub-filter within category view: 'essential', 'nonessential', or null
 
 const BUDGET_CATEGORIES = [
   { name: 'Groceries',                   budget: 2400, essential: true  },
@@ -1817,6 +1822,7 @@ function setHistoryView(view) {
   historyMonthOffset = 0;
   historyCategoryFilter = null;
   historyTypeFilter = null;
+  historyCategoryTypeFilter = null;
   historyBackTo = 'screen-main';
   document.getElementById('hist-view-q').className = 'pill' + (view === 'quarter' ? ' sel-e' : '');
   document.getElementById('hist-view-m').className = 'pill' + (view === 'month' ? ' sel-e' : '');
@@ -2014,6 +2020,7 @@ async function historyNav(dir) {
     document.getElementById('history-label').textContent = '4/12 – 5/11';
     document.querySelector('.hist-nav').style.display = 'none';
     var drillBack2 = document.getElementById('hist-drill-back'); if (drillBack2) { drillBack2.style.display = ''; drillBack2.dataset.dest = historyBackTo || 'screen-main'; }
+    var catFilters2 = document.getElementById('hist-cat-filters'); if (catFilters2) catFilters2.style.display = 'none';
   } else if (historyView === 'category' || historyView === 'type') {
     // Full current month filtered by category or type
     var now2 = new Date();
@@ -2025,9 +2032,12 @@ async function historyNav(dir) {
     document.getElementById('history-label').textContent = historyView === 'type' ? (typeLabels[historyTypeFilter] || 'Filtered') : (historyCategoryFilter || 'Category');
     document.querySelector('.hist-nav').style.display = 'none';
     var drillBack = document.getElementById('hist-drill-back'); if (drillBack) { drillBack.style.display = ''; drillBack.dataset.dest = historyBackTo || 'screen-main'; }
+    var catFilters = document.getElementById('hist-cat-filters');
+    if (catFilters) catFilters.style.display = historyView === 'category' ? 'flex' : 'none';
   } else {
     document.querySelector('.hist-nav').style.display = '';
     var drillBack3 = document.getElementById('hist-drill-back'); if (drillBack3) drillBack3.style.display = 'none';
+    var catFilters3 = document.getElementById('hist-cat-filters'); if (catFilters3) catFilters3.style.display = 'none';
     if (historyView === 'month') {
       var mr = getMonthRange(historyMonthOffset);
       qStart = mr.start; qEnd = mr.end;
@@ -2141,7 +2151,12 @@ async function historyNav(dir) {
   // Filter entries by category if in category view
   var filteredEntries = entries;
   if (historyView === 'category' && historyCategoryFilter) {
-    filteredEntries = entries.filter(function(e) { return e.cat === historyCategoryFilter; });
+    filteredEntries = entries.filter(function(e) {
+      if (e.cat !== historyCategoryFilter) return false;
+      if (historyCategoryTypeFilter === 'essential') return e.type === 'essential';
+      if (historyCategoryTypeFilter === 'nonessential') return e.type !== 'essential';
+      return true;
+    });
   } else if (historyView === 'type' && historyTypeFilter) {
     if (historyTypeFilter === 'funded') {
       filteredEntries = entries.filter(function(e) { return !!e.fundCoverage; });
@@ -3081,6 +3096,14 @@ function showTypeRegister(type) {
   showScreen('screen-history');
 }
 
+function toggleCatTypeFilter(type) {
+  // Toggle — if already active, deselect; otherwise select
+  historyCategoryTypeFilter = historyCategoryTypeFilter === type ? null : type;
+  document.getElementById('hist-cat-e').className = 'pill' + (historyCategoryTypeFilter === 'essential' ? ' sel-e' : '');
+  document.getElementById('hist-cat-n').className = 'pill' + (historyCategoryTypeFilter === 'nonessential' ? ' sel-n' : '');
+  historyNav(0);
+}
+
 function historyBack() {
   var btn = document.getElementById('hist-drill-back');
   var dest = (btn && btn.dataset.dest) ? btn.dataset.dest : (historyBackTo || 'screen-main');
@@ -3098,9 +3121,12 @@ function showCategoryRegister(catName) {
   historyCategoryFilter = catName;
   historyTypeFilter = null;
   historyBackTo = 'screen-budget';
+  historyCategoryTypeFilter = null;
   document.getElementById('hist-view-q').className = 'pill';
   document.getElementById('hist-view-m').className = 'pill';
   var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill';
+  var eCat = document.getElementById('hist-cat-e'); if (eCat) eCat.className = 'pill';
+  var nCat = document.getElementById('hist-cat-n'); if (nCat) nCat.className = 'pill';
   var hs = document.getElementById('history-search'); if (hs) hs.value = '';
   showScreen('screen-history');
 }
