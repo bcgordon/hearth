@@ -580,19 +580,30 @@ textarea { resize: none; }
   <div class="progress-track" style="margin-bottom:10px">
     <div id="bar-e" class="prog-e" style="width:0%"></div>
     <div id="bar-n" class="prog-n" style="width:0%"></div>
+    <div id="bar-f" style="height:100%;width:0%;background:var(--sky-dim);transition:width 0.4s"></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
     <div style="text-align:center">
-      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Spent</div>
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Discretionary</div>
       <div style="font-size:20px;font-weight:600;color:var(--sky)" id="stat-month-spent">$0</div>
     </div>
     <div style="text-align:center">
-      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Funded</div>
-      <div style="font-size:20px;font-weight:600;color:var(--grass)" id="stat-month-funded">$0</div>
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Fixed CC bills</div>
+      <div style="font-size:20px;font-weight:600;color:var(--text-3)" id="stat-month-fixed">$0</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Combined</div>
+      <div style="font-size:20px;font-weight:600;color:var(--coral)" id="stat-month-combined">$0</div>
     </div>
     <div style="text-align:center">
       <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Remaining</div>
       <div style="font-size:20px;font-weight:600" id="stat-remaining">$0</div>
+    </div>
+  </div>
+  <div style="margin-bottom:8px">
+    <div style="font-size:11px;color:var(--text-3);margin-bottom:3px;display:flex;justify-content:space-between">
+      <span>Funded: <strong id="stat-month-funded-sm">$0</strong></span>
+      <span id="stat-cc-ceiling">vs $3,500 CC target</span>
     </div>
   </div>
   <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -1684,21 +1695,46 @@ function refreshMain() {
   var totIncome = 0;
   monthEntries.forEach(function(e) { if (e.payMethod === 'income') totIncome += e.amt; });
   const totMonth = totE + totN;
-  const pctE = monthlyBudget > 0 ? Math.min(totE / monthlyBudget * 100, 100) : 0;
-  const pctN = monthlyBudget > 0 ? Math.min(totN / monthlyBudget * 100, 100 - pctE) : 0;
+
+  // Fixed CC bills total for the month
+  var fixedCCTotal = 0;
+  var allBillsList = getAllBills();
+  allBillsList.forEach(function(b) {
+    if (b.paidBy === 'cc' && b.type === 'out' && (b.freq === 'monthly' || b.freq === 'once') && b.amt > 0 && !b.isFundTransfer) {
+      if (b.freq === 'monthly') fixedCCTotal += b.amt;
+    }
+  });
+  fixedCCTotal = Math.round(fixedCCTotal);
+
+  // Combined = discretionary + fixed CC bills
+  var ccCeiling = 3500;
+  var combined = totMonth + fixedCCTotal;
+  var rem = ccCeiling - combined;
+
+  // Progress bar — three segments: essential, non-essential, fixed CC bills
+  var pctE = ccCeiling > 0 ? Math.min(totE / ccCeiling * 100, 100) : 0;
+  var pctN = ccCeiling > 0 ? Math.min(totN / ccCeiling * 100, 100 - pctE) : 0;
+  var pctF = ccCeiling > 0 ? Math.min(fixedCCTotal / ccCeiling * 100, 100 - pctE - pctN) : 0;
 
   // Month label
   var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('dash-month-label').textContent = mn[now.getMonth()] + ' spending';
-  document.getElementById('dash-month-budget-label').textContent = fmt(monthlyBudget) + '/mo target';
+  document.getElementById('dash-month-budget-label').textContent = fmt(ccCeiling) + '/mo CC target';
   document.getElementById('bar-e').style.width = pctE.toFixed(1) + '%';
   document.getElementById('bar-n').style.width = pctN.toFixed(1) + '%';
+  var barF = document.getElementById('bar-f');
+  if (barF) barF.style.width = pctF.toFixed(1) + '%';
   document.getElementById('lbl-e').textContent = fmt(totE);
   document.getElementById('lbl-n').textContent = fmt(totN);
   document.getElementById('stat-month-spent').textContent = fmt(totMonth);
   document.getElementById('stat-month-funded').textContent = fmt(totFunded);
+  var fixedEl = document.getElementById('stat-month-fixed');
+  if (fixedEl) fixedEl.textContent = fmt(fixedCCTotal);
+  var combinedEl = document.getElementById('stat-month-combined');
+  if (combinedEl) { combinedEl.textContent = fmt(combined); combinedEl.style.color = combined > ccCeiling ? 'var(--red)' : 'var(--coral)'; }
+  var fundedSmEl = document.getElementById('stat-month-funded-sm');
+  if (fundedSmEl) fundedSmEl.textContent = fmt(totFunded);
   var remEl = document.getElementById('stat-remaining');
-  var rem = monthlyBudget - totMonth;
   remEl.textContent = fmt(Math.abs(rem));
   remEl.style.color = rem >= 0 ? 'var(--grass)' : 'var(--red)';
   var fundedWrap = document.getElementById('lbl-funded-wrap');
