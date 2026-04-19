@@ -176,17 +176,17 @@ textarea { resize: none; }
 
 /* ── CASHFLOW SUMMARY ── */
 .cf-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-bottom:6px; }
-.cf-card { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:17px 8px 8px; text-align:center; box-shadow:0 2px 0 var(--border); }
+.cf-card { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:14px 10px 10px; text-align:center; box-shadow:0 2px 0 var(--border); }
 .cf-card.cf-active { border-color:var(--sky); box-shadow:0 2px 0 var(--sky-dim); }
-.cf-month { font-size:14px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; }
-.cf-row { display:flex; justify-content:space-between; align-items:center; font-size:17px; padding:2px 0; }
+.cf-month { font-size:15px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px; }
+.cf-row { display:flex; justify-content:space-between; align-items:center; font-size:16px; padding:3px 0; }
 .cf-label { color:var(--text-3); }
 .cf-val { font-weight:600; }
 .cf-in  { color:var(--grass-dim); }
 .cf-out { color:var(--coral); }
-.cf-net-pos { color:var(--grass-dim); font-size:14px; font-weight:600; padding-top:4px; border-top:0.5px solid var(--border); margin-top:4px; text-align:center; }
-.cf-net-neg { color:var(--red); font-size:14px; font-weight:600; padding-top:4px; border-top:0.5px solid var(--border); margin-top:4px; text-align:center; }
-.cf-net-zero { color:var(--text-3); font-size:17px; font-weight:600; padding-top:4px; border-top:0.5px solid var(--border); margin-top:4px; text-align:center; }
+.cf-net-pos { color:var(--grass-dim); font-size:16px; font-weight:600; padding-top:6px; border-top:0.5px solid var(--border); margin-top:6px; text-align:center; }
+.cf-net-neg { color:var(--red); font-size:16px; font-weight:600; padding-top:6px; border-top:0.5px solid var(--border); margin-top:6px; text-align:center; }
+.cf-net-zero { color:var(--text-3); font-size:16px; font-weight:600; padding-top:6px; border-top:0.5px solid var(--border); margin-top:6px; text-align:center; }
 
 /* ── MONTHLY BREAKDOWN ── */
 .monthly-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:17px; }
@@ -432,7 +432,7 @@ textarea { resize: none; }
 
   /* ── BALANCE SCREEN: wider chart ── */
   #bal-chart { height: 180px; }
-  .cf-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .cf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .monthly-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   /* ── HISTORY/SETTINGS: comfortable width ── */
