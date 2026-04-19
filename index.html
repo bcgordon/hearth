@@ -1546,7 +1546,8 @@ function renderBudgetScreen() {
   html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Category</span>';
   html += '<div style="display:flex;gap:16px"><span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:50px;text-align:right">Monthly</span>';
   html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Quarter</span>';
-  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Spent</span></div></div>';
+  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Spent</span>';
+  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Left</span></div></div>';
 
   // Get current month spent per category
   var mCatSpend = {};
@@ -1581,6 +1582,10 @@ function renderBudgetScreen() {
     html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(mBudget) + '/mo</span>';
     html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(qBudget) + '/qtr</span>';
     html += '<span style="font-size:16px;font-weight:700;color:' + spentColor + ';min-width:60px;text-align:right;cursor:pointer;text-decoration:underline dotted" data-cat="' + cat.name + '" onclick="showCategoryRegister(this.dataset.cat)" title="' + fmt(mSpent) + ' this month / ' + fmt(qSpent) + ' this quarter">' + fmt(mSpent) + '</span>';
+    var mRem = mBudget - mSpent;
+    var remColor = mRem < 0 ? 'var(--red)' : mRem === 0 ? 'var(--sun-dim)' : 'var(--grass-dim)';
+    var remSign = mRem < 0 ? '-$' : '+$';
+    html += '<span style="font-size:15px;font-weight:600;color:' + remColor + ';min-width:60px;text-align:right">' + remSign + Math.abs(Math.round(mRem)).toLocaleString('en-US') + '</span>';
     html += '</div></div>';
     html += '<div style="height:4px;background:var(--border);border-radius:2px">';
     html += '<div style="height:100%;width:' + qPct.toFixed(1) + '%;background:' + barColor + ';border-radius:2px;transition:width 0.4s"></div>';
@@ -1597,8 +1602,12 @@ function renderBudgetScreen() {
   html += '<div style="display:flex;gap:16px">';
   html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(monthlyBudget) + '</span>';
   html += '<span style="font-size:15px;color:var(--text-3);min-width:60px;text-align:right">' + fmt(budget) + '</span>';
-  var totalSpent = Object.values(catSpend).reduce(function(a,b){ return a+b; }, 0);
-  html += '<span style="font-size:15px;font-weight:600;color:' + (totalSpent > budget ? 'var(--red)' : 'var(--grass-dim)') + ';min-width:60px;text-align:right">' + fmt(totalSpent) + '</span>';
+  var totalMSpent = Object.values(mCatSpend).reduce(function(a,b){ return a+b; }, 0);
+  var totalRem = monthlyBudget - totalMSpent;
+  var totalRemColor = totalRem < 0 ? 'var(--red)' : totalRem === 0 ? 'var(--sun-dim)' : 'var(--grass-dim)';
+  var totalRemSign = totalRem < 0 ? '-$' : '+$';
+  html += '<span style="font-size:15px;font-weight:600;color:' + (totalMSpent > monthlyBudget ? 'var(--red)' : 'var(--grass-dim)') + ';min-width:60px;text-align:right">' + fmt(totalMSpent) + '</span>';
+  html += '<span style="font-size:15px;font-weight:700;color:' + totalRemColor + ';min-width:60px;text-align:right">' + totalRemSign + Math.abs(Math.round(totalRem)).toLocaleString('en-US') + '</span>';
   html += '</div></div>';
   html += '</div>';
 
