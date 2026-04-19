@@ -1258,7 +1258,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type') { historyQOffset = 0; historyMonthOffset = 0; if (!historyView || historyView === 'quarter') historyView = 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
+  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type') { historyQOffset = 0; historyMonthOffset = 0; historyView = historyView || 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); historyNav(0); }
   if (id === 'screen-budget') { renderBudgetScreen(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -3033,6 +3033,7 @@ function showTypeRegister(type) {
   historyView = 'type';
   historyTypeFilter = type;
   historyCategoryFilter = null;
+  historyBackTo = 'screen-main';
   document.getElementById('hist-view-q').className = 'pill';
   document.getElementById('hist-view-m').className = 'pill';
   var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill';
@@ -3064,10 +3065,10 @@ function showCategoryRegister(catName) {
 }
 
 function showCCCycleRegister() {
-  // Switch to history screen in a special CC cycle mode
   historyQOffset = 0;
   historyMonthOffset = 0;
   historyView = 'cccycle';
+  historyBackTo = 'screen-balance';
   document.getElementById('hist-view-q').className = 'pill';
   document.getElementById('hist-view-m').className = 'pill';
   var hs = document.getElementById('history-search'); if (hs) hs.value = '';
