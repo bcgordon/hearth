@@ -1083,10 +1083,10 @@ let historyCategoryFilter = null;
 
 const BUDGET_CATEGORIES = [
   { name: 'Groceries',                   budget: 900,  essential: true  },
-  { name: 'Eating Out',                  budget: 600,  essential: false },
-  { name: 'Wine & spirits',              budget: 200,  essential: false },
-  { name: 'Shopping',                    budget: 350,  essential: false },
-  { name: 'Books',                       budget: 150,  essential: false },
+  { name: 'Eating Out',                  budget: 1200, essential: false },
+  { name: 'Wine & spirits',              budget: 150,  essential: false },
+  { name: 'Shopping',                    budget: 425,  essential: false },
+  { name: 'Books',                       budget: 75,   essential: false },
   { name: 'Medical',                     budget: 375,  essential: true  },
   { name: 'Pets',                        budget: 300,  essential: true  },
   { name: 'Entertainment',               budget: 400,  essential: false },
@@ -1573,11 +1573,11 @@ function renderBudgetScreen() {
   html += '<div class="card" style="margin-bottom:12px">';
   html += '<div class="section-head" style="margin-bottom:10px">Sinking fund targets</div>';
   var funds = [
-    { name: 'Emergency fund', monthly: 800, target: 21000 },
-    { name: 'Home/auto/insurance', monthly: 366, target: 6000 },
-    { name: 'Medical & pets', monthly: 200, target: 3000 },
-    { name: 'Travel fund', monthly: 200, target: 5000 },
-    { name: 'Big purchases', monthly: 150, target: 3000 },
+    { name: 'Emergency fund', monthly: 750, target: 21000 },
+    { name: 'Home/auto/insurance', monthly: 370, target: 6000 },
+    { name: 'Medical & pets', monthly: 165, target: 3000 },
+    { name: 'Travel fund', monthly: 165, target: 5000 },
+    { name: 'Big purchases', monthly: 120, target: 3000 },
   ];
   funds.forEach(function(f) {
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">';
@@ -2175,11 +2175,11 @@ var DEFAULT_BILLS = [
   { id:'hc_tmob',   name:'T-Mobile',                 amt:397,  day:27, freq:'monthly', type:'out' },
   { id:'hc_allow',  name:'Personal allowances',      amt:300,  freq:'weekly',   startDate:'2026-04-10', day:5, type:'out' },
   { id:'hc_sl_ext', name:'Student loan extra',       amt:300,  freq:'biweekly', startDate:'2026-04-25', type:'out' },
-  { id:'hc_sf_emerg',  name:'Emergency fund',        amt:800, day:16, freq:'monthly', type:'save' },
-  { id:'hc_sf_home',   name:'Home/auto/insurance',   amt:366, day:16, freq:'monthly', type:'save' },
-  { id:'hc_sf_med',    name:'Medical & pets',         amt:200, day:17, freq:'monthly', type:'save' },
-  { id:'hc_sf_travel', name:'Travel fund',            amt:200, day:17, freq:'monthly', type:'save' },
-  { id:'hc_sf_big',    name:'Big purchases',          amt:150, day:17, freq:'monthly', type:'save' },
+  { id:'hc_sf_emerg',  name:'Emergency fund',        amt:750, day:16, freq:'monthly', type:'save' },
+  { id:'hc_sf_home',   name:'Home/auto/insurance',   amt:370, day:16, freq:'monthly', type:'save' },
+  { id:'hc_sf_med',    name:'Medical & pets',         amt:165, day:17, freq:'monthly', type:'save' },
+  { id:'hc_sf_travel', name:'Travel fund',            amt:165, day:17, freq:'monthly', type:'save' },
+  { id:'hc_sf_big',    name:'Big purchases',          amt:120, day:17, freq:'monthly', type:'save' },
   { id:'hc_cc_netflix',  name:'Netflix',           amt:27,  day:31, freq:'monthly', type:'out', paidBy:'cc' },
   { id:'hc_cc_ymca',     name:'YMCA',              amt:0,   day:8,  freq:'monthly', type:'out', paidBy:'cc', note:'check amount' },
   { id:'hc_cc_apple',    name:'Apple One',          amt:31,  day:8,  freq:'monthly', type:'out', paidBy:'cc' },
@@ -2446,11 +2446,11 @@ function selectPaidBy(p) {
 // ── SINKING FUNDS ─────────────────────────────────────────────────────────────
 
 var FUND_DEFS = [
-  { id:'hc_sf_emerg',  name:'Emergency fund',      target:21000, color:'var(--grass)',  colorClass:'fc-emerg',  monthlyAmt:800,  note:'Target: $21,000 (~2.2 yrs)' },
-  { id:'hc_sf_home',   name:'Home/auto/insurance', target:6000,  color:'var(--sky)',    colorClass:'fc-home',   monthlyAmt:366,  note:'Annual insurance & repairs' },
-  { id:'hc_sf_med',    name:'Medical & pets',      target:3000,  color:'var(--rose)',   colorClass:'fc-med',    monthlyAmt:200,  note:'Medical expenses & vet bills' },
-  { id:'hc_sf_travel', name:'Travel fund',         target:5000,  color:'var(--sun)',    colorClass:'fc-travel', monthlyAmt:200,  note:'Vacations & trips' },
-  { id:'hc_sf_big',    name:'Big purchases',       target:3000,  color:'var(--coral)',  colorClass:'fc-big',    monthlyAmt:150,  note:'Large one-time purchases' },
+  { id:'hc_sf_emerg',  name:'Emergency fund',      target:21000, color:'var(--grass)',  colorClass:'fc-emerg',  monthlyAmt:750,  note:'Target: $21,000 (~2.4 yrs)' },
+  { id:'hc_sf_home',   name:'Home/auto/insurance', target:6000,  color:'var(--sky)',    colorClass:'fc-home',   monthlyAmt:370,  note:'Annual insurance & repairs' },
+  { id:'hc_sf_med',    name:'Medical & pets',      target:3000,  color:'var(--rose)',   colorClass:'fc-med',    monthlyAmt:165,  note:'Medical expenses & vet bills' },
+  { id:'hc_sf_travel', name:'Travel fund',         target:5000,  color:'var(--sun)',    colorClass:'fc-travel', monthlyAmt:165,  note:'Vacations & trips' },
+  { id:'hc_sf_big',    name:'Big purchases',       target:3000,  color:'var(--coral)',  colorClass:'fc-big',    monthlyAmt:120,  note:'Large one-time purchases' },
 ];
 
 function getFundBalance(fundId) {
