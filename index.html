@@ -2228,18 +2228,42 @@ async function historyNav(dir) {
     var row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);opacity:' + (r.isPast ? '1' : '0.6');
 
-    // Color by type
+    // Color by payment type — distinct colors for each
     var isCheckingEntry = r.type === 'cc_entry' && r.payMethod === 'checking';
     var isIncomeEntry = r.type === 'cc_entry' && r.payMethod === 'income';
-    var color = isIncomeEntry ? 'var(--grass)' : r.type === 'in' ? 'var(--grass)' : r.type === 'cc_bill' ? 'var(--sky)' : r.type === 'cc_entry' && !isCheckingEntry ? 'var(--sky)' : isCheckingEntry ? 'var(--coral)' : r.type === 'cc' ? 'var(--sky-dim)' : r.isTransfer ? 'var(--sun)' : 'var(--coral)';
-    var sign = isIncomeEntry ? '+' : r.type === 'in' ? '+' : '-';
-    var label = isIncomeEntry ? '↓' : r.type === 'cc_bill' ? '💳' : r.type === 'cc_entry' && !isCheckingEntry ? '💳' : isCheckingEntry ? '🏦' : r.type === 'in' ? '↓' : r.type === 'cc' ? '💳' : r.isTransfer ? '⇄' : '↑';
+    var isFundTransferEntry = r.isFundTransfer || (r.name && r.name.indexOf('→ Checking') > -1);
+    var isCCEntry = r.type === 'cc_entry' && !isCheckingEntry && !isIncomeEntry;
+    var isCCBill = r.type === 'cc_bill' || r.type === 'cc';
+    var isScheduledIn = r.type === 'in';
+    var isScheduledOut = r.type === 'out' || r.type === 'save';
+    var isTransfer = r.isTransfer;
+
+    var color, sign, label;
+    if (isIncomeEntry) {
+      color = 'var(--grass)'; sign = '+'; label = '↓';
+    } else if (isFundTransferEntry) {
+      color = 'var(--rose)'; sign = '+'; label = '🏦';
+    } else if (isScheduledIn) {
+      color = 'var(--grass-dim)'; sign = '+'; label = '↓';
+    } else if (isCCEntry) {
+      color = 'var(--sky)'; sign = '-'; label = '💳';
+    } else if (isCCBill) {
+      color = 'var(--sky-dim)'; sign = '-'; label = '💳';
+    } else if (isCheckingEntry) {
+      color = 'var(--coral)'; sign = '-'; label = '🏦';
+    } else if (isTransfer) {
+      color = 'var(--sun)'; sign = ''; label = '⇄';
+    } else if (isScheduledOut) {
+      color = 'var(--coral)'; sign = '-'; label = '↑';
+    } else {
+      color = 'var(--text-3)'; sign = '-'; label = '•';
+    }
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
     var fundBadge = '';
     if (r.fundCoverage) {
       var fundNames = { medical: 'Medical fund', home: 'Home fund', travel: 'Travel fund', big: 'Big purchases fund' };
-      fundBadge = '<span style="font-size:11px;background:var(--grass-bg);color:var(--grass-dim);border:1px solid var(--grass);border-radius:4px;padding:1px 5px;margin-left:4px">🏦 ' + (fundNames[r.fundCoverage] || r.fundCoverage) + '</span>';
+      fundBadge = '<span style="font-size:11px;background:var(--rose-bg);color:var(--rose-dim);border:1px solid var(--rose);border-radius:4px;padding:1px 5px;margin-left:4px">🏦 ' + (fundNames[r.fundCoverage] || r.fundCoverage) + '</span>';
     }
     var editBtn = '';
     if (r.entryId) {
