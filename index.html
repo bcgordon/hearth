@@ -3588,7 +3588,6 @@ function renderMonthlyBreakdown() {
       var qKey = mo.y + '_Q' + (Math.floor(mo.m / 3) + 1);
       var entries = loadEntries(qKey);
       entries.forEach(function(e) {
-        if (e.payMethod === 'income' || e.fundCoverage) return;
         var d = new Date(e.ts);
         if (d.getFullYear() === mo.y && d.getMonth() === mo.m) {
           if (e.payMethod === 'checking') totChk += e.amt;
