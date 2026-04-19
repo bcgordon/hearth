@@ -608,6 +608,10 @@ textarea { resize: none; }
       <span style="width:8px;height:8px;background:var(--grass);border-radius:50%;display:inline-block"></span>
       Fund-covered: <strong id="lbl-funded">$0</strong>
     </span>
+    <span style="font-size:15px;color:var(--sky-dim);display:flex;align-items:center;gap:5px;cursor:pointer;text-decoration:underline dotted" id="lbl-income-wrap" style="display:none" onclick="showTypeRegister('income')">
+      <span style="width:8px;height:8px;background:var(--sky);border-radius:50%;display:inline-block"></span>
+      Income: <strong id="lbl-income">$0</strong>
+    </span>
   </div>
 </div>
 
@@ -1654,6 +1658,8 @@ function refreshMain() {
     if (e.type === 'essential') totE += e.amt;
     else totN += e.amt;
   });
+  var totIncome = 0;
+  monthEntries.forEach(function(e) { if (e.payMethod === 'income') totIncome += e.amt; });
   const totMonth = totE + totN;
   const pctE = monthlyBudget > 0 ? Math.min(totE / monthlyBudget * 100, 100) : 0;
   const pctN = monthlyBudget > 0 ? Math.min(totN / monthlyBudget * 100, 100 - pctE) : 0;
@@ -1676,6 +1682,10 @@ function refreshMain() {
   if (fundedWrap) fundedWrap.style.display = totFunded > 0 ? '' : 'none';
   var fundedEl = document.getElementById('lbl-funded');
   if (fundedEl) fundedEl.textContent = fmt(totFunded);
+  var incomeWrap = document.getElementById('lbl-income-wrap');
+  if (incomeWrap) incomeWrap.style.display = totIncome > 0 ? '' : 'none';
+  var incomeEl = document.getElementById('lbl-income');
+  if (incomeEl) incomeEl.textContent = fmt(totIncome);
 
   // Quarter tracker
   var qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
@@ -1950,7 +1960,7 @@ async function historyNav(dir) {
     qStart = new Date(qYear, qStartMonth, 1);
     qEnd = new Date(qYear, qStartMonth + 1, 0, 23, 59, 59);
     key = qYear + '_Q' + (Math.floor(qStartMonth / 3) + 1);
-    var typeLabels = { essential: 'Essential', nonessential: 'Non-essential', funded: 'Fund-covered' };
+    var typeLabels = { essential: 'Essential', nonessential: 'Non-essential', funded: 'Fund-covered', income: 'Income received' };
     document.getElementById('history-label').textContent = historyView === 'type' ? (typeLabels[historyTypeFilter] || 'Filtered') : (historyCategoryFilter || 'Category');
     document.querySelector('.hist-nav').style.display = 'none';
   } else {
@@ -2072,6 +2082,8 @@ async function historyNav(dir) {
   } else if (historyView === 'type' && historyTypeFilter) {
     if (historyTypeFilter === 'funded') {
       filteredEntries = entries.filter(function(e) { return !!e.fundCoverage; });
+    } else if (historyTypeFilter === 'income') {
+      filteredEntries = entries.filter(function(e) { return e.payMethod === 'income'; });
     } else {
       filteredEntries = entries.filter(function(e) { return e.type === historyTypeFilter && !e.fundCoverage && e.payMethod !== 'income'; });
     }
