@@ -3012,16 +3012,44 @@ var CC_CYCLE_START = new Date(2026, 3, 12); // April 12
 var CC_CYCLE_END   = new Date(2026, 4, 11, 23, 59, 59); // May 11
 
 function getCCAppTotal() {
+  var today = new Date(); today.setHours(0,0,0,0);
+
   // Sum all manually logged CC-method entries within the current billing cycle
   var total = 0;
+  var manualAmts = []; // track manual entry amounts to avoid double-counting
   ['2026_Q2'].forEach(function(qKey) {
     var entries = loadEntries(qKey);
     entries.forEach(function(e) {
       if (e.payMethod === 'checking' || e.payMethod === 'income') return;
       var d = new Date(e.ts);
-      if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) total += e.amt;
+      if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) {
+        total += e.amt;
+        manualAmts.push(Math.round(e.amt * 100));
+      }
     });
   });
+
+  // Add scheduled CC bills that have posted (date passed) within cycle
+  // but only if they weren't also manually logged
+  var allCCBills = getAllBills();
+  allCCBills.forEach(function(b) {
+    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer || b.freq !== 'monthly') return;
+    for (var mo = 0; mo <= 1; mo++) {
+      var checkDate = new Date(today.getFullYear(), today.getMonth() - mo, b.day);
+      if (checkDate >= CC_CYCLE_START && checkDate <= today) {
+        // Only add if not already manually logged (check by amount match)
+        var rounded = Math.round(b.amt * 100);
+        var idx = manualAmts.indexOf(rounded);
+        if (idx === -1) {
+          total += b.amt;
+        } else {
+          manualAmts.splice(idx, 1); // remove so we don't skip a legitimate duplicate
+        }
+        break;
+      }
+    }
+  });
+
   return Math.round(total * 100) / 100;
 }
 
@@ -3064,28 +3092,8 @@ function updateCCBalanceCard() {
     var currentCycle = Math.max(0, actual - nextBill);
     if (cycCurEl) cycCurEl.textContent = fmt(currentCycle);
 
-    // Calculate scheduled CC bills that have already posted in the current cycle
-    // (bill date is past today and within the cycle window)
-    var scheduledCCPosted = 0;
-    var today3 = new Date();
-    today3.setHours(0,0,0,0);
-    var allCCBills = getAllBills();
-    allCCBills.forEach(function(b) {
-      if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
-      if (b.freq !== 'monthly') return; // only recurring monthly bills
-      // Check if this bill's date fell within cycle and is in the past
-      for (var mo = 0; mo <= 1; mo++) {
-        var checkDate = new Date(today3.getFullYear(), today3.getMonth() - mo, b.day);
-        if (checkDate >= CC_CYCLE_START && checkDate <= today3) {
-          scheduledCCPosted += b.amt;
-          break;
-        }
-      }
-    });
-
-    // Delta: subtract posted scheduled bills since Capital One includes them
-    // but they're not manually logged in Hearth
-    var delta = currentCycle - appTotal - scheduledCCPosted;
+    // Delta between current cycle actual and app tracked (scheduled bills included in appTotal)
+    var delta = currentCycle - appTotal;
     if (deltaEl) {
       if (Math.abs(delta) < 0.50) {
         deltaEl.textContent = '✓ All current cycle charges tracked';
