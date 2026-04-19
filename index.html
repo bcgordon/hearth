@@ -935,7 +935,7 @@ textarea { resize: none; }
 <!-- HISTORY -->
 <div id="screen-history" class="screen">
 <div class="back-row">
-<button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
+<button class="back-btn" id="hist-back-btn" onclick="historyBack()">&#8592;</button>
 <span style="font-size:17px;font-weight:600;color:var(--sky)">Register</span>
 </div>
 <div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -1086,6 +1086,7 @@ let historyView = 'quarter'; // 'quarter' or 'month' or 'cccycle' or 'category'
 let historyMonthOffset = 0;
 let historyCategoryFilter = null;
 let historyTypeFilter = null;
+let historyBackTo = 'screen-main'; // screen to return to when hitting back
 
 const BUDGET_CATEGORIES = [
   { name: 'Groceries',                   budget: 2400, essential: true  },
@@ -1779,6 +1780,7 @@ function setHistoryView(view) {
   historyMonthOffset = 0;
   historyCategoryFilter = null;
   historyTypeFilter = null;
+  historyBackTo = 'screen-main';
   document.getElementById('hist-view-q').className = 'pill' + (view === 'quarter' ? ' sel-e' : '');
   document.getElementById('hist-view-m').className = 'pill' + (view === 'month' ? ' sel-e' : '');
   var ccPill = document.getElementById('hist-view-cc'); if (ccPill) ccPill.className = 'pill' + (view === 'cccycle' ? ' sel-n' : '');
@@ -3038,11 +3040,22 @@ function showTypeRegister(type) {
   showScreen('screen-history');
 }
 
+function historyBack() {
+  var dest = historyBackTo || 'screen-main';
+  historyBackTo = 'screen-main';
+  historyView = 'quarter';
+  historyCategoryFilter = null;
+  historyTypeFilter = null;
+  showScreen(dest);
+}
+
 function showCategoryRegister(catName) {
   historyQOffset = 0;
   historyMonthOffset = 0;
   historyView = 'category';
   historyCategoryFilter = catName;
+  historyTypeFilter = null;
+  historyBackTo = 'screen-budget';
   document.getElementById('hist-view-q').className = 'pill';
   document.getElementById('hist-view-m').className = 'pill';
   var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill';
