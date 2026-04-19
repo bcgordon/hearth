@@ -3064,24 +3064,28 @@ function updateCCBalanceCard() {
     var currentCycle = Math.max(0, actual - nextBill);
     if (cycCurEl) cycCurEl.textContent = fmt(currentCycle);
 
-    // Calculate scheduled CC bills that fall in current cycle
-    // These are already accounted for by Capital One but not manually logged
-    var scheduledCCInCycle = 0;
+    // Calculate scheduled CC bills that have already posted in the current cycle
+    // (bill date is past today and within the cycle window)
+    var scheduledCCPosted = 0;
+    var today3 = new Date();
+    today3.setHours(0,0,0,0);
     var allCCBills = getAllBills();
     allCCBills.forEach(function(b) {
       if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
+      if (b.freq !== 'monthly') return; // only recurring monthly bills
+      // Check if this bill's date fell within cycle and is in the past
       for (var mo = 0; mo <= 1; mo++) {
-        var today2 = new Date();
-        var checkDate = new Date(today2.getFullYear(), today2.getMonth() - mo, b.day);
-        if (checkDate >= CC_CYCLE_START && checkDate <= CC_CYCLE_END) {
-          scheduledCCInCycle += b.amt;
+        var checkDate = new Date(today3.getFullYear(), today3.getMonth() - mo, b.day);
+        if (checkDate >= CC_CYCLE_START && checkDate <= today3) {
+          scheduledCCPosted += b.amt;
           break;
         }
       }
     });
 
-    // Delta: subtract scheduled bills since they're accounted for outside manual entries
-    var delta = currentCycle - appTotal - scheduledCCInCycle;
+    // Delta: subtract posted scheduled bills since Capital One includes them
+    // but they're not manually logged in Hearth
+    var delta = currentCycle - appTotal - scheduledCCPosted;
     if (deltaEl) {
       if (Math.abs(delta) < 0.50) {
         deltaEl.textContent = '✓ All current cycle charges tracked';
