@@ -596,15 +596,15 @@ textarea { resize: none; }
     </div>
   </div>
   <div style="display:flex;gap:16px;flex-wrap:wrap">
-    <span style="font-size:15px;color:var(--grass-dim);display:flex;align-items:center;gap:5px">
+    <span style="font-size:15px;color:var(--grass-dim);display:flex;align-items:center;gap:5px;cursor:pointer;text-decoration:underline dotted" onclick="showTypeRegister('essential')">
       <span style="width:8px;height:8px;background:var(--grass);border-radius:50%;display:inline-block"></span>
       Essential: <strong id="lbl-e">$0</strong>
     </span>
-    <span style="font-size:15px;color:var(--sun-dim);display:flex;align-items:center;gap:5px">
+    <span style="font-size:15px;color:var(--sun-dim);display:flex;align-items:center;gap:5px;cursor:pointer;text-decoration:underline dotted" onclick="showTypeRegister('nonessential')">
       <span style="width:8px;height:8px;background:var(--sun);border-radius:50%;display:inline-block"></span>
       Non-essential: <strong id="lbl-n">$0</strong>
     </span>
-    <span style="font-size:15px;color:var(--text-3);display:flex;align-items:center;gap:5px" id="lbl-funded-wrap" style="display:none">
+    <span style="font-size:15px;color:var(--text-3);display:flex;align-items:center;gap:5px;cursor:pointer;text-decoration:underline dotted" id="lbl-funded-wrap" onclick="showTypeRegister('funded')">
       <span style="width:8px;height:8px;background:var(--grass);border-radius:50%;display:inline-block"></span>
       Fund-covered: <strong id="lbl-funded">$0</strong>
     </span>
@@ -1080,6 +1080,7 @@ let historyQOffset = 0;
 let historyView = 'quarter'; // 'quarter' or 'month' or 'cccycle' or 'category'
 let historyMonthOffset = 0;
 let historyCategoryFilter = null;
+let historyTypeFilter = null;
 
 const BUDGET_CATEGORIES = [
   { name: 'Groceries',                   budget: 2400, essential: true  },
@@ -1251,7 +1252,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category') { historyQOffset = 0; historyMonthOffset = 0; if (!historyView || historyView === 'quarter') historyView = 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
+  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type') { historyQOffset = 0; historyMonthOffset = 0; if (!historyView || historyView === 'quarter') historyView = 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var hs = document.getElementById('history-search'); if (hs) hs.value = ''; historyNav(0); }
   if (id === 'screen-budget') { renderBudgetScreen(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -1746,6 +1747,7 @@ function setHistoryView(view) {
   historyQOffset = 0;
   historyMonthOffset = 0;
   historyCategoryFilter = null;
+  historyTypeFilter = null;
   document.getElementById('hist-view-q').className = 'pill' + (view === 'quarter' ? ' sel-e' : '');
   document.getElementById('hist-view-m').className = 'pill' + (view === 'month' ? ' sel-e' : '');
   var ccPill = document.getElementById('hist-view-cc'); if (ccPill) ccPill.className = 'pill' + (view === 'cccycle' ? ' sel-n' : '');
@@ -1941,16 +1943,15 @@ async function historyNav(dir) {
     key = '2026_Q2';
     document.getElementById('history-label').textContent = '4/12 – 5/11';
     document.querySelector('.hist-nav').style.display = 'none';
-  } else if (historyView === 'category') {
-    // Full current quarter filtered by category
-    key = getQuarterKeyOffset(0);
-    var _cp = key.split('_');
-    var _qNum = parseInt(_cp[1].replace('Q',''));
-    qYear = parseInt(_cp[0]);
-    qStartMonth = (_qNum - 1) * 3;
+  } else if (historyView === 'category' || historyView === 'type') {
+    // Full current month filtered by category or type
+    var now2 = new Date();
+    qYear = now2.getFullYear(); qStartMonth = now2.getMonth();
     qStart = new Date(qYear, qStartMonth, 1);
-    qEnd = new Date(qYear, qStartMonth + 3, 0, 23, 59, 59);
-    document.getElementById('history-label').textContent = historyCategoryFilter || 'Category';
+    qEnd = new Date(qYear, qStartMonth + 1, 0, 23, 59, 59);
+    key = qYear + '_Q' + (Math.floor(qStartMonth / 3) + 1);
+    var typeLabels = { essential: 'Essential', nonessential: 'Non-essential', funded: 'Fund-covered' };
+    document.getElementById('history-label').textContent = historyView === 'type' ? (typeLabels[historyTypeFilter] || 'Filtered') : (historyCategoryFilter || 'Category');
     document.querySelector('.hist-nav').style.display = 'none';
   } else {
     document.querySelector('.hist-nav').style.display = '';
@@ -1978,7 +1979,7 @@ async function historyNav(dir) {
 
   // 1. Get scheduled events for this quarter from the projection engine
   const allEvents = getScheduledEvents();
-  const qEvents = historyView === 'category' ? [] : allEvents.filter(ev => ev.date >= qStart && ev.date <= qEnd);
+  const qEvents = (historyView === 'category' || historyView === 'type') ? [] : allEvents.filter(ev => ev.date >= qStart && ev.date <= qEnd);
 
   // 2. Get manually logged entries — filter to date range for month view
   const allQEntries = loadEntries(key);
@@ -2025,7 +2026,7 @@ async function historyNav(dir) {
 
   // Add CC-billed fixed bills (excluded from projection but should show in register)
   if (historyView === 'category') { /* skip scheduled bills in category view */ }
-  var allBills = historyView === 'category' ? [] : getAllBills();
+  var allBills = (historyView === 'category' || historyView === 'type') ? [] : getAllBills();
   allBills.forEach(function(b) {
     if (b.paidBy !== 'cc' || b.type !== 'out' || !b.amt) return;
     if (b.freq === 'monthly') {
@@ -2065,9 +2066,16 @@ async function historyNav(dir) {
   });
 
   // Filter entries by category if in category view
-  var filteredEntries = historyView === 'category' && historyCategoryFilter
-    ? entries.filter(function(e) { return e.cat === historyCategoryFilter; })
-    : entries;
+  var filteredEntries = entries;
+  if (historyView === 'category' && historyCategoryFilter) {
+    filteredEntries = entries.filter(function(e) { return e.cat === historyCategoryFilter; });
+  } else if (historyView === 'type' && historyTypeFilter) {
+    if (historyTypeFilter === 'funded') {
+      filteredEntries = entries.filter(function(e) { return !!e.fundCoverage; });
+    } else {
+      filteredEntries = entries.filter(function(e) { return e.type === historyTypeFilter && !e.fundCoverage && e.payMethod !== 'income'; });
+    }
+  }
 
   // Add manually logged entries
   filteredEntries.forEach(function(e) {
@@ -2982,6 +2990,19 @@ function updateCCBalanceCard() {
     if (infoEl) infoEl.textContent = '';
     var td2 = document.getElementById('cc-tracked-delta'); if (td2) td2.textContent = '';
   }
+}
+
+function showTypeRegister(type) {
+  historyQOffset = 0;
+  historyMonthOffset = 0;
+  historyView = 'type';
+  historyTypeFilter = type;
+  historyCategoryFilter = null;
+  document.getElementById('hist-view-q').className = 'pill';
+  document.getElementById('hist-view-m').className = 'pill';
+  var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill';
+  var hs = document.getElementById('history-search'); if (hs) hs.value = '';
+  showScreen('screen-history');
 }
 
 function showCategoryRegister(catName) {
