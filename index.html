@@ -1110,8 +1110,8 @@ function buildCategoryGrid(spendMap) {
     btn.dataset.cat = cat.name;
     let bottomLine = '';
     if (cat.budget) {
-      const mBudget = cat.budget; // monthly budget
-      const qBudget = cat.budget * 3;
+      const qBudget = cat.budget; // stored as quarterly
+      const mBudget = Math.round(cat.budget / 3); // monthly = quarter / 3
       const mSpent = monthly[cat.name] || 0;
       const qSpent = quarterly[cat.name] || 0;
 
