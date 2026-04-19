@@ -1082,7 +1082,7 @@ let historyMonthOffset = 0;
 let historyCategoryFilter = null;
 
 const BUDGET_CATEGORIES = [
-  { name: 'Groceries',                   budget: 900,  essential: true  },
+  { name: 'Groceries',                   budget: 1200, essential: true  },
   { name: 'Eating Out',                  budget: 1200, essential: false },
   { name: 'Wine & spirits',              budget: 150,  essential: false },
   { name: 'Shopping',                    budget: 425,  essential: false },
@@ -1100,30 +1100,51 @@ function buildCategoryGrid(spendMap) {
   const grid = document.getElementById('category-grid');
   if (!grid) return;
   grid.innerHTML = '';
-  // spendMap: { catName -> total spent this quarter }
   const sm = spendMap || {};
+  const monthly = sm.monthly || sm; // backwards compat
+  const quarterly = sm.quarterly || sm;
   BUDGET_CATEGORIES.forEach(cat => {
     const btn = document.createElement('button');
     btn.className = 'cat-pill-btn';
     btn.id = 'cat-btn-' + cat.name.replace(/[^a-zA-Z0-9]/g, '_');
     btn.dataset.cat = cat.name;
-    const spent = sm[cat.name] || 0;
     let bottomLine = '';
     if (cat.budget) {
-      // Monthly budget, quarterly = x3
+      const mBudget = cat.budget; // monthly budget
       const qBudget = cat.budget * 3;
-      const pct = Math.min(spent / qBudget * 100, 100);
-      const over = spent > qBudget;
-      const spentFmt = spent > 0 ? '$' + Math.round(spent).toLocaleString() : '$0';
-      const budgFmt = '$' + cat.budget.toLocaleString() + '/mo';
-      const color = over ? 'color:var(--red)' : spent > qBudget * 0.8 ? 'color:var(--sun-dim)' : 'color:var(--grass-dim)';
-      bottomLine = '<span class="cat-budget">' +
-        '<span style="' + color + ';font-weight:600">' + spentFmt + '</span>' +
-        '<span style="opacity:0.6"> / ' + budgFmt + '</span>' +
+      const mSpent = monthly[cat.name] || 0;
+      const qSpent = quarterly[cat.name] || 0;
+
+      // Monthly progress — primary
+      const mPct = Math.min(mSpent / mBudget * 100, 100);
+      const mOver = mSpent >= mBudget;
+      const mWarn = !mOver && mPct >= 75;
+      const mColor = mOver ? 'var(--red)' : mWarn ? 'var(--sun-dim)' : 'var(--grass-dim)';
+      const mBarColor = mOver ? 'var(--red)' : mWarn ? 'var(--sun)' : 'var(--grass)';
+
+      // Quarterly progress — secondary
+      const qPct = Math.min(qSpent / qBudget * 100, 100);
+      const qOver = qSpent > qBudget;
+      const qBarColor = qOver ? 'var(--red)' : qSpent > qBudget * 0.8 ? 'var(--sun)' : 'var(--sky)';
+
+      const mFmt = '$' + Math.round(mSpent).toLocaleString();
+      const mBudgFmt = '$' + mBudget.toLocaleString();
+
+      bottomLine =
+        '<span class="cat-budget" style="display:flex;justify-content:space-between;align-items:baseline">' +
+          '<span style="color:' + mColor + ';font-weight:600">' + mFmt + '</span>' +
+          '<span style="opacity:0.55;font-size:13px"> / ' + mBudgFmt + '/mo</span>' +
         '</span>' +
-        '<span class="cat-bar-wrap"><span class="cat-bar-fill" style="width:' + pct.toFixed(1) + '%;background:' + (over ? 'var(--red)' : spent > qBudget * 0.8 ? 'var(--sun)' : 'var(--grass)') + '"></span></span>';
+        // Monthly bar (thicker, primary)
+        '<span class="cat-bar-wrap"><span class="cat-bar-fill" style="width:' + mPct.toFixed(1) + '%;background:' + mBarColor + '"></span></span>' +
+        // Quarterly bar (thinner, secondary)
+        '<span style="display:block;height:2px;background:var(--border);border-radius:1px;margin-top:2px">' +
+          '<span style="display:block;height:100%;width:' + qPct.toFixed(1) + '%;background:' + qBarColor + ';border-radius:1px"></span>' +
+        '</span>' +
+        '<span style="display:block;font-size:11px;color:var(--text-3);margin-top:1px">Qtr: $' + Math.round(qSpent).toLocaleString() + ' / $' + Math.round(qBudget).toLocaleString() + '</span>';
     } else {
-      const spentFmt = spent > 0 ? '$' + Math.round(spent).toLocaleString() + ' spent' : 'tap to describe';
+      const mSpent = monthly[cat.name] || 0;
+      const spentFmt = mSpent > 0 ? '$' + Math.round(mSpent).toLocaleString() + ' this month' : 'tap to describe';
       bottomLine = '<span class="cat-budget">' + spentFmt + '</span>';
     }
     btn.innerHTML = cat.name + bottomLine;
@@ -1133,14 +1154,20 @@ function buildCategoryGrid(spendMap) {
 }
 
 function getCategorySpend() {
-  // Sum current quarter entries by category
+  // Return both monthly and quarterly spend per category
+  const now = new Date();
   const qKey = getCurrentQuarterKey();
   const entries = loadEntries(qKey);
-  const map = {};
+  const monthly = {}, quarterly = {};
   entries.forEach(e => {
-    if (e.cat) map[e.cat] = (map[e.cat] || 0) + e.amt;
+    if (!e.cat || e.payMethod === 'income' || e.fundCoverage) return;
+    var d = new Date(e.ts);
+    quarterly[e.cat] = (quarterly[e.cat] || 0) + e.amt;
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+      monthly[e.cat] = (monthly[e.cat] || 0) + e.amt;
+    }
   });
-  return map;
+  return { monthly, quarterly };
 }
 
 function selectCategory(catName) {
