@@ -938,7 +938,8 @@ textarea { resize: none; }
 <button class="back-btn" id="hist-back-btn" onclick="historyBack()">&#8592;</button>
 <span style="font-size:17px;font-weight:600;color:var(--sky)">Register</span>
 </div>
-<div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+<div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+  <button id="hist-drill-back" onclick="historyBack()" style="display:none;background:none;border:1.5px solid var(--border);border-radius:20px;padding:6px 14px;font-size:15px;cursor:pointer;color:var(--text-3)">&#8592; Back</button>
   <button id="hist-view-q" class="pill sel-e" onclick="setHistoryView('quarter')">Quarter</button>
   <button id="hist-view-m" class="pill" onclick="setHistoryView('month')">Month</button>
   <button id="hist-view-cc" class="pill" onclick="setHistoryView('cccycle')">CC Cycle</button>
@@ -1976,6 +1977,7 @@ async function historyNav(dir) {
     key = '2026_Q2';
     document.getElementById('history-label').textContent = '4/12 – 5/11';
     document.querySelector('.hist-nav').style.display = 'none';
+    var drillBack2 = document.getElementById('hist-drill-back'); if (drillBack2) { drillBack2.style.display = ''; drillBack2.dataset.dest = historyBackTo || 'screen-main'; }
   } else if (historyView === 'category' || historyView === 'type') {
     // Full current month filtered by category or type
     var now2 = new Date();
@@ -1986,8 +1988,10 @@ async function historyNav(dir) {
     var typeLabels = { essential: 'Essential', nonessential: 'Non-essential', funded: 'Fund-covered', income: 'Income received' };
     document.getElementById('history-label').textContent = historyView === 'type' ? (typeLabels[historyTypeFilter] || 'Filtered') : (historyCategoryFilter || 'Category');
     document.querySelector('.hist-nav').style.display = 'none';
+    var drillBack = document.getElementById('hist-drill-back'); if (drillBack) { drillBack.style.display = ''; drillBack.dataset.dest = historyBackTo || 'screen-main'; }
   } else {
     document.querySelector('.hist-nav').style.display = '';
+    var drillBack3 = document.getElementById('hist-drill-back'); if (drillBack3) drillBack3.style.display = 'none';
     if (historyView === 'month') {
       var mr = getMonthRange(historyMonthOffset);
       qStart = mr.start; qEnd = mr.end;
@@ -3042,7 +3046,8 @@ function showTypeRegister(type) {
 }
 
 function historyBack() {
-  var dest = historyBackTo || 'screen-main';
+  var btn = document.getElementById('hist-drill-back');
+  var dest = (btn && btn.dataset.dest) ? btn.dataset.dest : (historyBackTo || 'screen-main');
   historyBackTo = 'screen-main';
   historyView = 'quarter';
   historyCategoryFilter = null;
