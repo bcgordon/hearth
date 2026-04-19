@@ -3551,37 +3551,84 @@ function renderCashflowGrid() {
     var isFuture = i > 0;
 
     // Sum all projected income and outflows for this month from balProjection
-    var income = 0;
-    var bills = 0;
-    var ccPay = 0;
-    var savings = 0;
+    // For current month: split into actuals (past) and projected (future)
+    var income = 0, bills = 0, ccPay = 0, savings = 0;
+    var incomeAct = 0, billsAct = 0, ccPayAct = 0, savingsAct = 0;
+    var incomeProj = 0, billsProj = 0, ccPayProj = 0, savingsProj = 0;
 
     for (var j = 0; j < balProjection.length; j++) {
       var ev = balProjection[j];
       if (ev.date.getFullYear() === yr && ev.date.getMonth() === mo) {
-        if (ev.type === 'in') income += ev.amt;
-        else if (ev.type === 'cc') ccPay += ev.amt;
-        else if (ev.type === 'out') bills += ev.amt;
-        else if (ev.type === 'save') savings += ev.amt;
+        var isPast = ev.date <= today;
+        if (ev.type === 'in')   { income  += ev.amt; if (isPast) incomeAct  += ev.amt; else incomeProj  += ev.amt; }
+        else if (ev.type === 'cc')   { ccPay   += ev.amt; if (isPast) ccPayAct   += ev.amt; else ccPayProj   += ev.amt; }
+        else if (ev.type === 'out')  { bills   += ev.amt; if (isPast) billsAct   += ev.amt; else billsProj   += ev.amt; }
+        else if (ev.type === 'save') { savings += ev.amt; if (isPast) savingsAct += ev.amt; else savingsProj += ev.amt; }
       }
     }
 
     var totalOut = bills + ccPay + savings;
     var net = income - totalOut;
+    var fmt = function(n) { return '$' + Math.round(Math.abs(n)).toLocaleString(); };
 
     var card = document.createElement('div');
     card.className = 'cf-card' + (isCurrent ? ' cf-active' : '');
 
     var netClass = net > 0 ? 'cf-net-pos' : net < 0 ? 'cf-net-neg' : 'cf-net-zero';
     var netSign = net > 0 ? '+' : '';
-    var fmt = function(n) { return '$' + Math.round(Math.abs(n)).toLocaleString(); };
 
-    card.innerHTML =
-      '<div class="cf-month">' + monthNames[mo] + ' ' + (isCurrent ? '●' : yr === 2027 ? "'" + String(yr).slice(2) : '') + '</div>' +
-      '<div class="cf-row"><span class="cf-label">In</span><span class="cf-val cf-in">' + fmt(income) + '</span></div>' +
-      '<div class="cf-row"><span class="cf-label">Bills</span><span class="cf-val cf-out">' + fmt(bills + ccPay) + '</span></div>' +
-      '<div class="cf-row"><span class="cf-label">Savings</span><span class="cf-val" style="color:var(--sky-dim)">' + fmt(savings) + '</span></div>' +
-      '<div class="' + netClass + '">' + netSign + fmt(net) + '</div>';
+    if (isCurrent) {
+      // Current month: show actuals + projected split
+      var totalOutAct = billsAct + ccPayAct + savingsAct;
+      var totalOutProj = billsProj + ccPayProj + savingsProj;
+
+      // Income bar: actual (solid green) + projected (light green)
+      var incomeTotal = incomeAct + incomeProj;
+      var incomeActPct = incomeTotal > 0 ? (incomeAct / incomeTotal * 100).toFixed(1) : 0;
+      var incomeProjPct = incomeTotal > 0 ? (incomeProj / incomeTotal * 100).toFixed(1) : 0;
+
+      card.innerHTML =
+        '<div class="cf-month">' + monthNames[mo] + ' ●</div>' +
+        // Income row with split bar
+        '<div class="cf-row" style="flex-direction:column;align-items:stretch;gap:3px">' +
+          '<div style="display:flex;justify-content:space-between">' +
+            '<span class="cf-label">In</span>' +
+            '<span class="cf-val cf-in">' + fmt(incomeTotal) + '</span>' +
+          '</div>' +
+          '<div style="height:4px;background:var(--border);border-radius:2px;display:flex;overflow:hidden">' +
+            '<div style="width:' + incomeActPct + '%;background:var(--grass);border-radius:2px 0 0 2px"></div>' +
+            '<div style="width:' + incomeProjPct + '%;background:var(--grass-bg);border:1px solid var(--grass);box-sizing:border-box"></div>' +
+          '</div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-3)">' +
+            '<span>✓ ' + fmt(incomeAct) + '</span>' +
+            '<span>~ ' + fmt(incomeProj) + '</span>' +
+          '</div>' +
+        '</div>' +
+        // Bills row with split bar
+        '<div class="cf-row" style="flex-direction:column;align-items:stretch;gap:3px;margin-top:4px">' +
+          '<div style="display:flex;justify-content:space-between">' +
+            '<span class="cf-label">Bills</span>' +
+            '<span class="cf-val cf-out">' + fmt(totalOut - savings) + '</span>' +
+          '</div>' +
+          '<div style="height:4px;background:var(--border);border-radius:2px;display:flex;overflow:hidden">' +
+            '<div style="width:' + ((totalOut-savings) > 0 ? ((billsAct+ccPayAct)/(totalOut-savings)*100).toFixed(1) : 0) + '%;background:var(--coral);border-radius:2px 0 0 2px"></div>' +
+            '<div style="width:' + ((totalOut-savings) > 0 ? ((billsProj+ccPayProj)/(totalOut-savings)*100).toFixed(1) : 0) + '%;background:var(--coral-bg);border:1px solid var(--coral);box-sizing:border-box"></div>' +
+          '</div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-3)">' +
+            '<span>✓ ' + fmt(billsAct+ccPayAct) + '</span>' +
+            '<span>~ ' + fmt(billsProj+ccPayProj) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="cf-row" style="margin-top:4px"><span class="cf-label">Savings</span><span class="cf-val" style="color:var(--sky-dim)">' + fmt(savings) + '</span></div>' +
+        '<div class="' + netClass + '">' + netSign + fmt(net) + '</div>';
+    } else {
+      card.innerHTML =
+        '<div class="cf-month">' + monthNames[mo] + ' ' + (yr === 2027 ? "''" + String(yr).slice(2) : '') + '</div>' +
+        '<div class="cf-row"><span class="cf-label">In</span><span class="cf-val cf-in">' + fmt(income) + '</span></div>' +
+        '<div class="cf-row"><span class="cf-label">Bills</span><span class="cf-val cf-out">' + fmt(bills + ccPay) + '</span></div>' +
+        '<div class="cf-row"><span class="cf-label">Savings</span><span class="cf-val" style="color:var(--sky-dim)">' + fmt(savings) + '</span></div>' +
+        '<div class="' + netClass + '">' + netSign + fmt(net) + '</div>';
+    }
 
     grid.appendChild(card);
   }
