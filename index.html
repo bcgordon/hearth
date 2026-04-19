@@ -2934,6 +2934,7 @@ function getCCSpendForMonth(year, month) {
 // Build running balance projection anchored from actual balance entered today
 function buildProjection() {
   var events = getScheduledEvents();
+  allScheduledEvents = events; // store for current month card use
   var today = new Date();
   today.setHours(0,0,0,0);
 
@@ -3045,6 +3046,7 @@ var balProjection = [];
 var balMonthOffset = 0;
 var balShowAll = true;
 var balActualBalance = null;
+var allScheduledEvents = [];
 
 async function refreshBalance() {
   const fresh = await cloudGet();
@@ -3575,8 +3577,10 @@ function renderCashflowGrid() {
     var incomeAct = 0, billsAct = 0, ccPayAct = 0, savingsAct = 0;
     var incomeProj = 0, billsProj = 0, ccPayProj = 0, savingsProj = 0;
 
-    for (var j = 0; j < balProjection.length; j++) {
-      var ev = balProjection[j];
+    // For current month use all scheduled events (not balProjection which skips future this-month events)
+    var evSource = (isCurrent && typeof allScheduledEvents !== 'undefined') ? allScheduledEvents : balProjection;
+    for (var j = 0; j < evSource.length; j++) {
+      var ev = evSource[j];
       if (ev.date.getFullYear() === yr && ev.date.getMonth() === mo) {
         var isPast = ev.date <= today;
         if (ev.type === 'in')   { income  += ev.amt; if (isPast) incomeAct  += ev.amt; else incomeProj  += ev.amt; }
