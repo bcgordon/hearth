@@ -3064,8 +3064,24 @@ function updateCCBalanceCard() {
     var currentCycle = Math.max(0, actual - nextBill);
     if (cycCurEl) cycCurEl.textContent = fmt(currentCycle);
 
-    // Delta between current cycle actual and app tracked
-    var delta = currentCycle - appTotal;
+    // Calculate scheduled CC bills that fall in current cycle
+    // These are already accounted for by Capital One but not manually logged
+    var scheduledCCInCycle = 0;
+    var allCCBills = getAllBills();
+    allCCBills.forEach(function(b) {
+      if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
+      for (var mo = 0; mo <= 1; mo++) {
+        var today2 = new Date();
+        var checkDate = new Date(today2.getFullYear(), today2.getMonth() - mo, b.day);
+        if (checkDate >= CC_CYCLE_START && checkDate <= CC_CYCLE_END) {
+          scheduledCCInCycle += b.amt;
+          break;
+        }
+      }
+    });
+
+    // Delta: subtract scheduled bills since they're accounted for outside manual entries
+    var delta = currentCycle - appTotal - scheduledCCInCycle;
     if (deltaEl) {
       if (Math.abs(delta) < 0.50) {
         deltaEl.textContent = '✓ All current cycle charges tracked';
