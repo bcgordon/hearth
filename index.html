@@ -1380,7 +1380,20 @@ async function doSetup() {
   enterApp();
 }
 
-function enterApp() { buildCategoryGrid(getCategorySpend()); refreshMain(); showScreen('screen-main'); var bn = document.getElementById('bottom-nav'); if (bn) bn.style.display = ''; }
+async function enterApp() {
+  // Migrate any localStorage dismissed events to Supabase on first login
+  var localDismissed = JSON.parse(localStorage.getItem('dismissed_events') || '{}');
+  if (Object.keys(localDismissed).length > 0 && record) {
+    if (!record.dismissedEvents) record.dismissedEvents = {};
+    Object.assign(record.dismissedEvents, localDismissed);
+    await cloudSet(record);
+    localStorage.removeItem('dismissed_events');
+  }
+  buildCategoryGrid(getCategorySpend());
+  refreshMain();
+  showScreen('screen-main');
+  var bn = document.getElementById('bottom-nav'); if (bn) bn.style.display = '';
+}
 
 function buildUserPills() {
   const cont = document.getElementById('pill-users'); cont.innerHTML = '';
@@ -2945,7 +2958,7 @@ function buildProjection() {
   // Fast-forward anchor to end of current month so future projections
   // start from a realistic balance (not mid-month depleted)
   var endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
-  var dismissed = JSON.parse(localStorage.getItem('dismissed_events') || '{}');
+  var dismissed = (record && record.dismissedEvents) ? record.dismissedEvents : JSON.parse(localStorage.getItem('dismissed_events') || '{}');
   var projectedEndOfMonth = anchorBalance;
   for (var pi = 0; pi < events.length; pi++) {
     var pev = events[pi];
@@ -3471,16 +3484,26 @@ function renderBalTimeline() {
 
 
 
-function dismissEvent(evKey) {
+async function dismissEvent(evKey) {
   var dismissed = JSON.parse(localStorage.getItem('dismissed_events') || '{}');
   dismissed[evKey] = true;
   localStorage.setItem('dismissed_events', JSON.stringify(dismissed));
+  // Also save to Supabase so it syncs across devices
+  if (record) {
+    if (!record.dismissedEvents) record.dismissedEvents = {};
+    record.dismissedEvents[evKey] = true;
+    await cloudSet(record);
+  }
   refreshBalance();
   toast('Event skipped from projection');
 }
 
-function clearDismissals() {
+async function clearDismissals() {
   localStorage.removeItem('dismissed_events');
+  if (record) {
+    record.dismissedEvents = {};
+    await cloudSet(record);
+  }
   refreshBalance();
   toast('All skipped events restored');
 }
