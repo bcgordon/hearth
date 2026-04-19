@@ -1727,7 +1727,7 @@ function refreshMain() {
   document.getElementById('lbl-e').textContent = fmt(totE);
   document.getElementById('lbl-n').textContent = fmt(totN);
   document.getElementById('stat-month-spent').textContent = fmt(totMonth);
-  document.getElementById('stat-month-funded').textContent = fmt(totFunded);
+  // stat-month-funded removed — now using stat-month-funded-sm
   var fixedEl = document.getElementById('stat-month-fixed');
   if (fixedEl) fixedEl.textContent = fmt(fixedCCTotal);
   var combinedEl = document.getElementById('stat-month-combined');
