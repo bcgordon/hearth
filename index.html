@@ -2353,9 +2353,9 @@ function doLock() {
 // Default hardcoded bills — stored in Supabase under record.bills
 // Users can add/edit/delete custom bills, which merge with the hardcoded ones
 var DEFAULT_BILLS = [
-  { id:'hc_inc_bw',  name:'Bi-weekly paycheck',      amt:2000, freq:'biweekly', startDate:'2026-04-10', type:'in' },
-  { id:'hc_inc_15',  name:'Semi-monthly paycheck (15th)', amt:4300, day:15, freq:'monthly', type:'in' },
-  { id:'hc_inc_eom', name:'Semi-monthly paycheck (last day)', amt:4300, day:1, freq:'monthly', type:'in', eom:true },
+  { id:'hc_inc_bw',  name:'Bi-weekly paycheck',      amt:2055, freq:'biweekly', startDate:'2026-04-10', type:'in' },
+  { id:'hc_inc_15',  name:'Semi-monthly paycheck (15th)', amt:4240, day:15, freq:'monthly', type:'in' },
+  { id:'hc_inc_eom', name:'Semi-monthly paycheck (last day)', amt:4240, day:1, freq:'monthly', type:'in', eom:true },
   { id:'hc_life1',  name:'Life insurance NW Mutual', amt:250,  day:1,  freq:'monthly', type:'out' },
   { id:'hc_sl_min', name:'Student loan minimum',     amt:386,  day:9,  freq:'monthly', type:'out' },
   { id:'hc_life2',  name:'Life insurance NW Mutual', amt:250,  day:15, freq:'monthly', type:'out' },
@@ -2364,7 +2364,7 @@ var DEFAULT_BILLS = [
   { id:'hc_gas',    name:'Gas bill',                 amt:150,  day:23, freq:'monthly', type:'out' },
   { id:'hc_car',    name:'Car loan',                 amt:414,  day:26, freq:'monthly', type:'out' },
   { id:'hc_tmob',   name:'T-Mobile',                 amt:397,  day:27, freq:'monthly', type:'out' },
-  { id:'hc_allow',  name:'Personal allowances',      amt:300,  freq:'weekly',   startDate:'2026-04-10', day:5, type:'out' },
+  { id:'hc_allow',  name:'Personal allowances',      amt:340,  freq:'weekly',   startDate:'2026-04-10', day:5, type:'out' },
   { id:'hc_sl_ext', name:'Student loan extra',       amt:300,  freq:'biweekly', startDate:'2026-04-25', type:'out' },
   { id:'hc_sf_emerg',  name:'Emergency fund',        amt:750, day:16, freq:'monthly', type:'save' },
   { id:'hc_sf_home',   name:'Home/auto/insurance',   amt:370, day:16, freq:'monthly', type:'save' },
