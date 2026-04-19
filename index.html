@@ -1543,12 +1543,7 @@ function renderBudgetScreen() {
   });
 
   var html = '<div class="card" style="margin-bottom:12px;padding:14px 17px">';
-  html += '<div style="display:flex;justify-content:space-between;margin-bottom:12px">';
-  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Category</span>';
-  html += '<div style="display:flex;gap:16px"><span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:50px;text-align:right">Monthly</span>';
-  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Quarter</span>';
-  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Spent</span>';
-  html += '<span style="font-size:13px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;min-width:60px;text-align:right">Left</span></div></div>';
+  // No column headers needed — each category is self-labelled
 
   // Get current month spent per category
   var mCatSpend = {};
@@ -1562,53 +1557,69 @@ function renderBudgetScreen() {
   });
 
   BUDGET_CATEGORIES.forEach(function(cat) {
-    if (!cat.budget) return; // skip Other
+    if (!cat.budget) return; // skip Other/Runaway Anchor
     var qBudget = cat.budget;
     var mBudget = Math.round(qBudget / 3);
     var qSpent = catSpend[cat.name] || 0;
     var mSpent = mCatSpend[cat.name] || 0;
 
-    // Color based on monthly spend vs monthly budget
+    // Monthly color
     var mPct = mBudget > 0 ? mSpent / mBudget * 100 : 0;
+    var mPctCapped = Math.min(mPct, 100);
     var spentColor = mSpent >= mBudget ? 'var(--red)' : mPct >= 75 ? 'var(--sun-dim)' : 'var(--grass-dim)';
+    var mBarColor = mSpent >= mBudget ? 'var(--red)' : mPct >= 75 ? 'var(--sun)' : 'var(--grass)';
 
-    // Progress bar based on quarterly
+    // Quarterly color
     var qPct = Math.min(qSpent / qBudget * 100, 100);
-    var barColor = qSpent > qBudget ? 'var(--red)' : qSpent > qBudget * 0.8 ? 'var(--sun)' : 'var(--grass)';
+    var qBarColor = qSpent > qBudget ? 'var(--red)' : qSpent > qBudget * 0.8 ? 'var(--sun)' : 'var(--sky)';
 
-    html += '<div style="margin-bottom:12px">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">';
-    html += '<span style="font-size:16px;font-weight:500;color:var(--text)">' + cat.name + '</span>';
-    html += '<div style="display:flex;gap:16px;align-items:baseline">';
-    html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(mBudget) + '/mo</span>';
-    html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(qBudget) + '/qtr</span>';
-    html += '<span style="font-size:16px;font-weight:700;color:' + spentColor + ';min-width:60px;text-align:right;cursor:pointer;text-decoration:underline dotted" data-cat="' + cat.name + '" onclick="showCategoryRegister(this.dataset.cat)" title="' + fmt(mSpent) + ' this month / ' + fmt(qSpent) + ' this quarter">' + fmt(mSpent) + '</span>';
+    // Remaining
     var mRem = mBudget - mSpent;
     var remColor = mRem < 0 ? 'var(--red)' : mRem === 0 ? 'var(--sun-dim)' : 'var(--grass-dim)';
     var remSign = mRem < 0 ? '-$' : '+$';
-    html += '<span style="font-size:15px;font-weight:600;color:' + remColor + ';min-width:60px;text-align:right">' + remSign + Math.abs(Math.round(mRem)).toLocaleString('en-US') + '</span>';
+
+    html += '<div style="margin-bottom:16px">';
+
+    // Category name
+    html += '<div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:6px">' + cat.name + '</div>';
+
+    // Monthly row — PRIMARY
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">';
+    html += '<span style="font-size:14px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">This month</span>';
+    html += '<div style="display:flex;gap:12px;align-items:baseline">';
+    html += '<span style="font-size:14px;color:var(--text-3)">' + fmt(mBudget) + ' budget</span>';
+    html += '<span style="font-size:17px;font-weight:700;color:' + spentColor + ';cursor:pointer;text-decoration:underline dotted" data-cat="' + cat.name + '" onclick="showCategoryRegister(this.dataset.cat)">' + fmt(mSpent) + ' spent</span>';
+    html += '<span style="font-size:16px;font-weight:700;color:' + remColor + '">' + remSign + Math.abs(Math.round(mRem)).toLocaleString('en-US') + '</span>';
     html += '</div></div>';
-    html += '<div style="height:4px;background:var(--border);border-radius:2px">';
-    html += '<div style="height:100%;width:' + qPct.toFixed(1) + '%;background:' + barColor + ';border-radius:2px;transition:width 0.4s"></div>';
+    // Monthly bar (thicker)
+    html += '<div style="height:6px;background:var(--border);border-radius:3px;margin-bottom:10px">';
+    html += '<div style="height:100%;width:' + mPctCapped.toFixed(1) + '%;background:' + mBarColor + ';border-radius:3px;transition:width 0.4s"></div>';
     html += '</div>';
-    // Monthly mini bar
-    var mPctCapped = Math.min(mPct, 100);
-    html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:2px">';
-    html += '<div style="height:100%;width:' + mPctCapped.toFixed(1) + '%;background:' + spentColor + ';border-radius:2px;transition:width 0.4s"></div>';
+
+    // Quarterly row — SECONDARY
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">';
+    html += '<span style="font-size:13px;color:var(--text-3)">Quarter</span>';
+    html += '<span style="font-size:14px;color:var(--text-3)">' + fmt(qSpent) + ' / ' + fmt(qBudget) + '</span>';
+    html += '</div>';
+    // Quarterly bar (thinner)
+    html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-bottom:4px">';
+    html += '<div style="height:100%;width:' + qPct.toFixed(1) + '%;background:' + qBarColor + ';border-radius:2px;transition:width 0.4s"></div>';
     html += '</div></div>';
   });
 
   html += '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;display:flex;justify-content:space-between">';
   html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Total</span>';
   html += '<div style="display:flex;gap:16px">';
-  html += '<span style="font-size:15px;color:var(--text-3);min-width:50px;text-align:right">' + fmt(monthlyBudget) + '</span>';
-  html += '<span style="font-size:15px;color:var(--text-3);min-width:60px;text-align:right">' + fmt(budget) + '</span>';
   var totalMSpent = Object.values(mCatSpend).reduce(function(a,b){ return a+b; }, 0);
   var totalRem = monthlyBudget - totalMSpent;
   var totalRemColor = totalRem < 0 ? 'var(--red)' : totalRem === 0 ? 'var(--sun-dim)' : 'var(--grass-dim)';
   var totalRemSign = totalRem < 0 ? '-$' : '+$';
-  html += '<span style="font-size:15px;font-weight:600;color:' + (totalMSpent > monthlyBudget ? 'var(--red)' : 'var(--grass-dim)') + ';min-width:60px;text-align:right">' + fmt(totalMSpent) + '</span>';
-  html += '<span style="font-size:15px;font-weight:700;color:' + totalRemColor + ';min-width:60px;text-align:right">' + totalRemSign + Math.abs(Math.round(totalRem)).toLocaleString('en-US') + '</span>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:baseline">';
+  html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Monthly total</span>';
+  html += '<div style="display:flex;gap:12px;align-items:baseline">';
+  html += '<span style="font-size:15px;color:var(--text-3)">' + fmt(monthlyBudget) + ' budget</span>';
+  html += '<span style="font-size:17px;font-weight:700;color:' + (totalMSpent > monthlyBudget ? 'var(--red)' : 'var(--grass-dim)') + '">' + fmt(totalMSpent) + ' spent</span>';
+  html += '<span style="font-size:16px;font-weight:700;color:' + totalRemColor + '">' + totalRemSign + Math.abs(Math.round(totalRem)).toLocaleString('en-US') + '</span>';
   html += '</div></div>';
   html += '</div>';
 
