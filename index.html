@@ -846,6 +846,29 @@ textarea { resize: none; }
     <div class="section-head">Annual &amp; one-time</div>
     <div id="bills-list-once"></div>
   </div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="section-head" style="margin-bottom:10px">Sinking fund targets</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <span style="font-size:15px;color:var(--text)">Emergency fund</span>
+      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$750/mo</div><div style="font-size:12px;color:var(--text-3)">target $21,000</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <span style="font-size:15px;color:var(--text)">Home/auto/insurance</span>
+      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$370/mo</div><div style="font-size:12px;color:var(--text-3)">target $6,000</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <span style="font-size:15px;color:var(--text)">Medical &amp; pets</span>
+      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$165/mo</div><div style="font-size:12px;color:var(--text-3)">target $3,000</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <span style="font-size:15px;color:var(--text)">Travel fund</span>
+      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$165/mo</div><div style="font-size:12px;color:var(--text-3)">target $5,000</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+      <span style="font-size:15px;color:var(--text)">Big purchases</span>
+      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$120/mo</div><div style="font-size:12px;color:var(--text-3)">target $3,000</div></div>
+    </div>
+  </div>
 </div>
 
 
@@ -1695,24 +1718,7 @@ function renderBudgetScreen() {
   html += '</div></div>';
   html += '</div>';
 
-  // Sinking funds section
-  html += '<div class="card" style="margin-bottom:12px">';
-  html += '<div class="section-head" style="margin-bottom:10px">Sinking fund targets</div>';
-  var funds = [
-    { name: 'Emergency fund', monthly: 750, target: 21000 },
-    { name: 'Home/auto/insurance', monthly: 370, target: 6000 },
-    { name: 'Medical & pets', monthly: 165, target: 3000 },
-    { name: 'Travel fund', monthly: 165, target: 5000 },
-    { name: 'Big purchases', monthly: 120, target: 3000 },
-  ];
-  funds.forEach(function(f) {
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">';
-    html += '<span style="font-size:15px;color:var(--text)">' + f.name + '</span>';
-    html += '<div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">' + fmt(f.monthly) + '/mo</div>';
-    html += '<div style="font-size:12px;color:var(--text-3)">target ' + fmt(f.target) + '</div></div>';
-    html += '</div>';
-  });
-  html += '</div>';
+
 
   cont.innerHTML = html;
 }
