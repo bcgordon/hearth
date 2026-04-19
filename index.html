@@ -167,6 +167,11 @@ textarea { resize: none; }
 .hist-nav-btn { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 17px 17px; font-family: 'Zilla Slab', Georgia, serif; font-size: 17px; font-weight: 500; color: var(--text-2); cursor: pointer; box-shadow: 0 2px 0 var(--border); transition: all 0.12s; }
 .hist-nav-btn:hover { border-color: var(--coral); color: var(--coral); transform: translateY(-1px); }
 .hist-nav-btn:active { transform: translateY(1px); box-shadow: none; }
+.bottom-nav { display:flex; position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1.5px solid var(--border); z-index:1000; padding-bottom:env(safe-area-inset-bottom); }
+.bottom-nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 0 6px; background:none; border:none; cursor:pointer; font-family:'Zilla Slab',Georgia,serif; font-size:10px; color:var(--text-3); gap:2px; transition:color 0.15s; }
+.bottom-nav-btn .bn-icon { font-size:22px; line-height:1; }
+.bottom-nav-btn.active { color:var(--coral); }
+.bottom-nav-btn.active .bn-icon { filter: saturate(1.5); }
 .divider { height: 1.5px; background: var(--border); margin: 17px 0; border-radius: 2px; }
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--grass); color: #fff; padding: 17px 24px; font-family: 'Zilla Slab', Georgia, serif; font-size: 17px; font-weight: 600; border-radius: var(--radius-pill); border: 1.5px solid var(--grass-dim); box-shadow: 0 3px 0 var(--grass-dim); transition: transform 0.3s cubic-bezier(.4,0,.2,1); pointer-events: none; white-space: nowrap; z-index: 9998; }
 #toast.show { transform: translateX(-50%) translateY(0); }
@@ -277,6 +282,15 @@ textarea { resize: none; }
 .floor-line::after { content:'— $2k floor'; position:absolute; right:0; font-size:14px; color:var(--red); opacity:0.7; }
 
 @media (max-width: 400px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) {
+  .top-actions { display: none !important; }
+  .bottom-nav { display: flex !important; }
+  #ipad-sidebar { display: none !important; }
+  .screen { padding-bottom: 70px; }
+}
+@media (min-width: 769px) {
+  .bottom-nav { display: none !important; }
+}
 
 /* ════════════════════════════════════════════
    iPad / Tablet Layout (768px+)
@@ -481,6 +495,9 @@ textarea { resize: none; }
   <button class="nav-btn" id="nav-balance" onclick="ipadNav('screen-balance')">
     <span class="nav-icon">&#128181;</span> Balance
   </button>
+  <button class="nav-btn" id="nav-budget" onclick="ipadNav('screen-budget')">
+    <span class="nav-icon">&#128202;</span> Budget
+  </button>
   <button class="nav-btn" id="nav-add" onclick="ipadNav('screen-add')">
     <span class="nav-icon">&#43;</span> Add expense
   </button>
@@ -512,6 +529,30 @@ textarea { resize: none; }
     </div>
   </div>
 </div>
+<!-- Bottom Nav (iPhone) -->
+<nav class="bottom-nav" id="bottom-nav" style="display:none">
+  <button class="bottom-nav-btn active" id="bn-main" onclick="bottomNav('screen-main')">
+    <span class="bn-icon">🏠</span>
+    <span>Dashboard</span>
+  </button>
+  <button class="bottom-nav-btn" id="bn-balance" onclick="bottomNav('screen-balance')">
+    <span class="bn-icon">💳</span>
+    <span>Balance</span>
+  </button>
+  <button class="bottom-nav-btn" id="bn-budget" onclick="bottomNav('screen-budget')">
+    <span class="bn-icon">📊</span>
+    <span>Budget</span>
+  </button>
+  <button class="bottom-nav-btn" id="bn-history" onclick="bottomNav('screen-history')">
+    <span class="bn-icon">📋</span>
+    <span>History</span>
+  </button>
+  <button class="bottom-nav-btn" id="bn-settings" onclick="bottomNav('screen-settings')">
+    <span class="bn-icon">⚙️</span>
+    <span>Settings</span>
+  </button>
+</nav>
+
 <!-- iPad Content Wrapper -->
 <div id="ipad-content">
 <!-- LOCK -->
@@ -1135,8 +1176,8 @@ function buildCategoryGrid(spendMap) {
     btn.dataset.cat = cat.name;
     let bottomLine = '';
     if (cat.budget) {
-      const qBudget = cat.budget; // stored as quarterly
-      const mBudget = Math.round(cat.budget / 3); // monthly = quarter / 3
+      const qBudget = getCatBudget(cat.name, cat.budget); // stored as quarterly, may be overridden
+      const mBudget = Math.round(qBudget / 3); // monthly = quarter / 3
       const mSpent = monthly[cat.name] || 0;
       const qSpent = quarterly[cat.name] || 0;
 
@@ -1339,7 +1380,7 @@ async function doSetup() {
   enterApp();
 }
 
-function enterApp() { buildCategoryGrid(getCategorySpend()); refreshMain(); showScreen('screen-main'); }
+function enterApp() { buildCategoryGrid(getCategorySpend()); refreshMain(); showScreen('screen-main'); var bn = document.getElementById('bottom-nav'); if (bn) bn.style.display = ''; }
 
 function buildUserPills() {
   const cont = document.getElementById('pill-users'); cont.innerHTML = '';
@@ -1576,7 +1617,7 @@ function renderBudgetScreen() {
 
   BUDGET_CATEGORIES.forEach(function(cat) {
     if (!cat.budget) return; // skip Other/Runaway Anchor
-    var qBudget = cat.budget;
+    var qBudget = getCatBudget(cat.name, cat.budget);
     var mBudget = Math.round(qBudget / 3);
     var qSpent = catSpend[cat.name] || 0;
     var mSpent = mCatSpend[cat.name] || 0;
@@ -1599,7 +1640,7 @@ function renderBudgetScreen() {
     html += '<div style="margin-bottom:16px">';
 
     // Category name
-    html += '<div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:6px">' + cat.name + '</div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:18px;font-weight:600;color:var(--text)">' + cat.name + '</span><button onclick="openBudgetEdit(\'' + cat.name + '\',' + qBudget + ')" style="font-size:13px;padding:3px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--text-3);cursor:pointer;font-family:inherit">Edit</button></div>';
 
     // Monthly row — PRIMARY
     html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">';
@@ -3655,6 +3696,42 @@ function renderMonthlyBreakdown() {
 // ── iPad responsive layout ────────────────────────────────────────────────────
 function isIPad() {
   return window.innerWidth >= 768;
+}
+
+function bottomNav(id) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(function(b) { b.classList.remove('active'); });
+  var screenToBtn = { 'screen-main':'bn-main','screen-balance':'bn-balance','screen-budget':'bn-budget','screen-history':'bn-history','screen-settings':'bn-settings' };
+  var btnId = screenToBtn[id];
+  if (btnId) { var btn = document.getElementById(btnId); if (btn) btn.classList.add('active'); }
+  showScreen(id);
+}
+
+function getBudgetOverrides() {
+  return (record && record.budgets) ? record.budgets : {};
+}
+
+function getCatBudget(catName, defaultBudget) {
+  var overrides = getBudgetOverrides();
+  return overrides[catName] !== undefined ? overrides[catName] : defaultBudget;
+}
+
+async function saveCatBudget(catName, qtrAmt) {
+  if (!record) return;
+  if (!record.budgets) record.budgets = {};
+  record.budgets[catName] = qtrAmt;
+  await cloudSet(record);
+  renderBudgetScreen();
+  buildCategoryGrid(getCategorySpend());
+  toast(catName + ' budget updated');
+}
+
+function openBudgetEdit(catName, currentQtr) {
+  var monthly = Math.round(currentQtr / 3);
+  var newMonthly = prompt(catName + ' — enter new monthly budget ($):', monthly);
+  if (newMonthly === null) return;
+  var amt = parseFloat(newMonthly);
+  if (isNaN(amt) || amt < 0) { toast('Invalid amount'); return; }
+  saveCatBudget(catName, Math.round(amt * 3));
 }
 
 function ipadNav(screenId) {
