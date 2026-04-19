@@ -2940,14 +2940,27 @@ function buildProjection() {
   // Anchor: use actual balance if set, otherwise fall back to STARTING_BALANCE
   var anchorBalance = balActualBalance !== null ? balActualBalance :
     (localStorage.getItem('bal_actual') ? parseFloat(localStorage.getItem('bal_actual')) : STARTING_BALANCE);
-  var anchorDate = new Date(today); // anchor is always "today"
 
-  // Walk forward from today only — skip past events
+  // Fast-forward anchor to end of current month so future projections
+  // start from a realistic balance (not mid-month depleted)
+  var endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
+  var dismissed = JSON.parse(localStorage.getItem('dismissed_events') || '{}');
+  var projectedEndOfMonth = anchorBalance;
+  for (var pi = 0; pi < events.length; pi++) {
+    var pev = events[pi];
+    if (pev.date <= today || pev.date > endOfMonth) continue; // only remaining events this month
+    var pevKey = pev.date.getFullYear() + '-' + pev.date.getMonth() + '-' + pev.date.getDate() + '-' + pev.name.replace(/\s/g,'_');
+    if (dismissed[pevKey]) continue;
+    var pevAmt = pev.amt || 0;
+    if (pev.type === 'in') projectedEndOfMonth += pevAmt;
+    else projectedEndOfMonth -= pevAmt;
+  }
+
+  // Use projected end-of-month as the starting balance for future months
+  // but still show current month events from today's actual balance
   var balance = anchorBalance;
   var projection = [];
-
-  // Build set of manually dismissed events (already reflected in actual balance)
-  var dismissed = JSON.parse(localStorage.getItem('dismissed_events') || '{}');
+  var _usedEOMBalance = false;
 
   for (var i = 0; i < events.length; i++) {
     var ev = events[i];
@@ -2996,6 +3009,12 @@ function buildProjection() {
         amt = parseFloat(billOverride);
         ev.amt = amt;
       }
+    }
+
+    // When first event of next month arrives, switch to projected end-of-month anchor
+    if (!_usedEOMBalance && ev.date > endOfMonth) {
+      balance = projectedEndOfMonth;
+      _usedEOMBalance = true;
     }
 
     if (ev.type === 'in') {
