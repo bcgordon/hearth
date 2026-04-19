@@ -3014,7 +3014,6 @@ var CC_CYCLE_END   = new Date(2026, 4, 11, 23, 59, 59); // May 11
 function getCCAppTotal() {
   // Sum all CC-method entries within the current billing cycle
   var total = 0;
-  // All entries are in Q2 (app started April 10, backdated entries also stored in Q2)
   ['2026_Q2'].forEach(function(qKey) {
     var entries = loadEntries(qKey);
     entries.forEach(function(e) {
@@ -3023,6 +3022,24 @@ function getCCAppTotal() {
       if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) total += e.amt;
     });
   });
+
+  // Also include scheduled CC bills that fall within the current cycle
+  var allBills = getAllBills();
+  allBills.forEach(function(b) {
+    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
+    // Build the bill's date for this cycle
+    var today = new Date();
+    var billDate = new Date(today.getFullYear(), today.getMonth(), b.day);
+    // Check current and previous month
+    for (var mo = 0; mo <= 1; mo++) {
+      var checkDate = new Date(today.getFullYear(), today.getMonth() - mo, b.day);
+      if (checkDate >= CC_CYCLE_START && checkDate <= CC_CYCLE_END) {
+        total += b.amt;
+        break;
+      }
+    }
+  });
+
   return Math.round(total * 100) / 100;
 }
 
