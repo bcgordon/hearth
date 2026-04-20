@@ -570,7 +570,9 @@ textarea { resize: none; }
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
 <p id="code-err" class="err" style="text-align:center"></p>
 <button class="btn btn-coral btn-full" style="padding:16px;border-radius:var(--radius-sm)" onclick="tryUnlock()">Unlock</button>
-<button id="faceid-btn" class="btn btn-ghost btn-full" style="margin-top:4px;display:none" onclick="tryFaceID()">🔒 Use Face ID</button>
+<label style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;color:var(--text-3);cursor:pointer">
+  <input type="checkbox" id="remember-me" style="width:18px;height:18px;cursor:pointer"> Remember me on this device
+</label>
 <button class="btn btn-ghost btn-full" style="margin-top:4px" onclick="showScreen('screen-setup')">First time? Create a household</button>
 </div>
 </div>
@@ -1365,55 +1367,24 @@ function showErr(elId, msg, isInfo) {
 }
 function hideErr(elId) { document.getElementById(elId).style.display = 'none'; }
 
-// ── FACE ID / CREDENTIAL API ─────────────────────────────────────────────
+// ── REMEMBER ME ──────────────────────────────────────────────────────────
 
-function checkFaceIDAvailable() {
-  // Show Face ID button if PasswordCredential is supported and a credential is saved
-  if (!window.PasswordCredential) return;
-  var saved = localStorage.getItem('hearth_faceid_enabled');
-  if (saved === '1') {
-    var btn = document.getElementById('faceid-btn');
-    if (btn) btn.style.display = '';
+function checkRememberMe() {
+  var saved = localStorage.getItem('hearth_remember_code');
+  if (saved) {
+    document.getElementById('code-input').value = saved;
+    document.getElementById('remember-me').checked = true;
+    // Auto-unlock
+    tryUnlock();
   }
 }
 
-async function tryFaceID() {
-  if (!window.PasswordCredential) {
-    toast('Face ID not supported on this device');
-    return;
-  }
-  try {
-    var cred = await navigator.credentials.get({
-      password: true,
-      mediation: 'required'
-    });
-    if (cred && cred.password) {
-      document.getElementById('code-input').value = cred.password;
-      tryUnlock();
-    } else {
-      toast('Face ID cancelled');
-    }
-  } catch(e) {
-    toast('Face ID failed — enter code manually');
-  }
+function saveRememberMe(code) {
+  localStorage.setItem('hearth_remember_code', code);
 }
 
-async function offerFaceID(code) {
-  if (!window.PasswordCredential) return;
-  try {
-    var cred = new PasswordCredential({
-      id: 'hearth-household',
-      password: code,
-      name: 'Hearth Household'
-    });
-    await navigator.credentials.store(cred);
-    localStorage.setItem('hearth_faceid_enabled', '1');
-    var btn = document.getElementById('faceid-btn');
-    if (btn) btn.style.display = '';
-    toast('Face ID saved for next time 🔒');
-  } catch(e) {
-    // User declined or not supported — silent fail
-  }
+function clearRememberMe() {
+  localStorage.removeItem('hearth_remember_code');
 }
 
 async function tryUnlock() {
@@ -1429,9 +1400,12 @@ async function tryUnlock() {
   record = data;
   config = record.config;
   hideErr('code-err');
-  // Offer to save Face ID if not already saved
-  if (window.PasswordCredential && localStorage.getItem('hearth_faceid_enabled') !== '1') {
-    offerFaceID(code);
+  // Save code if remember me checked
+  var rememberMe = document.getElementById('remember-me');
+  if (rememberMe && rememberMe.checked) {
+    saveRememberMe(code);
+  } else {
+    clearRememberMe();
   }
   enterApp();
 }
@@ -2418,6 +2392,7 @@ function doLock() {
   householdCode = ''; config = null; addType = null; addUser = null; addCategory = null; record = null;
   document.getElementById('code-input').value = '';
   hideErr('code-err');
+  // Don't clear remember me on manual lock — just re-check on next load
   showScreen('screen-lock');
 }
 
@@ -3958,7 +3933,7 @@ window.addEventListener('resize', function() {
 initIPadLayout();
 
 document.getElementById('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
-checkFaceIDAvailable();
+checkRememberMe();
 </script>
 </body>
 </html>
