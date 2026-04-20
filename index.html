@@ -570,6 +570,7 @@ textarea { resize: none; }
 <input id="code-input" type="password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
 <p id="code-err" class="err" style="text-align:center"></p>
 <button class="btn btn-coral btn-full" style="padding:16px;border-radius:var(--radius-sm)" onclick="tryUnlock()">Unlock</button>
+<button id="faceid-btn" class="btn btn-ghost btn-full" style="margin-top:4px;display:none" onclick="tryFaceID()">🔒 Use Face ID</button>
 <button class="btn btn-ghost btn-full" style="margin-top:4px" onclick="showScreen('screen-setup')">First time? Create a household</button>
 </div>
 </div>
@@ -1364,6 +1365,57 @@ function showErr(elId, msg, isInfo) {
 }
 function hideErr(elId) { document.getElementById(elId).style.display = 'none'; }
 
+// ── FACE ID / CREDENTIAL API ─────────────────────────────────────────────
+
+function checkFaceIDAvailable() {
+  // Show Face ID button if PasswordCredential is supported and a credential is saved
+  if (!window.PasswordCredential) return;
+  var saved = localStorage.getItem('hearth_faceid_enabled');
+  if (saved === '1') {
+    var btn = document.getElementById('faceid-btn');
+    if (btn) btn.style.display = '';
+  }
+}
+
+async function tryFaceID() {
+  if (!window.PasswordCredential) {
+    toast('Face ID not supported on this device');
+    return;
+  }
+  try {
+    var cred = await navigator.credentials.get({
+      password: true,
+      mediation: 'required'
+    });
+    if (cred && cred.password) {
+      document.getElementById('code-input').value = cred.password;
+      tryUnlock();
+    } else {
+      toast('Face ID cancelled');
+    }
+  } catch(e) {
+    toast('Face ID failed — enter code manually');
+  }
+}
+
+async function offerFaceID(code) {
+  if (!window.PasswordCredential) return;
+  try {
+    var cred = new PasswordCredential({
+      id: 'hearth-household',
+      password: code,
+      name: 'Hearth Household'
+    });
+    await navigator.credentials.store(cred);
+    localStorage.setItem('hearth_faceid_enabled', '1');
+    var btn = document.getElementById('faceid-btn');
+    if (btn) btn.style.display = '';
+    toast('Face ID saved for next time 🔒');
+  } catch(e) {
+    // User declined or not supported — silent fail
+  }
+}
+
 async function tryUnlock() {
   const code = document.getElementById('code-input').value.trim();
   if (!code) { showErr('code-err','Please enter a code'); return; }
@@ -1377,6 +1429,10 @@ async function tryUnlock() {
   record = data;
   config = record.config;
   hideErr('code-err');
+  // Offer to save Face ID if not already saved
+  if (window.PasswordCredential && localStorage.getItem('hearth_faceid_enabled') !== '1') {
+    offerFaceID(code);
+  }
   enterApp();
 }
 
@@ -3902,6 +3958,7 @@ window.addEventListener('resize', function() {
 initIPadLayout();
 
 document.getElementById('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+checkFaceIDAvailable();
 </script>
 </body>
 </html>
