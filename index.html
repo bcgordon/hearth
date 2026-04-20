@@ -567,7 +567,7 @@ textarea { resize: none; }
 <div class="lock-sub">Enter your household code to continue</div>
 </div>
 <div class="lock-form">
-<input id="code-input" type="password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
+<input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
 <p id="code-err" class="err" style="text-align:center"></p>
 <button class="btn btn-coral btn-full" style="padding:16px;border-radius:var(--radius-sm)" onclick="tryUnlock()">Unlock</button>
 <button id="faceid-btn" class="btn btn-ghost btn-full" style="margin-top:4px;display:none" onclick="tryFaceID()">🔒 Use Face ID</button>
