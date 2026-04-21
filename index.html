@@ -3283,11 +3283,11 @@ function updateCCBalanceCard() {
         deltaEl.textContent = '✓ All current cycle charges tracked';
         deltaEl.style.color = 'var(--grass)';
       } else if (delta > 0) {
-        deltaEl.textContent = fmt(delta) + ' in current cycle not yet entered';
+        deltaEl.textContent = fmt(delta) + ' not yet logged in Hearth';
         deltaEl.style.color = 'var(--sun-dim)';
       } else {
-        deltaEl.textContent = fmt(Math.abs(delta)) + ' more entered than card shows';
-        deltaEl.style.color = 'var(--red)';
+        deltaEl.textContent = fmt(Math.abs(delta)) + ' pending — logged but not yet posted';
+        deltaEl.style.color = 'var(--sky-dim)';
       }
     }
     var trackedDeltaEl = document.getElementById('cc-tracked-delta');
@@ -3296,11 +3296,11 @@ function updateCCBalanceCard() {
         trackedDeltaEl.textContent = '✓ balanced';
         trackedDeltaEl.style.color = 'var(--grass)';
       } else if (delta > 0) {
-        trackedDeltaEl.textContent = fmt(delta) + ' still to enter';
+        trackedDeltaEl.textContent = fmt(delta) + ' not yet logged';
         trackedDeltaEl.style.color = 'var(--sun-dim)';
       } else {
-        trackedDeltaEl.textContent = fmt(Math.abs(delta)) + ' over-entered';
-        trackedDeltaEl.style.color = 'var(--red)';
+        trackedDeltaEl.textContent = fmt(Math.abs(delta)) + ' pending';
+        trackedDeltaEl.style.color = 'var(--sky-dim)';
       }
     }
     if (savedDate && infoEl) {
