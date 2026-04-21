@@ -944,7 +944,12 @@ textarea { resize: none; }
       <div style="font-size:13px;color:var(--text-3)">App tracked this cycle</div>
       <div id="cc-app-total" style="font-size:16px;font-weight:600;color:var(--sky);cursor:pointer;text-decoration:underline dotted" onclick="showCCCycleRegister()">—</div>
     </div>
-    <div id="cc-tracked-delta" style="font-size:14px;font-weight:600;text-align:right;padding:0 4px;margin-bottom:12px"></div>
+    <div id="cc-tracked-delta" style="font-size:14px;font-weight:600;text-align:right;padding:0 4px;margin-bottom:6px"></div>
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:13px;color:var(--text-3)">⏳ Confirmed pending</div>
+      <div id="cc-confirmed-pending" style="font-size:16px;font-weight:600;color:var(--sun-dim)">—</div>
+    </div>
+    <div id="cc-pending-delta" style="font-size:14px;font-weight:600;text-align:right;padding:0 4px;margin-bottom:12px"></div>
 
     <label class="label" style="color:var(--sky)">Enter total card balance</label>
     <div style="margin-top:6px">
@@ -1149,6 +1154,12 @@ textarea { resize: none; }
         <option value="big">Big purchases fund</option>
         <option value="personal">Personal savings</option>
       </select>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:16px;color:var(--text-2)">
+        <input type="checkbox" id="ee-pending" style="width:20px;height:20px;cursor:pointer">
+        <span>⏳ Pending — not yet posted to Capital One</span>
+      </label>
     </div>
     <div style="display:flex;gap:10px;">
       <button onclick="eeCancel()" style="flex:1;padding:12px;font-size:16px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text-2);cursor:pointer;font-family:inherit;">Cancel</button>
@@ -2048,6 +2059,7 @@ function openEntryEdit(entryId, qKey) {
   document.getElementById('ee-amt').value = entry.amt;
   document.getElementById('ee-note').value = entry.note || '';
   document.getElementById('ee-fund').value = entry.fundCoverage || '';
+  document.getElementById('ee-pending').checked = !!entry.pending;
   // Store fundBillId on _eeEntry so we can reverse it if coverage changes
   if (!_eeEntry.fundBillId && entry.fundBillId) _eeEntry.fundBillId = entry.fundBillId;
   var eeD = new Date(entry.ts);
@@ -2160,10 +2172,12 @@ async function eeSave() {
     await cloudSet(record);
   }
 
+  var isPending = document.getElementById('ee-pending').checked;
   newEntries.push(Object.assign({}, _eeEntry, {
     amt: entryAmt, cat: cat, type: _eeType, note: note, ts: newTs,
     fundCoverage: fundCoverage,
     fundBillId: newBillId,
+    pending: isPending || false,
   }));
   await saveEntries(newQKey, newEntries);
   _eeEntry = null; _eeQKey = null;
@@ -2354,6 +2368,7 @@ async function historyNav(dir) {
       entryQKey: key,
       payMethod: e.payMethod || 'cc',
       fundCoverage: e.fundCoverage || null,
+      pending: e.pending || false,
     });
   });
 
@@ -2429,6 +2444,7 @@ async function historyNav(dir) {
     }
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
+    var pendingBadge = r.pending ? '<span style="font-size:11px;background:var(--sun-bg);color:var(--sun-dim);border:1px solid var(--sun);border-radius:4px;padding:1px 5px;margin-left:4px">⏳ pending</span>' : '';
     var fundBadge = '';
     if (r.fundCoverage) {
       var fundNames = { medical: 'Medical fund', home: 'Home fund', travel: 'Travel fund', big: 'Big purchases fund' };
@@ -2443,7 +2459,7 @@ async function historyNav(dir) {
     row.innerHTML =
       '<span style="font-size:18px;min-width:20px;text-align:center">' + label + '</span>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + fundBadge + '</div>' +
+        '<div style="font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + pendingBadge + fundBadge + '</div>' +
         (r.note ? '<div style="font-size:13px;color:var(--text-3)">' + r.note + '</div>' : '') +
         (!r.isPast ? '<div style="font-size:12px;color:var(--sky-dim)">projected</div>' : '') +
       '</div>' +
@@ -3303,6 +3319,36 @@ function updateCCBalanceCard() {
         trackedDeltaEl.style.color = 'var(--sky-dim)';
       }
     }
+    // Confirmed pending — sum of entries tagged as pending in current cycle
+    var confirmedPending = 0;
+    ['2026_Q2'].forEach(function(qKey) {
+      var entries = loadEntries(qKey);
+      entries.forEach(function(e) {
+        if (!e.pending) return;
+        if (e.payMethod === 'checking' || e.payMethod === 'income') return;
+        var d = new Date(e.ts);
+        if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) confirmedPending += e.amt;
+      });
+    });
+    var pendingEl = document.getElementById('cc-confirmed-pending');
+    if (pendingEl) pendingEl.textContent = confirmedPending > 0 ? fmt(confirmedPending) : '$0';
+    var pendingDeltaEl = document.getElementById('cc-pending-delta');
+    if (pendingDeltaEl) {
+      var pendingGap = Math.abs(delta) - confirmedPending;
+      if (confirmedPending === 0) {
+        pendingDeltaEl.textContent = '';
+      } else if (Math.abs(pendingGap) < 0.50) {
+        pendingDeltaEl.textContent = '✓ All pending accounted for';
+        pendingDeltaEl.style.color = 'var(--grass)';
+      } else if (pendingGap > 0) {
+        pendingDeltaEl.textContent = fmt(pendingGap) + ' unconfirmed pending';
+        pendingDeltaEl.style.color = 'var(--sun-dim)';
+      } else {
+        pendingDeltaEl.textContent = fmt(Math.abs(pendingGap)) + ' confirmed pending exceeds delta';
+        pendingDeltaEl.style.color = 'var(--red)';
+      }
+    }
+
     if (savedDate && infoEl) {
       var d = new Date(parseInt(savedDate));
       var days = Math.round((new Date() - d) / 86400000);
