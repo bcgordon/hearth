@@ -967,8 +967,8 @@ textarea { resize: none; }
     <div style="margin-top:14px">
       <label class="label" style="color:var(--sky)">Enter your actual balance to anchor the projection</label>
       <div class="bal-input-row" style="margin:6px 0 0">
-        <input id="bal-actual-input" type="number" placeholder="e.g. 8200.00" step="0.01"
-          style="flex:1;font-size:22px;font-weight:600;color:var(--sky);padding:12px 14px;text-align:right"
+        <input id="bal-actual-input" type="text" inputmode="decimal" placeholder="e.g. 8200.00"
+          style="flex:1;font-size:22px;font-weight:600;color:var(--sky);padding:12px 14px;text-align:right;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:inherit;box-sizing:border-box"
           oninput="onActualBalanceInput(this.value)" />
       </div>
       <div id="bal-anchor-info" style="font-size:19px;color:var(--text-3);text-align:right;margin-top:5px"></div>
@@ -1453,6 +1453,19 @@ async function enterApp() {
     Object.assign(record.dismissedEvents, localDismissed);
     await cloudSet(record);
     localStorage.removeItem('dismissed_events');
+  }
+  // Migrate any localStorage bill overrides to Supabase
+  if (record) {
+    if (!record.billOverrides) record.billOverrides = {};
+    var migrated = false;
+    for (var k in localStorage) {
+      if (k.startsWith('bill_override_')) {
+        record.billOverrides[k] = parseFloat(localStorage.getItem(k));
+        localStorage.removeItem(k);
+        migrated = true;
+      }
+    }
+    if (migrated) await cloudSet(record);
   }
   buildCategoryGrid(getCategorySpend());
   refreshMain();
@@ -3150,8 +3163,10 @@ function buildProjection() {
     if (ev.billId && ev.type !== 'cc') {
       var d2 = ev.date;
       var billOverrideKey = 'bill_override_' + ev.billId + '_' + d2.getFullYear() + '_' + d2.getMonth() + '_' + d2.getDate();
-      var billOverride = localStorage.getItem(billOverrideKey);
-      if (billOverride !== null) {
+      var billOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined)
+        ? record.billOverrides[billOverrideKey]
+        : localStorage.getItem(billOverrideKey);
+      if (billOverride !== null && billOverride !== undefined) {
         amt = parseFloat(billOverride);
         ev.amt = amt;
       }
@@ -3626,7 +3641,9 @@ function renderBalTimeline() {
     if (ev.billId && ev.type !== 'in' && ev.type !== 'cc') {
       var d = ev.date;
       var billOverrideKey = 'bill_override_' + ev.billId + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate();
-      var hasBillOverride = localStorage.getItem(billOverrideKey);
+      var hasBillOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined)
+        ? record.billOverrides[billOverrideKey]
+        : localStorage.getItem(billOverrideKey);
       var billEditLabel = hasBillOverride ? 'edit' : 'edit';
       ccEditBtn += ' <button onclick="editBillEvent(\'' + ev.billId + '\',' + d.getFullYear() + ',' + d.getMonth() + ',' + d.getDate() + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:6px 10px;min-height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">edit</button>';
     }
@@ -3721,21 +3738,25 @@ function editCCPayment(year, month, currentAmt) {
 }
 
 
-function editBillEvent(billId, year, month, day, currentAmt) {
+async function editBillEvent(billId, year, month, day, currentAmt) {
   var billOverrideKey = 'bill_override_' + billId + '_' + year + '_' + month + '_' + day;
   var d = new Date(year, month, day);
   var label = (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
-  showAmtModal('Edit amount — ' + label, 'Tap Reset to restore the scheduled amount', currentAmt, function(val) {
+  showAmtModal('Edit amount — ' + label, 'This month only. Tap Reset to restore the scheduled amount.', currentAmt, async function(val) {
+    if (!record.billOverrides) record.billOverrides = {};
     if (val === '' || val === '0') {
+      delete record.billOverrides[billOverrideKey];
       localStorage.removeItem(billOverrideKey);
       toast('Reset to scheduled amount');
     } else {
       var n = parseFloat(String(val).replace(/[$,]/g,''));
       if (!isNaN(n) && n >= 0) {
+        record.billOverrides[billOverrideKey] = n;
         localStorage.setItem(billOverrideKey, n);
-        toast('Amount updated');
+        toast('Amount updated for this month only');
       }
     }
+    await cloudSet(record);
     refreshBalance();
   });
 }
