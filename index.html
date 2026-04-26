@@ -947,7 +947,7 @@ textarea { resize: none; }
     <div id="cc-tracked-delta" style="font-size:14px;font-weight:600;text-align:right;padding:0 4px;margin-bottom:6px"></div>
     <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
       <div style="font-size:13px;color:var(--text-3)">⏳ Confirmed pending</div>
-      <div id="cc-confirmed-pending" style="font-size:16px;font-weight:600;color:var(--sun-dim)">—</div>
+      <div id="cc-confirmed-pending" style="font-size:16px;font-weight:600;color:var(--sun-dim);cursor:pointer;text-decoration:underline dotted" onclick="showPendingRegister()">—</div>
     </div>
     <div id="cc-pending-delta" style="font-size:14px;font-weight:600;text-align:right;padding:0 4px;margin-bottom:12px"></div>
 
@@ -2224,7 +2224,7 @@ async function historyNav(dir) {
     qStart = new Date(qYear, qStartMonth, 1);
     qEnd = new Date(qYear, qStartMonth + 1, 0, 23, 59, 59);
     key = qYear + '_Q' + (Math.floor(qStartMonth / 3) + 1);
-    var typeLabels = { essential: 'Essential', nonessential: 'Non-essential', funded: 'Fund-covered', income: 'Income received' };
+    var typeLabels = { essential: 'Essential', nonessential: 'Non-essential', funded: 'Fund-covered', income: 'Income received', pending: 'Pending entries' };
     document.getElementById('history-label').textContent = historyView === 'type' ? (typeLabels[historyTypeFilter] || 'Filtered') : (historyCategoryFilter || 'Category');
     document.querySelector('.hist-nav').style.display = 'none';
     var drillBack = document.getElementById('hist-drill-back'); if (drillBack) { drillBack.style.display = ''; drillBack.dataset.dest = historyBackTo || 'screen-main'; }
@@ -2358,6 +2358,8 @@ async function historyNav(dir) {
       filteredEntries = entries.filter(function(e) { return !!e.fundCoverage; });
     } else if (historyTypeFilter === 'income') {
       filteredEntries = entries.filter(function(e) { return e.payMethod === 'income'; });
+    } else if (historyTypeFilter === 'pending') {
+      filteredEntries = entries.filter(function(e) { return !!e.pending; });
     } else {
       filteredEntries = entries.filter(function(e) { return e.type === historyTypeFilter && !e.fundCoverage && e.payMethod !== 'income'; });
     }
@@ -3423,6 +3425,20 @@ function showCategoryRegister(catName) {
   var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill';
   var eCat = document.getElementById('hist-cat-e'); if (eCat) eCat.className = 'pill';
   var nCat = document.getElementById('hist-cat-n'); if (nCat) nCat.className = 'pill';
+  var hs = document.getElementById('history-search'); if (hs) hs.value = '';
+  showScreen('screen-history');
+}
+
+function showPendingRegister() {
+  historyQOffset = 0;
+  historyMonthOffset = 0;
+  historyView = 'type';
+  historyTypeFilter = 'pending';
+  historyCategoryFilter = null;
+  historyBackTo = 'screen-balance';
+  document.getElementById('hist-view-q').className = 'pill';
+  document.getElementById('hist-view-m').className = 'pill';
+  var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill';
   var hs = document.getElementById('history-search'); if (hs) hs.value = '';
   showScreen('screen-history');
 }
