@@ -970,7 +970,7 @@ textarea { resize: none; }
       <div class="bal-input-row" style="margin:6px 0 0">
         <input id="bal-actual-input" type="text" inputmode="decimal" placeholder="e.g. 8200.00"
           style="flex:1;font-size:22px;font-weight:600;color:var(--sky);padding:12px 14px;text-align:right;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:inherit;box-sizing:border-box"
-          oninput="onActualBalanceInput(this.value)" />
+          onchange="onActualBalanceInput(this.value)" onblur="onActualBalanceInput(this.value)" />
       </div>
       <div id="bal-anchor-info" style="font-size:19px;color:var(--text-3);text-align:right;margin-top:5px"></div>
     </div>
@@ -3512,7 +3512,7 @@ function updateBalHero() {
 }
 
 function onActualBalanceInput(val) {
-  var n = parseFloat(val);
+  var n = parseFloat(String(val).replace(/[$,]/g, ''));
   if (!isNaN(n) && n > 0) {
     balActualBalance = n;
     var ts = Date.now();
@@ -3524,6 +3524,7 @@ function onActualBalanceInput(val) {
     }
     updateBalHero();
     refreshBalance();
+    toast('Checking balance updated');
   }
 }
 
