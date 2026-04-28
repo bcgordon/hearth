@@ -731,6 +731,7 @@ textarea { resize: none; }
 <button id="pill-cc" class="pill" onclick="selectPayMethod('cc')">💳 Credit card</button>
 <button id="pill-chk" class="pill" onclick="selectPayMethod('checking')">🏦 Checking</button>
 <button id="pill-inc" class="pill" onclick="selectPayMethod('income')">↓ Income</button>
+<button id="pill-cred" class="pill" onclick="selectPayMethod('credit')">↩ CC Credit</button>
 </div>
 </div>
 <div>
@@ -1493,9 +1494,10 @@ function selectPayMethod(m) {
   document.getElementById('pill-cc').className = 'pill' + (m === 'cc' ? ' sel-n' : '');
   document.getElementById('pill-chk').className = 'pill' + (m === 'checking' ? ' sel-e' : '');
   var pi = document.getElementById('pill-inc'); if (pi) pi.className = 'pill' + (m === 'income' ? ' sel-e' : '');
-  // Hide essential/non-essential for income — not relevant
+  var pc = document.getElementById('pill-cred'); if (pc) pc.className = 'pill' + (m === 'credit' ? ' sel-e' : '');
+  // Hide essential/non-essential for income and credit — not relevant
   var typeRow = document.getElementById('pill-e').closest('div').parentElement;
-  if (typeRow) typeRow.style.display = m === 'income' ? 'none' : '';
+  if (typeRow) typeRow.style.display = (m === 'income' || m === 'credit') ? 'none' : '';
 }
 
 function selectUser(u) {
@@ -1600,6 +1602,7 @@ async function submitEntry() {
   if (!addPayMethod) { err.textContent = 'Please select a payment method'; err.style.display = 'block'; return; }
   var saveBtn2 = document.querySelector('#screen-add .btn-coral');
   if (saveBtn2 && addPayMethod === 'income') saveBtn2.textContent = 'Save income';
+  if (saveBtn2 && addPayMethod === 'credit') saveBtn2.textContent = 'Save CC credit';
   let finalCategory = addCategory;
   if (addCategory === 'Other') {
     const otherInput = document.getElementById('category-other-input');
@@ -1618,7 +1621,9 @@ async function submitEntry() {
   if (fresh) record = fresh;
   const entries = loadEntries(qKey);
   const entryAmt = Math.round(amt * 100) / 100;
-  entries.push({ id: Date.now(), amt: entryAmt, type: addType, payMethod: addPayMethod, note, cat: finalCategory, ts: entryTs });
+  // CC credits are stored as negative amounts to reduce tracked total
+  const finalAmt = addPayMethod === 'credit' ? -entryAmt : entryAmt;
+  entries.push({ id: Date.now(), amt: finalAmt, type: addType, payMethod: addPayMethod, note, cat: finalCategory, ts: entryTs });
   await saveEntries(qKey, entries);
 
   // If paid by checking, create a one-time checking outflow in the projection
@@ -2438,7 +2443,10 @@ async function historyNav(dir) {
     var isTransfer = r.isTransfer;
 
     var color, sign, label;
-    if (isIncomeEntry) {
+    var isCreditEntry = r.type === 'cc_entry' && r.payMethod === 'credit';
+    if (isCreditEntry) {
+      color = 'var(--grass)'; sign = '+'; label = '↩';
+    } else if (isIncomeEntry) {
       color = 'var(--grass)'; sign = '+'; label = '↓';
     } else if (isFundTransferEntry) {
       color = 'var(--rose)'; sign = '+'; label = '🏦';
@@ -3238,6 +3246,7 @@ function getCCAppTotal() {
     var entries = loadEntries(qKey);
     entries.forEach(function(e) {
       if (e.payMethod === 'checking' || e.payMethod === 'income') return;
+        // credit entries have negative amounts and reduce the total
       var d = new Date(e.ts);
       if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) {
         total += e.amt;
