@@ -2263,7 +2263,7 @@ async function historyNav(dir) {
 
   // 1. Get scheduled events for this quarter from the projection engine
   const allEvents = getScheduledEvents();
-  const qEvents = (historyView === 'category' || historyView === 'type') ? [] : allEvents.filter(ev => ev.date >= qStart && ev.date <= qEnd);
+  const qEvents = (historyView === 'category' || historyView === 'type') ? [] : allEvents.filter(ev => ev.date >= qStart && ev.date <= qEnd && !(ev.billId && String(ev.billId).startsWith('chk_')));
 
   // 2. Get manually logged entries — filter to date range for month view
   const allQEntries = loadEntries(key);
