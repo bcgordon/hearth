@@ -1734,21 +1734,56 @@ function renderBudgetScreen() {
   var checkingBillsActual = 0;
   var savingsActual = 0;
   var today2 = new Date(); today2.setHours(0,0,0,0);
+  var seenBillIds = {}; // avoid double-counting
   getAllBills().forEach(function(b) {
     if (b.paidBy === 'cc' || b.type === 'in' || b.amt <= 0) return;
+    if (b.isFundTransfer) return; // skip fund transfers
+    // Skip auto-created chk_ bills (from logged checking expenses)
+    if (b.id && String(b.id).startsWith('chk_')) return;
+    // Skip fund-covered entries that are one-time checking bills
+    if (b.id && String(b.id).startsWith('fund_transfer_')) return;
+    // Avoid double-counting same bill ID
+    if (b.id && seenBillIds[b.id]) return;
+    if (b.id) seenBillIds[b.id] = true;
+
     var billDate;
-    if (b.freq === 'monthly' || b.freq === 'weekly' || b.freq === 'biweekly') {
+    if (b.freq === 'monthly') {
       billDate = new Date(now.getFullYear(), now.getMonth(), b.day);
+      if (billDate > today2) return;
+    } else if (b.freq === 'weekly') {
+      // Count all weekly occurrences that have passed this month
+      if (!b.startDate) return;
+      var wStart = new Date(b.startDate);
+      var d = new Date(wStart);
+      while (d <= today2) {
+        if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+          if (b.type === 'save') savingsActual += b.amt;
+          else checkingBillsActual += b.amt;
+        }
+        d.setDate(d.getDate() + 7);
+      }
+      return;
+    } else if (b.freq === 'biweekly') {
+      if (!b.startDate) return;
+      var bwStart = new Date(b.startDate);
+      var d2 = new Date(bwStart);
+      while (d2 <= today2) {
+        if (d2.getFullYear() === now.getFullYear() && d2.getMonth() === now.getMonth()) {
+          if (b.type === 'save') savingsActual += b.amt;
+          else checkingBillsActual += b.amt;
+        }
+        d2.setDate(d2.getDate() + 14);
+      }
+      return;
     } else if (b.freq === 'once') {
-      // Include one-time bills that hit this month and have passed
       if (b.year === now.getFullYear() && b.month === now.getMonth()) {
         billDate = new Date(b.year, b.month, b.day);
+        if (billDate > today2) return;
       } else return;
     } else return;
-    if (billDate <= today2) {
-      if (b.type === 'save') savingsActual += b.amt;
-      else checkingBillsActual += b.amt;
-    }
+
+    if (b.type === 'save') savingsActual += b.amt;
+    else checkingBillsActual += b.amt;
   });
 
   var ccBudget = 3500;
