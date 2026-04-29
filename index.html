@@ -1722,9 +1722,25 @@ function renderBudgetScreen() {
     }
   });
 
+  // Calculate actual checking bills paid so far this month
+  var checkingBillsActual = 0;
+  var savingsActual = 0;
+  var today2 = new Date(); today2.setHours(0,0,0,0);
+  getAllBills().forEach(function(b) {
+    if (b.paidBy === 'cc' || b.type === 'in' || b.amt <= 0) return;
+    if (b.freq !== 'monthly' && b.freq !== 'weekly' && b.freq !== 'biweekly') return;
+    // Check if this bill has passed this month
+    var billDate = new Date(now.getFullYear(), now.getMonth(), b.day);
+    if (billDate <= today2) {
+      if (b.type === 'save') savingsActual += b.amt;
+      else checkingBillsActual += b.amt;
+    }
+  });
+
   var ccBudget = 3500;
   var totalCommitment = ccBudget + checkingBills + savingsTotal;
   var netMonthly = monthlyIncome - totalCommitment;
+  var netActual = monthlyIncome - (getCCAppTotal() + checkingBillsActual + savingsActual);
   var fmtR = function(n) { return (n < 0 ? '-$' : '+$') + Math.round(Math.abs(n)).toLocaleString('en-US'); };
 
   // Full budget summary card
@@ -1756,23 +1772,31 @@ function renderBudgetScreen() {
   }
   html += '</div>';
 
-  // Checking bills
-  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border)">';
+  // Checking bills — actual vs projected
+  var chkOver = checkingBillsActual > checkingBills;
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border)">';
   html += '<span style="font-size:16px;color:var(--text)">🏦 Checking bills</span>';
-  html += '<span style="font-size:16px;font-weight:600;color:var(--coral)">-' + fmt(checkingBills) + '</span>';
-  html += '</div>';
+  html += '<div style="text-align:right">';
+  html += '<span style="font-size:16px;font-weight:600;color:' + (chkOver ? 'var(--red)' : 'var(--coral)') + '">-' + fmt(checkingBillsActual) + '</span>';
+  html += '<span style="font-size:12px;color:var(--text-3);display:block">projected -' + fmt(checkingBills) + '</span>';
+  html += '</div></div>';
 
-  // Savings transfers
-  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border)">';
+  // Savings transfers — actual vs projected
+  var savOver = savingsActual > savingsTotal;
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border)">';
   html += '<span style="font-size:16px;color:var(--text)">🏛 Savings transfers</span>';
-  html += '<span style="font-size:16px;font-weight:600;color:var(--sky-dim)">-' + fmt(savingsTotal) + '</span>';
-  html += '</div>';
+  html += '<div style="text-align:right">';
+  html += '<span style="font-size:16px;font-weight:600;color:var(--sky-dim)">-' + fmt(savingsActual) + '</span>';
+  html += '<span style="font-size:12px;color:var(--text-3);display:block">projected -' + fmt(savingsTotal) + '</span>';
+  html += '</div></div>';
 
   // Net
-  html += '<div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin-top:4px">';
   html += '<span style="font-size:17px;font-weight:600;color:var(--text)">Net monthly</span>';
-  html += '<span style="font-size:18px;font-weight:700;color:' + (netMonthly >= 0 ? 'var(--grass)' : 'var(--red)') + '">' + fmtR(netMonthly) + '</span>';
-  html += '</div>';
+  html += '<div style="text-align:right">';
+  html += '<span style="font-size:18px;font-weight:700;color:' + (netActual >= 0 ? 'var(--grass)' : 'var(--red)') + '">' + fmtR(netActual) + '</span>';
+  html += '<span style="font-size:12px;color:var(--text-3);display:block">projected ' + fmtR(netMonthly) + '</span>';
+  html += '</div></div>';
   html += '</div>';
 
   html += '<div class="card" style="margin-bottom:12px;padding:14px 17px">';
