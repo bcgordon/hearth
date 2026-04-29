@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.2</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.4</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3335,12 +3335,19 @@ function buildProjection() {
           // CC payment on the 19th pays for the billing cycle (12th of prev month - 11th of current)
           var prevMonth = ccMonth === 0 ? 11 : ccMonth - 1;
           var prevYear = ccMonth === 0 ? ccYear - 1 : ccYear;
-          // Only count Apr 12-30 (not Apr 1-11 which was in the May 6 fixed payment)
-          var cycleStartDay = 12;
-          var prevMonthSpend = getCCSpendForCyclePart(prevYear, prevMonth, cycleStartDay, 31);
+          var prevMonthSpend = getCCSpendForCyclePart(prevYear, prevMonth, 12, 31);
           var partialSpend = getCCSpendForCyclePart(ccYear, ccMonth, 1, 11);
+          // Add fixed CC bills (Netflix, Spotify, etc.) for the cycle
+          var fixedCCMonthly = 0;
+          var allBillsForCC = getAllBills();
+          for (var fi = 0; fi < allBillsForCC.length; fi++) {
+            var fb = allBillsForCC[fi];
+            if (fb.paidBy === 'cc' && fb.type === 'out' && fb.freq === 'monthly' && fb.amt > 0) {
+              fixedCCMonthly += fb.amt;
+            }
+          }
           var hasEntries = getCCEntryCount(prevYear, prevMonth) + getCCEntryCount(ccYear, ccMonth) > 0;
-          amt = hasEntries ? (prevMonthSpend + partialSpend) : 3500;
+          amt = hasEntries ? (prevMonthSpend + partialSpend + fixedCCMonthly) : (3500 + fixedCCMonthly);
         }
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
