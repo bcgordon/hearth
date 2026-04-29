@@ -565,6 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.0</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -1679,6 +1680,60 @@ async function submitEntry() {
   btn.textContent = 'Save expense'; btn.disabled = false;
 }
 
+function getMonthActuals(yr, mo) {
+  // Returns { checking, savings } for all scheduled bills that have hit in the given month
+  var result = { checking: 0, savings: 0 };
+  var cutoff = new Date(); cutoff.setHours(23,59,59,999);
+  // For past months use end of that month as cutoff
+  var isCurrentMonth = (yr === cutoff.getFullYear() && mo === cutoff.getMonth());
+  if (!isCurrentMonth) {
+    cutoff = new Date(yr, mo + 1, 0, 23, 59, 59);
+  }
+  var seen = {};
+  getAllBills().forEach(function(b) {
+    if (b.paidBy === 'cc' || b.type === 'in' || b.amt <= 0) return;
+    if (b.isFundTransfer) return;
+    if (b.id && String(b.id).startsWith('chk_')) return;
+    if (b.id && String(b.id).startsWith('fund_transfer_')) return;
+    if (b.id && seen[b.id] && b.freq !== 'weekly' && b.freq !== 'biweekly') return;
+    if (b.id && b.freq !== 'weekly' && b.freq !== 'biweekly') seen[b.id] = true;
+    // Respect startMonth/startYear
+    if (b.startMonth !== undefined && b.startYear !== undefined) {
+      if (new Date(b.startYear, b.startMonth, 1) > new Date(yr, mo, 1)) return;
+    }
+    var addAmt = function(amt, type) {
+      if (type === 'save') result.savings += amt;
+      else result.checking += amt;
+    };
+    if (b.freq === 'monthly') {
+      var bd = new Date(yr, mo, b.day);
+      if (bd <= cutoff) addAmt(b.amt, b.type);
+    } else if (b.freq === 'weekly') {
+      if (!b.startDate) return;
+      var wp = b.startDate.split('-');
+      var d = new Date(parseInt(wp[0]), parseInt(wp[1])-1, parseInt(wp[2]));
+      while (d <= cutoff) {
+        if (d.getFullYear() === yr && d.getMonth() === mo) addAmt(b.amt, b.type);
+        d.setDate(d.getDate() + 7);
+      }
+    } else if (b.freq === 'biweekly') {
+      if (!b.startDate) return;
+      var bp = b.startDate.split('-');
+      var d2 = new Date(parseInt(bp[0]), parseInt(bp[1])-1, parseInt(bp[2]));
+      while (d2 <= cutoff) {
+        if (d2.getFullYear() === yr && d2.getMonth() === mo) addAmt(b.amt, b.type);
+        d2.setDate(d2.getDate() + 14);
+      }
+    } else if (b.freq === 'once') {
+      if (b.year === yr && b.month === mo) {
+        var od = new Date(b.year, b.month, b.day);
+        if (od <= cutoff) addAmt(b.amt, b.type);
+      }
+    }
+  });
+  return result;
+}
+
 function renderBudgetScreen() {
   var cont = document.getElementById('budget-screen-content');
   if (!cont) return;
@@ -1737,69 +1792,10 @@ function renderBudgetScreen() {
     }
   });
 
-  // Calculate actual checking bills paid so far this month
-  var checkingBillsActual = 0;
-  var savingsActual = 0;
-  var today2 = new Date(); today2.setHours(0,0,0,0);
-  var seenBillIds = {}; // avoid double-counting
-  getAllBills().forEach(function(b) {
-    if (b.paidBy === 'cc' || b.type === 'in' || b.amt <= 0) return;
-    if (b.isFundTransfer) return; // skip fund transfers
-    // Skip auto-created chk_ bills (from logged checking expenses)
-    if (b.id && String(b.id).startsWith('chk_')) return;
-    // Skip fund-covered entries that are one-time checking bills
-    if (b.id && String(b.id).startsWith('fund_transfer_')) return;
-    // Avoid double-counting same bill ID
-    if (b.id && seenBillIds[b.id]) return;
-    if (b.id) seenBillIds[b.id] = true;
-    // Respect startMonth/startYear
-    if (b.startMonth !== undefined && b.startYear !== undefined) {
-      var startDate = new Date(b.startYear, b.startMonth, 1);
-      var thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      if (startDate > thisMonth) return;
-    }
-
-    var billDate;
-    if (b.freq === 'monthly') {
-      billDate = new Date(now.getFullYear(), now.getMonth(), b.day);
-      if (billDate > today2) return;
-    } else if (b.freq === 'weekly') {
-      // Count all weekly occurrences that have passed this month
-      if (!b.startDate) return;
-      var wParts = b.startDate.split('-');
-      var wStart = new Date(parseInt(wParts[0]), parseInt(wParts[1])-1, parseInt(wParts[2]));
-      var d = new Date(wStart);
-      while (d <= today2) {
-        if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
-          if (b.type === 'save') savingsActual += b.amt;
-          else checkingBillsActual += b.amt;
-        }
-        d.setDate(d.getDate() + 7);
-      }
-      return;
-    } else if (b.freq === 'biweekly') {
-      if (!b.startDate) return;
-      var bwParts = b.startDate.split('-');
-      var bwStart = new Date(parseInt(bwParts[0]), parseInt(bwParts[1])-1, parseInt(bwParts[2]));
-      var d2 = new Date(bwStart);
-      while (d2 <= today2) {
-        if (d2.getFullYear() === now.getFullYear() && d2.getMonth() === now.getMonth()) {
-          if (b.type === 'save') savingsActual += b.amt;
-          else checkingBillsActual += b.amt;
-        }
-        d2.setDate(d2.getDate() + 14);
-      }
-      return;
-    } else if (b.freq === 'once') {
-      if (b.year === now.getFullYear() && b.month === now.getMonth()) {
-        billDate = new Date(b.year, b.month, b.day);
-        if (billDate > today2) return;
-      } else return;
-    } else return;
-
-    if (b.type === 'save') savingsActual += b.amt;
-    else checkingBillsActual += b.amt;
-  });
+  // Calculate actual checking bills paid so far this month using helper
+  var actuals = getMonthActuals(now.getFullYear(), now.getMonth());
+  var checkingBillsActual = actuals.checking;
+  var savingsActual = actuals.savings;
 
   var ccBudget = 3500;
   var totalCommitment = ccBudget + checkingBills + savingsTotal;
