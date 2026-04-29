@@ -628,27 +628,22 @@ textarea { resize: none; }
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
     <div style="text-align:center">
-      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Discretionary</div>
-      <div style="font-size:20px;font-weight:600;color:var(--sky)" id="stat-month-spent">$0</div>
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Essential</div>
+      <div style="font-size:24px;font-weight:600;color:var(--grass)" id="stat-month-spent">$0</div>
+      <div style="font-size:11px;color:var(--text-3)" id="stat-essential-budget"></div>
     </div>
     <div style="text-align:center">
-      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Fixed CC bills</div>
-      <div style="font-size:20px;font-weight:600;color:var(--text-3)" id="stat-month-fixed">$0</div>
-    </div>
-    <div style="text-align:center">
-      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Combined</div>
-      <div style="font-size:20px;font-weight:600;color:var(--coral)" id="stat-month-combined">$0</div>
-    </div>
-    <div style="text-align:center">
-      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Remaining</div>
-      <div style="font-size:20px;font-weight:600" id="stat-remaining">$0</div>
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Non-essential</div>
+      <div style="font-size:24px;font-weight:600;color:var(--sun-dim)" id="stat-month-fixed">$0</div>
+      <div style="font-size:11px;color:var(--text-3)" id="stat-nonessential-budget"></div>
     </div>
   </div>
-  <div style="margin-bottom:8px">
-    <div style="font-size:11px;color:var(--text-3);margin-bottom:3px;display:flex;justify-content:space-between">
-      <span>Funded: <strong id="stat-month-funded-sm">$0</strong></span>
-      <span id="stat-cc-ceiling">vs $3,500 CC target</span>
-    </div>
+  <!-- hidden elements still needed for JS -->
+  <div style="display:none">
+    <div id="stat-month-combined">$0</div>
+    <div id="stat-remaining">$0</div>
+    <div id="stat-month-funded-sm">$0</div>
+    <div id="stat-cc-ceiling"></div>
   </div>
   <div style="display:flex;gap:16px;flex-wrap:wrap">
     <span style="font-size:15px;color:var(--grass-dim);display:flex;align-items:center;gap:5px;cursor:pointer;text-decoration:underline dotted" onclick="showTypeRegister('essential')">
@@ -1798,20 +1793,30 @@ function renderBudgetScreen() {
   // Divider
   html += '<div style="height:1px;background:var(--border);margin-bottom:16px"></div>';
 
-  // EXPENSES section
+  // EXPENSES section — multi-segment bar: CC (sky) + checking bills (coral) + savings (sky-dim)
+  var ccPctOfTotal = totalProjectedExpenses > 0 ? Math.min(ccActual / totalProjectedExpenses * 100, 100) : 0;
+  var chkPctOfTotal = totalProjectedExpenses > 0 ? Math.min(checkingBillsActual / totalProjectedExpenses * 100, 100 - ccPctOfTotal) : 0;
+  var savPctOfTotal = totalProjectedExpenses > 0 ? Math.min(savingsActual / totalProjectedExpenses * 100, 100 - ccPctOfTotal - chkPctOfTotal) : 0;
+
   html += '<div style="margin-bottom:8px">';
   html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">';
   html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Expenses</span>';
   html += '<span style="font-size:14px;color:var(--text-3)">' + fmt(totalProjectedExpenses) + ' budget</span>';
   html += '</div>';
-  // Progress bar
-  var expBarColor = expOver ? 'var(--red)' : expPct > 80 ? 'var(--sun)' : 'var(--coral)';
-  html += '<div style="height:8px;background:var(--border);border-radius:4px;margin-bottom:8px;position:relative">';
-  html += '<div style="height:100%;width:' + Math.min(expPct, 100).toFixed(1) + '%;background:' + expBarColor + ';border-radius:4px;transition:width 0.4s"></div>';
-  html += '<div style="position:absolute;top:-2px;left:' + Math.min(expPct, 100).toFixed(1) + '%;width:3px;height:12px;background:var(--coral-dim);border-radius:2px"></div>';
+  // Three-segment progress bar
+  html += '<div style="height:8px;background:var(--border);border-radius:4px;margin-bottom:8px;display:flex;overflow:hidden">';
+  html += '<div style="height:100%;width:' + ccPctOfTotal.toFixed(1) + '%;background:var(--sky);transition:width 0.4s" title="CC: ' + fmt(ccActual) + '"></div>';
+  html += '<div style="height:100%;width:' + chkPctOfTotal.toFixed(1) + '%;background:var(--coral);transition:width 0.4s" title="Checking: ' + fmt(checkingBillsActual) + '"></div>';
+  html += '<div style="height:100%;width:' + savPctOfTotal.toFixed(1) + '%;background:var(--sky-dim);transition:width 0.4s" title="Savings: ' + fmt(savingsActual) + '"></div>';
+  html += '</div>';
+  // Legend
+  html += '<div style="display:flex;gap:12px;margin-bottom:6px;flex-wrap:wrap">';
+  html += '<span style="font-size:12px;color:var(--sky);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:var(--sky);border-radius:50%;display:inline-block"></span>CC ' + fmt(ccActual) + '</span>';
+  html += '<span style="font-size:12px;color:var(--coral);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:var(--coral);border-radius:50%;display:inline-block"></span>Bills ' + fmt(checkingBillsActual) + '</span>';
+  html += '<span style="font-size:12px;color:var(--sky-dim);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:var(--sky-dim);border-radius:50%;display:inline-block"></span>Savings ' + fmt(savingsActual) + '</span>';
   html += '</div>';
   html += '<div style="display:flex;justify-content:space-between">';
-  html += '<span style="font-size:15px;font-weight:600;color:' + expBarColor + '">' + fmt(totalActualExpenses) + ' spent</span>';
+  html += '<span style="font-size:15px;font-weight:600;color:' + (expOver ? 'var(--red)' : 'var(--text-2)') + '">' + fmt(totalActualExpenses) + ' spent</span>';
   var expRemaining = totalProjectedExpenses - totalActualExpenses;
   html += '<span style="font-size:15px;color:' + (expRemaining < 0 ? 'var(--red)' : 'var(--text-3)') + '">' + (expRemaining < 0 ? '-' : '') + fmt(Math.abs(expRemaining)) + ' remaining</span>';
   html += '</div></div>';
@@ -1992,17 +1997,32 @@ function refreshMain() {
   if (barF) barF.style.width = pctF.toFixed(1) + '%';
   document.getElementById('lbl-e').textContent = fmt(totE);
   document.getElementById('lbl-n').textContent = fmt(totN);
-  document.getElementById('stat-month-spent').textContent = fmt(totMonth);
-  // stat-month-funded removed — now using stat-month-funded-sm
-  var fixedEl = document.getElementById('stat-month-fixed');
-  if (fixedEl) fixedEl.textContent = fmt(fixedCCTotal);
-  var combinedEl = document.getElementById('stat-month-combined');
-  if (combinedEl) { combinedEl.textContent = fmt(combined); combinedEl.style.color = combined > ccCeiling ? 'var(--red)' : 'var(--coral)'; }
+  // Essential/Non-essential budget totals for sub-labels
+  var essentialBudget = 0, nonEssentialBudget = 0;
+  BUDGET_CATEGORIES.forEach(function(cat) {
+    var qb = getCatBudget(cat.name, cat.budget);
+    if (!qb) return;
+    var mb = Math.round(qb / 3);
+    if (cat.essential) essentialBudget += mb;
+    else nonEssentialBudget += mb;
+  });
+
+  // Essential stat box
+  var essSpentEl = document.getElementById('stat-month-spent');
+  if (essSpentEl) { essSpentEl.textContent = fmt(totE); essSpentEl.style.color = totE > essentialBudget ? 'var(--red)' : 'var(--grass)'; }
+  var essBudgetEl = document.getElementById('stat-essential-budget');
+  if (essBudgetEl) essBudgetEl.textContent = fmt(essentialBudget) + ' budget';
+
+  // Non-essential stat box
+  var nonEssSpentEl = document.getElementById('stat-month-fixed');
+  if (nonEssSpentEl) { nonEssSpentEl.textContent = fmt(totN); nonEssSpentEl.style.color = totN > nonEssentialBudget ? 'var(--red)' : 'var(--sun-dim)'; }
+  var nonEssBudgetEl = document.getElementById('stat-nonessential-budget');
+  if (nonEssBudgetEl) nonEssBudgetEl.textContent = fmt(nonEssentialBudget) + ' budget';
+
   var fundedSmEl = document.getElementById('stat-month-funded-sm');
   if (fundedSmEl) fundedSmEl.textContent = fmt(totFunded);
   var remEl = document.getElementById('stat-remaining');
-  remEl.textContent = (rem < 0 ? '-' : '') + fmt(Math.abs(rem));
-  remEl.style.color = rem >= 0 ? 'var(--grass)' : 'var(--red)';
+  if (remEl) { remEl.textContent = (rem < 0 ? '-' : '') + fmt(Math.abs(rem)); remEl.style.color = rem >= 0 ? 'var(--grass)' : 'var(--red)'; }
   var fundedWrap = document.getElementById('lbl-funded-wrap');
   if (fundedWrap) fundedWrap.style.display = totFunded > 0 ? '' : 'none';
   var fundedEl = document.getElementById('lbl-funded');
