@@ -626,16 +626,21 @@ textarea { resize: none; }
     <div id="bar-n" class="prog-n" style="width:0%"></div>
     <div id="bar-f" style="height:100%;width:0%;background:var(--sky-dim);transition:width 0.4s"></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-    <div style="text-align:center">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+    <div style="text-align:center;cursor:pointer" onclick="showTypeRegister('essential')">
       <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Essential</div>
-      <div style="font-size:24px;font-weight:600;color:var(--grass)" id="stat-month-spent">$0</div>
+      <div style="font-size:20px;font-weight:600;color:var(--grass)" id="stat-month-spent">$0</div>
       <div style="font-size:11px;color:var(--text-3)" id="stat-essential-budget"></div>
     </div>
-    <div style="text-align:center">
+    <div style="text-align:center;cursor:pointer" onclick="showTypeRegister('nonessential')">
       <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Non-essential</div>
-      <div style="font-size:24px;font-weight:600;color:var(--sun-dim)" id="stat-month-fixed">$0</div>
+      <div style="font-size:20px;font-weight:600;color:var(--sun-dim)" id="stat-month-fixed">$0</div>
       <div style="font-size:11px;color:var(--text-3)" id="stat-nonessential-budget"></div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Total CC</div>
+      <div style="font-size:20px;font-weight:600" id="stat-month-total">$0</div>
+      <div style="font-size:11px;color:var(--text-3)" id="stat-total-budget"></div>
     </div>
   </div>
   <!-- hidden elements still needed for JS -->
@@ -1821,22 +1826,22 @@ function renderBudgetScreen() {
   html += '<span style="font-size:15px;color:' + (expRemaining < 0 ? 'var(--red)' : 'var(--text-3)') + '">' + (expRemaining < 0 ? '-' : '') + fmt(Math.abs(expRemaining)) + ' remaining</span>';
   html += '</div></div>';
 
-  // Breakdown rows
+  // Breakdown rows — clickable
   html += '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;margin-top:10px">';
-  // CC
+  // CC — drills into CC cycle register
   var ccOver = ccActual > ccBudget;
-  html += '<div style="display:flex;justify-content:space-between;padding:3px 0">';
-  html += '<span style="font-size:14px;color:var(--text-3)">💳 CC spending</span>';
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showCCCycleRegister()">';
+  html += '<span style="font-size:14px;color:var(--sky)">💳 CC spending ›</span>';
   html += '<span style="font-size:14px;font-weight:600;color:' + (ccOver ? 'var(--red)' : 'var(--text-2)') + '">' + fmt(ccActual) + ' / ' + fmt(ccBudget) + '</span>';
   html += '</div>';
-  // Checking bills
-  html += '<div style="display:flex;justify-content:space-between;padding:3px 0">';
-  html += '<span style="font-size:14px;color:var(--text-3)">🏦 Checking bills</span>';
+  // Checking bills — drills into Balance timeline
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showScreen(&quot;screen-balance&quot;)">';
+  html += '<span style="font-size:14px;color:var(--coral)">🏦 Checking bills ›</span>';
   html += '<span style="font-size:14px;font-weight:600;color:var(--text-2)">' + fmt(checkingBillsActual) + ' / ' + fmt(checkingBills) + '</span>';
   html += '</div>';
-  // Savings
-  html += '<div style="display:flex;justify-content:space-between;padding:3px 0">';
-  html += '<span style="font-size:14px;color:var(--text-3)">🏛 Savings</span>';
+  // Savings — drills into sinking funds
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;cursor:pointer" onclick="showScreen(&quot;screen-funds&quot;)">';
+  html += '<span style="font-size:14px;color:var(--sky-dim)">🏛 Savings ›</span>';
   html += '<span style="font-size:14px;font-weight:600;color:var(--text-2)">' + fmt(savingsActual) + ' / ' + fmt(savingsTotal) + '</span>';
   html += '</div>';
   html += '</div>';
@@ -2018,6 +2023,14 @@ function refreshMain() {
   if (nonEssSpentEl) { nonEssSpentEl.textContent = fmt(totN); nonEssSpentEl.style.color = totN > nonEssentialBudget ? 'var(--red)' : 'var(--sun-dim)'; }
   var nonEssBudgetEl = document.getElementById('stat-nonessential-budget');
   if (nonEssBudgetEl) nonEssBudgetEl.textContent = fmt(nonEssentialBudget) + ' budget';
+
+  // Total CC box
+  var totalCC = totE + totN;
+  var totalBudget = essentialBudget + nonEssentialBudget;
+  var totalEl = document.getElementById('stat-month-total');
+  if (totalEl) { totalEl.textContent = fmt(totalCC); totalEl.style.color = totalCC > totalBudget ? 'var(--red)' : 'var(--sky)'; }
+  var totalBudgetEl = document.getElementById('stat-total-budget');
+  if (totalBudgetEl) totalBudgetEl.textContent = fmt(totalBudget) + ' budget';
 
   var fundedSmEl = document.getElementById('stat-month-funded-sm');
   if (fundedSmEl) fundedSmEl.textContent = fmt(totFunded);
