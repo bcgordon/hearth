@@ -1766,7 +1766,8 @@ function renderBudgetScreen() {
     } else if (b.freq === 'weekly') {
       // Count all weekly occurrences that have passed this month
       if (!b.startDate) return;
-      var wStart = new Date(b.startDate);
+      var wParts = b.startDate.split('-');
+      var wStart = new Date(parseInt(wParts[0]), parseInt(wParts[1])-1, parseInt(wParts[2]));
       var d = new Date(wStart);
       while (d <= today2) {
         if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
@@ -1778,7 +1779,8 @@ function renderBudgetScreen() {
       return;
     } else if (b.freq === 'biweekly') {
       if (!b.startDate) return;
-      var bwStart = new Date(b.startDate);
+      var bwParts = b.startDate.split('-');
+      var bwStart = new Date(parseInt(bwParts[0]), parseInt(bwParts[1])-1, parseInt(bwParts[2]));
       var d2 = new Date(bwStart);
       while (d2 <= today2) {
         if (d2.getFullYear() === now.getFullYear() && d2.getMonth() === now.getMonth()) {
