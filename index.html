@@ -1706,6 +1706,13 @@ function renderBudgetScreen() {
     if (b.amt <= 0) return;
     var monthlyAmt = b.amt;
 
+    // Respect startMonth/startYear — skip if bill hasn't started yet
+    if (b.startMonth !== undefined && b.startYear !== undefined) {
+      var startDate = new Date(b.startYear, b.startMonth, 1);
+      var thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      if (startDate > thisMonth) return;
+    }
+
     if (b.freq === 'monthly') {
       // already monthly
     } else if (b.freq === 'weekly') {
@@ -1745,6 +1752,12 @@ function renderBudgetScreen() {
     // Avoid double-counting same bill ID
     if (b.id && seenBillIds[b.id]) return;
     if (b.id) seenBillIds[b.id] = true;
+    // Respect startMonth/startYear
+    if (b.startMonth !== undefined && b.startYear !== undefined) {
+      var startDate = new Date(b.startYear, b.startMonth, 1);
+      var thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      if (startDate > thisMonth) return;
+    }
 
     var billDate;
     if (b.freq === 'monthly') {
