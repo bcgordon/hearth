@@ -1703,13 +1703,21 @@ function renderBudgetScreen() {
   var ccFixed = 0;
   var monthlyIncome = 0;
   getAllBills().forEach(function(b) {
-    if (b.freq !== 'monthly' && b.freq !== 'weekly' && b.freq !== 'biweekly') return;
     if (b.amt <= 0) return;
-
-    // Estimate monthly equivalent
     var monthlyAmt = b.amt;
-    if (b.freq === 'weekly') monthlyAmt = b.amt * 4.33;
-    else if (b.freq === 'biweekly') monthlyAmt = b.amt * 2.17;
+
+    if (b.freq === 'monthly') {
+      // already monthly
+    } else if (b.freq === 'weekly') {
+      monthlyAmt = b.amt * 4.33;
+    } else if (b.freq === 'biweekly') {
+      monthlyAmt = b.amt * 2.17;
+    } else if (b.freq === 'once') {
+      // Only include one-time bills that fall this month
+      if (b.year === now.getFullYear() && b.month === now.getMonth()) {
+        monthlyAmt = b.amt;
+      } else return;
+    } else return;
 
     if (b.type === 'in') {
       monthlyIncome += monthlyAmt;
@@ -1728,9 +1736,15 @@ function renderBudgetScreen() {
   var today2 = new Date(); today2.setHours(0,0,0,0);
   getAllBills().forEach(function(b) {
     if (b.paidBy === 'cc' || b.type === 'in' || b.amt <= 0) return;
-    if (b.freq !== 'monthly' && b.freq !== 'weekly' && b.freq !== 'biweekly') return;
-    // Check if this bill has passed this month
-    var billDate = new Date(now.getFullYear(), now.getMonth(), b.day);
+    var billDate;
+    if (b.freq === 'monthly' || b.freq === 'weekly' || b.freq === 'biweekly') {
+      billDate = new Date(now.getFullYear(), now.getMonth(), b.day);
+    } else if (b.freq === 'once') {
+      // Include one-time bills that hit this month and have passed
+      if (b.year === now.getFullYear() && b.month === now.getMonth()) {
+        billDate = new Date(b.year, b.month, b.day);
+      } else return;
+    } else return;
     if (billDate <= today2) {
       if (b.type === 'save') savingsActual += b.amt;
       else checkingBillsActual += b.amt;
