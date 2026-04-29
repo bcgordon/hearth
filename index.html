@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.0</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.1</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -1792,10 +1792,31 @@ function renderBudgetScreen() {
     }
   });
 
-  // Calculate actual checking bills paid so far this month using helper
+  // Calculate actual checking bills paid so far this month
   var actuals = getMonthActuals(now.getFullYear(), now.getMonth());
   var checkingBillsActual = actuals.checking;
   var savingsActual = actuals.savings;
+
+  // Add weekly/biweekly bills separately (closure issue workaround)
+  var cutoffW = new Date(); cutoffW.setHours(23,59,59,999);
+  getAllBills().forEach(function(b) {
+    if (b.paidBy === 'cc' || b.type === 'in' || b.amt <= 0) return;
+    if (b.freq !== 'weekly' && b.freq !== 'biweekly') return;
+    if (!b.startDate) return;
+    if (b.startMonth !== undefined && b.startYear !== undefined) {
+      if (new Date(b.startYear, b.startMonth, 1) > new Date(now.getFullYear(), now.getMonth(), 1)) return;
+    }
+    var interval = b.freq === 'weekly' ? 7 : 14;
+    var wp = b.startDate.split('-');
+    var d = new Date(parseInt(wp[0]), parseInt(wp[1])-1, parseInt(wp[2]));
+    while (d <= cutoffW) {
+      if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+        if (b.type === 'save') savingsActual += b.amt;
+        else checkingBillsActual += b.amt;
+      }
+      d.setDate(d.getDate() + interval);
+    }
+  });
 
   var ccBudget = 3500;
   var totalCommitment = ccBudget + checkingBills + savingsTotal;
