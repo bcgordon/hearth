@@ -1743,60 +1743,99 @@ function renderBudgetScreen() {
   var netActual = monthlyIncome - (getCCAppTotal() + checkingBillsActual + savingsActual);
   var fmtR = function(n) { return (n < 0 ? '-$' : '+$') + Math.round(Math.abs(n)).toLocaleString('en-US'); };
 
-  // Full budget summary card
-  var html = '<div class="card card-sky" style="margin-bottom:12px">';
-  html += '<div class="section-head" style="color:var(--sky);margin-bottom:12px">Monthly cash flow summary</div>';
+  // Calculate actual income received (scheduled paychecks whose date has passed)
+  var incomeActual = 0;
+  var today3 = new Date(); today3.setHours(0,0,0,0);
+  getAllBills().forEach(function(b) {
+    if (b.type !== 'in' || b.amt <= 0) return;
+    if (b.freq === 'monthly') {
+      var billDate = new Date(now.getFullYear(), now.getMonth(), b.day);
+      if (b.eom) billDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      if (billDate <= today3) incomeActual += b.amt;
+    } else if (b.freq === 'biweekly' && b.startDate) {
+      var start = new Date(b.startDate);
+      var d = new Date(start);
+      while (d.getMonth() === now.getMonth() || d < today3) {
+        if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d <= today3) {
+          incomeActual += b.amt;
+        }
+        d.setDate(d.getDate() + 14);
+        if (d.getFullYear() > now.getFullYear() || (d.getFullYear() === now.getFullYear() && d.getMonth() > now.getMonth())) break;
+      }
+    }
+  });
 
-  // Income
-  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border)">';
-  html += '<span style="font-size:16px;color:var(--text)">💰 Expected income</span>';
-  html += '<span style="font-size:16px;font-weight:600;color:var(--grass)">' + fmt(monthlyIncome) + '</span>';
-  html += '</div>';
-
-  // CC budget — show actual vs target
+  // Calculate actual expenses (CC + checking bills paid + savings transferred)
   var ccActual = getCCAppTotal();
+  var totalActualExpenses = ccActual + checkingBillsActual + savingsActual;
+  var totalProjectedExpenses = ccBudget + checkingBills + savingsTotal;
+  var expOver = totalActualExpenses > totalProjectedExpenses;
+
+  // Progress bar percentages
+  var incPct = monthlyIncome > 0 ? Math.min(incomeActual / monthlyIncome * 100, 100) : 0;
+  var expPct = totalProjectedExpenses > 0 ? Math.min(totalActualExpenses / totalProjectedExpenses * 100, 100) : 0;
+
+  // Full budget summary card — Monarch style
+  var html = '<div class="card" style="margin-bottom:12px;padding:16px 17px">';
+  html += '<div class="section-head" style="margin-bottom:14px">Monthly summary</div>';
+
+  // INCOME section
+  html += '<div style="margin-bottom:16px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">';
+  html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Income</span>';
+  html += '<span style="font-size:14px;color:var(--text-3)">' + fmt(monthlyIncome) + ' expected</span>';
+  html += '</div>';
+  // Progress bar
+  html += '<div style="height:8px;background:var(--border);border-radius:4px;margin-bottom:8px;position:relative">';
+  html += '<div style="height:100%;width:' + incPct.toFixed(1) + '%;background:var(--grass);border-radius:4px;transition:width 0.4s"></div>';
+  html += '<div style="position:absolute;top:-2px;left:' + incPct.toFixed(1) + '%;width:3px;height:12px;background:var(--grass-dim);border-radius:2px"></div>';
+  html += '</div>';
+  html += '<div style="display:flex;justify-content:space-between">';
+  html += '<span style="font-size:15px;font-weight:600;color:var(--grass)">' + fmt(incomeActual) + ' received</span>';
+  html += '<span style="font-size:15px;color:var(--text-3)">' + fmt(monthlyIncome - incomeActual) + ' remaining</span>';
+  html += '</div></div>';
+
+  // Divider
+  html += '<div style="height:1px;background:var(--border);margin-bottom:16px"></div>';
+
+  // EXPENSES section
+  html += '<div style="margin-bottom:8px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">';
+  html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Expenses</span>';
+  html += '<span style="font-size:14px;color:var(--text-3)">' + fmt(totalProjectedExpenses) + ' budget</span>';
+  html += '</div>';
+  // Progress bar
+  var expBarColor = expOver ? 'var(--red)' : expPct > 80 ? 'var(--sun)' : 'var(--coral)';
+  html += '<div style="height:8px;background:var(--border);border-radius:4px;margin-bottom:8px;position:relative">';
+  html += '<div style="height:100%;width:' + Math.min(expPct, 100).toFixed(1) + '%;background:' + expBarColor + ';border-radius:4px;transition:width 0.4s"></div>';
+  html += '<div style="position:absolute;top:-2px;left:' + Math.min(expPct, 100).toFixed(1) + '%;width:3px;height:12px;background:var(--coral-dim);border-radius:2px"></div>';
+  html += '</div>';
+  html += '<div style="display:flex;justify-content:space-between">';
+  html += '<span style="font-size:15px;font-weight:600;color:' + expBarColor + '">' + fmt(totalActualExpenses) + ' spent</span>';
+  var expRemaining = totalProjectedExpenses - totalActualExpenses;
+  html += '<span style="font-size:15px;color:' + (expRemaining < 0 ? 'var(--red)' : 'var(--text-3)') + '">' + (expRemaining < 0 ? '-' : '') + fmt(Math.abs(expRemaining)) + ' remaining</span>';
+  html += '</div></div>';
+
+  // Breakdown rows
+  html += '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;margin-top:10px">';
+  // CC
   var ccOver = ccActual > ccBudget;
-  var ccColor = ccOver ? 'var(--red)' : 'var(--coral)';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border)">';
-  html += '<span style="font-size:16px;color:var(--text)">💳 CC budget</span>';
-  if (ccOver) {
-    html += '<div style="text-align:right">';
-    html += '<span style="font-size:16px;font-weight:600;color:' + ccColor + '">-' + fmt(ccActual) + '</span>';
-    html += '<span style="font-size:12px;color:var(--text-3);display:block">target ' + fmt(ccBudget) + '</span>';
-    html += '</div>';
-  } else {
-    html += '<div style="text-align:right">';
-    html += '<span style="font-size:16px;font-weight:600;color:var(--coral)">-' + fmt(ccBudget) + '</span>';
-    html += '<span style="font-size:12px;color:var(--grass-dim);display:block">' + fmt(ccActual) + ' spent</span>';
-    html += '</div>';
-  }
+  html += '<div style="display:flex;justify-content:space-between;padding:3px 0">';
+  html += '<span style="font-size:14px;color:var(--text-3)">💳 CC spending</span>';
+  html += '<span style="font-size:14px;font-weight:600;color:' + (ccOver ? 'var(--red)' : 'var(--text-2)') + '">' + fmt(ccActual) + ' / ' + fmt(ccBudget) + '</span>';
+  html += '</div>';
+  // Checking bills
+  html += '<div style="display:flex;justify-content:space-between;padding:3px 0">';
+  html += '<span style="font-size:14px;color:var(--text-3)">🏦 Checking bills</span>';
+  html += '<span style="font-size:14px;font-weight:600;color:var(--text-2)">' + fmt(checkingBillsActual) + ' / ' + fmt(checkingBills) + '</span>';
+  html += '</div>';
+  // Savings
+  html += '<div style="display:flex;justify-content:space-between;padding:3px 0">';
+  html += '<span style="font-size:14px;color:var(--text-3)">🏛 Savings</span>';
+  html += '<span style="font-size:14px;font-weight:600;color:var(--text-2)">' + fmt(savingsActual) + ' / ' + fmt(savingsTotal) + '</span>';
+  html += '</div>';
   html += '</div>';
 
-  // Checking bills — actual vs projected
-  var chkOver = checkingBillsActual > checkingBills;
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border)">';
-  html += '<span style="font-size:16px;color:var(--text)">🏦 Checking bills</span>';
-  html += '<div style="text-align:right">';
-  html += '<span style="font-size:16px;font-weight:600;color:' + (chkOver ? 'var(--red)' : 'var(--coral)') + '">-' + fmt(checkingBillsActual) + '</span>';
-  html += '<span style="font-size:12px;color:var(--text-3);display:block">projected -' + fmt(checkingBills) + '</span>';
-  html += '</div></div>';
-
-  // Savings transfers — actual vs projected
-  var savOver = savingsActual > savingsTotal;
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border)">';
-  html += '<span style="font-size:16px;color:var(--text)">🏛 Savings transfers</span>';
-  html += '<div style="text-align:right">';
-  html += '<span style="font-size:16px;font-weight:600;color:var(--sky-dim)">-' + fmt(savingsActual) + '</span>';
-  html += '<span style="font-size:12px;color:var(--text-3);display:block">projected -' + fmt(savingsTotal) + '</span>';
-  html += '</div></div>';
-
-  // Net
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin-top:4px">';
-  html += '<span style="font-size:17px;font-weight:600;color:var(--text)">Net monthly</span>';
-  html += '<div style="text-align:right">';
-  html += '<span style="font-size:18px;font-weight:700;color:' + (netActual >= 0 ? 'var(--grass)' : 'var(--red)') + '">' + fmtR(netActual) + '</span>';
-  html += '<span style="font-size:12px;color:var(--text-3);display:block">projected ' + fmtR(netMonthly) + '</span>';
-  html += '</div></div>';
   html += '</div>';
 
   html += '<div class="card" style="margin-bottom:12px;padding:14px 17px">';
