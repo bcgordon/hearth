@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.6</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.7</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3800,12 +3800,33 @@ function renderBalChart() {
     bar.className = 'chart-bar';
     bar.style.height = pct + '%';
     bar.style.background = color;
-    bar.title = mo.label + ': min $' + (val < 0 ? '-' : '') + Math.abs(Math.round(val)).toLocaleString();
+    bar.title = mo.label + ': $' + (val < 0 ? '-' : '') + Math.abs(Math.round(val)).toLocaleString();
+    bar.style.cursor = 'pointer';
+    bar.style.position = 'relative';
+    (function(monthOffset, label, balance) {
+      bar.onclick = function() {
+        balMonthOffset = monthOffset;
+        renderBalTimeline();
+        // Show tooltip briefly
+        var tip = document.createElement('div');
+        tip.textContent = label + ': $' + (balance < 0 ? '-' : '') + Math.abs(Math.round(balance)).toLocaleString();
+        tip.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:6px 14px;border-radius:20px;font-size:14px;font-weight:600;z-index:999;pointer-events:none';
+        document.body.appendChild(tip);
+        setTimeout(function() { tip.remove(); }, 2000);
+        // Scroll to timeline
+        var tl = document.getElementById('bal-timeline');
+        if (tl) tl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+    })(m, mo.label, val);
     barsEl.appendChild(bar);
 
     var lbl = document.createElement('div');
     lbl.className = 'chart-label';
     lbl.textContent = mo.label;
+    lbl.style.cursor = 'pointer';
+    (function(monthOffset) {
+      lbl.onclick = function() { bar.onclick && bar.onclick(); };
+    })(m);
     labelsEl.appendChild(lbl);
   }
 }
