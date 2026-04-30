@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.7</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.8</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3803,30 +3803,29 @@ function renderBalChart() {
     bar.title = mo.label + ': $' + (val < 0 ? '-' : '') + Math.abs(Math.round(val)).toLocaleString();
     bar.style.cursor = 'pointer';
     bar.style.position = 'relative';
-    (function(monthOffset, label, balance) {
-      bar.onclick = function() {
-        balMonthOffset = monthOffset;
-        renderBalTimeline();
-        // Show tooltip briefly
+    (function(label, balance) {
+      bar.onclick = function(e) {
+        e.stopPropagation();
+        // Remove any existing tip
+        var existing = document.getElementById('chart-tip');
+        if (existing) existing.remove();
         var tip = document.createElement('div');
+        tip.id = 'chart-tip';
         tip.textContent = label + ': $' + (balance < 0 ? '-' : '') + Math.abs(Math.round(balance)).toLocaleString();
-        tip.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:6px 14px;border-radius:20px;font-size:14px;font-weight:600;z-index:999;pointer-events:none';
+        tip.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:20px;font-size:15px;font-weight:600;z-index:999;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
         document.body.appendChild(tip);
-        setTimeout(function() { tip.remove(); }, 2000);
-        // Scroll to timeline
-        var tl = document.getElementById('bal-timeline');
-        if (tl) tl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(function() { if (tip.parentNode) tip.remove(); }, 2000);
       };
-    })(m, mo.label, val);
+    })(mo.label, val);
     barsEl.appendChild(bar);
 
     var lbl = document.createElement('div');
     lbl.className = 'chart-label';
     lbl.textContent = mo.label;
     lbl.style.cursor = 'pointer';
-    (function(monthOffset) {
-      lbl.onclick = function() { bar.onclick && bar.onclick(); };
-    })(m);
+    (function(barEl) {
+      lbl.onclick = function(e) { barEl.onclick(e); };
+    })(bar);
     labelsEl.appendChild(lbl);
   }
 }
