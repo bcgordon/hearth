@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.8</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.9</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3303,7 +3303,7 @@ function buildProjection() {
   var projectedEndOfMonth = anchorBalance;
   for (var pi = 0; pi < events.length; pi++) {
     var pev = events[pi];
-    if (pev.date <= today || pev.date > endOfMonth) continue; // only remaining events this month
+    if (pev.date < today || pev.date > endOfMonth) continue; // include today's events in EOM projection
     var pevKey = pev.date.getFullYear() + '-' + pev.date.getMonth() + '-' + pev.date.getDate() + '-' + pev.name.replace(/\s/g,'_');
     if (dismissed[pevKey]) continue;
     var pevAmt = pev.amt || 0;
