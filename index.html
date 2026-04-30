@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.5</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.6</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3130,13 +3130,19 @@ function getScheduledEvents() {
 
   // ── CC AUTO-PAY ─────────────────────────────────────────────────────────
   events.push({ date: new Date(2026, 4, 6), name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
-  events.push({ date: new Date(2026, 5, 6), name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
+  // Recurring CC payment on 6th from June onward (until Capital One confirms date change)
+  for (var cm = 5; cm <= 14; cm++) {
+    var cmy = 2026 + Math.floor(cm / 12);
+    var cmm = cm % 12;
+    var cd6 = new Date(cmy, cmm, 6);
+    if (cd6 > start && cd6 <= end)
+      events.push({ date: cd6, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
+  }
   // 19th payments start May 2026 — May 19 shows with 'est.' button for manual override
   for (var y3 = 2026; y3 <= 2027; y3++) {
     for (var m3 = 0; m3 < 12; m3++) {
       var d19 = new Date(y3, m3, 19);
-      if (d19 >= new Date(2026, 5, 19) && d19 <= end)
-        events.push({ date: d19, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
+
     }
   }
 
