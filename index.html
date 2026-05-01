@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.7</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.1.0</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3259,23 +3259,21 @@ function buildProjection() {
   // Anchor: use actual balance if set, otherwise fall back to STARTING_BALANCE
   var anchorBalance = balActualBalance !== null ? balActualBalance : STARTING_BALANCE;
 
-  // Fast-forward anchor to end of current month so future projections
-  // start from a realistic balance (not mid-month depleted)
   var endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
-  var dismissed = (record && record.dismissedEvents) ? record.dismissedEvents : JSON.parse(localStorage.getItem('dismissed_events') || '{}');
+  var dismissed = (record && record.dismissedEvents) ? record.dismissedEvents : {};
+
+  // Fast-forward anchor to end of current month so future months start realistically
   var projectedEndOfMonth = anchorBalance;
   for (var pi = 0; pi < events.length; pi++) {
     var pev = events[pi];
-    if (pev.date < today || pev.date > endOfMonth) continue; // include today's events in EOM projection
+    if (pev.date < today || pev.date > endOfMonth) continue;
     var pevKey = pev.date.getFullYear() + '-' + pev.date.getMonth() + '-' + pev.date.getDate() + '-' + pev.name.replace(/\s/g,'_');
     if (dismissed[pevKey]) continue;
     var pevAmt = pev.amt || 0;
     if (pev.type === 'in') projectedEndOfMonth += pevAmt;
-    else projectedEndOfMonth -= pevAmt;
+    else if (pev.type !== 'cc') projectedEndOfMonth -= pevAmt; // exclude CC payments
   }
 
-  // Use projected end-of-month as the starting balance for future months
-  // but still show current month events from today's actual balance
   var balance = anchorBalance;
   var projection = [];
   var _usedEOMBalance = false;
@@ -3330,7 +3328,7 @@ function buildProjection() {
       }
     }
 
-    // When first event of next month arrives, switch to projected end-of-month anchor
+    // Switch to projectedEndOfMonth when crossing into next month
     if (!_usedEOMBalance && ev.date > endOfMonth) {
       balance = projectedEndOfMonth;
       _usedEOMBalance = true;
