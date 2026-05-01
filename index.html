@@ -3313,7 +3313,7 @@ function buildProjection() {
         }
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
-        ev.amt = amt;
+        // Note: don't mutate ev.amt — use local amt only
       }
     }
 
@@ -3324,7 +3324,7 @@ function buildProjection() {
       var billOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined) ? record.billOverrides[billOverrideKey] : null;
       if (billOverride !== null && billOverride !== undefined) {
         amt = parseFloat(billOverride);
-        ev.amt = amt;
+        // Note: don't mutate ev.amt
       }
     }
 
