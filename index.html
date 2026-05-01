@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.1</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.2</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3458,20 +3458,31 @@ function getCCAppTotal() {
   // but only if they weren't also manually logged
   var allCCBills = getAllBills();
   allCCBills.forEach(function(b) {
-    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer || b.freq !== 'monthly') return;
-    for (var mo = 0; mo <= 1; mo++) {
-      var checkDate = new Date(today.getFullYear(), today.getMonth() - mo, b.day);
-      if (checkDate >= CC_CYCLE_START && checkDate <= today) {
-        // Only add if not already manually logged (check by amount match)
-        var rounded = Math.round(b.amt * 100);
-        var idx = manualAmts.indexOf(rounded);
-        if (idx === -1) {
-          total += b.amt;
-        } else {
-          manualAmts.splice(idx, 1); // remove so we don't skip a legitimate duplicate
-        }
-        break;
+    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
+    var billDate = null;
+    if (b.freq === 'monthly') {
+      for (var mo = 0; mo <= 1; mo++) {
+        var checkDate = new Date(today.getFullYear(), today.getMonth() - mo, b.day);
+        if (checkDate >= CC_CYCLE_START && checkDate <= today) { billDate = checkDate; break; }
       }
+    } else if (b.freq === 'once' || b.freq === 'annual') {
+      var yr = b.year || today.getFullYear();
+      var od = new Date(yr, b.month, b.day);
+      if (od >= CC_CYCLE_START && od <= today) billDate = od;
+    } else if (b.freq === 'quarterly') {
+      // Check last 3 months for a quarterly hit within the cycle
+      for (var qm = 0; qm <= 3; qm++) {
+        var qDate = new Date(today.getFullYear(), today.getMonth() - qm, b.day);
+        if (qDate >= CC_CYCLE_START && qDate <= today) { billDate = qDate; break; }
+      }
+    }
+    if (!billDate) return;
+    var rounded = Math.round(b.amt * 100);
+    var idx = manualAmts.indexOf(rounded);
+    if (idx === -1) {
+      total += b.amt;
+    } else {
+      manualAmts.splice(idx, 1);
     }
   });
 
