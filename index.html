@@ -828,6 +828,24 @@ textarea { resize: none; }
             <button class="freq-pill" data-paidby="cc" onclick="selectPaidBy('cc')">Credit card</button>
           </div>
         </div>
+        <div id="bf-startfrom-wrap">
+          <label class="label">Starting from</label>
+          <div style="display:flex;gap:8px">
+            <select id="bf-start-month" style="flex:1;font-family:inherit;font-size:17px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)">
+              <option value="0">January</option><option value="1">February</option>
+              <option value="2">March</option><option value="3">April</option>
+              <option value="4">May</option><option value="5">June</option>
+              <option value="6">July</option><option value="7">August</option>
+              <option value="8">September</option><option value="9">October</option>
+              <option value="10">November</option><option value="11">December</option>
+            </select>
+            <select id="bf-start-year" style="width:100px;font-family:inherit;font-size:17px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)">
+              <option value="2025">2025</option>
+              <option value="2026" selected>2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+        </div>
         <p id="bf-err" class="err"></p>
         <button class="btn btn-coral btn-full" style="padding:13px" onclick="saveBill()">Save bill</button>
         <button class="btn btn-ghost btn-full" onclick="hideBillForm()">Cancel</button>
@@ -1457,6 +1475,19 @@ async function enterApp() {
     localStorage.removeItem('dismissed_events');
   }
 
+  // Migrate existing recurring Supabase bills to have startMonth/startYear
+  var _migrated = false;
+  if (record && record.bills) {
+    record.bills.forEach(function(b) {
+      if (b.startMonth === undefined && b.startYear === undefined) {
+        if (b.freq === 'monthly' || b.freq === 'weekly' || b.freq === 'biweekly' || b.freq === 'quarterly') {
+          b.startMonth = 3; b.startYear = 2026; // April 2026 default
+          _migrated = true;
+        }
+      }
+    });
+    if (_migrated) cloudSet(record);
+  }
   buildCategoryGrid(getCategorySpend());
   refreshMain();
   showScreen('screen-main');
@@ -2635,15 +2666,15 @@ var DEFAULT_BILLS = [
   { id:'hc_inc_bw',  name:'Bi-weekly paycheck',      amt:2055, freq:'biweekly', startDate:'2026-04-10', type:'in' },
   { id:'hc_inc_15',  name:'Semi-monthly paycheck (15th)', amt:4240, day:15, freq:'monthly', type:'in' },
   { id:'hc_inc_eom', name:'Semi-monthly paycheck (last day)', amt:4240, day:1, freq:'monthly', type:'in', eom:true },
-  { id:'hc_life1',  name:'Life insurance NW Mutual', amt:250,  day:1,  freq:'monthly', type:'out' },
-  { id:'hc_sl_min', name:'Student loan minimum',     amt:386,  day:9,  freq:'monthly', type:'out' },
-  { id:'hc_life2',  name:'Life insurance NW Mutual', amt:250,  day:15, freq:'monthly', type:'out' },
-  { id:'hc_mort',   name:'Mortgage',                 amt:2710, day:16, freq:'monthly', type:'out' },
-  { id:'hc_solar',  name:'Solar bill',               amt:266,  day:16, freq:'monthly', type:'out' },
+  { id:'hc_life1',  name:'Life insurance NW Mutual', amt:250,  day:1,  freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
+  { id:'hc_sl_min', name:'Student loan minimum',     amt:386,  day:9,  freq:'monthly', type:'out', startMonth:3, startYear:2026 },
+  { id:'hc_life2',  name:'Life insurance NW Mutual', amt:250,  day:15, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
+  { id:'hc_mort',   name:'Mortgage',                 amt:2710, day:16, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
+  { id:'hc_solar',  name:'Solar bill',               amt:266,  day:16, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
   { id:'hc_gas',    name:'Gas bill',                 amt:150,  day:23, freq:'monthly', type:'out' },
-  { id:'hc_car',    name:'Car loan',                 amt:414,  day:26, freq:'monthly', type:'out' },
-  { id:'hc_tmob',   name:'T-Mobile',                 amt:397,  day:27, freq:'monthly', type:'out' },
-  { id:'hc_allow',  name:'Personal allowances',      amt:340,  freq:'weekly',   startDate:'2026-04-10', day:5, type:'out' },
+  { id:'hc_car',    name:'Car loan',                 amt:414,  day:26, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
+  { id:'hc_tmob',   name:'T-Mobile',                 amt:397,  day:27, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
+  { id:'hc_allow',  name:'Personal allowances',      amt:340,  freq:'weekly',   startDate:'2026-04-10', day:5, type:'out' , startMonth:3, startYear:2026 },
   { id:'hc_sl_ext', name:'Student loan extra',       amt:300,  freq:'biweekly', startDate:'2026-04-25', type:'out' },
   { id:'hc_sf_emerg',  name:'Emergency fund',        amt:750, day:16, freq:'monthly', type:'save', startMonth:4, startYear:2026 },
   { id:'hc_sf_home',   name:'Home/auto/insurance',   amt:370, day:16, freq:'monthly', type:'save', startMonth:4, startYear:2026 },
@@ -2772,6 +2803,10 @@ function showAddBill() {
   selectPaidBy(billPaidBy);
   var pbWrap = document.getElementById('bf-paidby-wrap');
   if (pbWrap) pbWrap.style.display = (billType === 'out') ? 'block' : 'none';
+  // Default starting from = current month
+  var _now = new Date();
+  document.getElementById('bf-start-month').value = _now.getMonth();
+  document.getElementById('bf-start-year').value = _now.getFullYear();
   document.getElementById('bill-form-wrap').style.display = 'block';
   document.getElementById('bf-name').focus();
 }
@@ -2794,6 +2829,10 @@ function editBill(id) {
   document.getElementById('bf-day').value = b.day || '';
   if (b.month !== undefined) document.getElementById('bf-month').value = b.month;
   if (b.year !== undefined) document.getElementById('bf-year').value = b.year;
+  // Populate starting from
+  var _now2 = new Date();
+  document.getElementById('bf-start-month').value = b.startMonth !== undefined ? b.startMonth : _now2.getMonth();
+  document.getElementById('bf-start-year').value = b.startYear !== undefined ? b.startYear : _now2.getFullYear();
   document.getElementById('bill-form-title').textContent = 'Edit bill';
   document.getElementById('bf-err').style.display = 'none';
   updateFreqUI();
@@ -2846,6 +2885,11 @@ async function saveBill() {
   if (billFreq === 'quarterly') {
     bill.month = parseInt(document.getElementById('bf-month').value);
   }
+  // Add startMonth/startYear for recurring bills
+  if (billFreq === 'monthly' || billFreq === 'weekly' || billFreq === 'biweekly' || billFreq === 'quarterly') {
+    bill.startMonth = parseInt(document.getElementById('bf-start-month').value);
+    bill.startYear  = parseInt(document.getElementById('bf-start-year').value);
+  }
 
   if (!record.bills) record.bills = [];
 
@@ -2880,6 +2924,9 @@ function updateFreqUI() {
   document.querySelectorAll('[data-freq]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.freq === billFreq);
   });
+  // Show/hide starting from field based on frequency
+  var sfWrap = document.getElementById('bf-startfrom-wrap');
+  if (sfWrap) sfWrap.style.display = (billFreq === 'once' || billFreq === 'annual') ? 'none' : 'block';
   var showMonth = billFreq === 'annual' || billFreq === 'once' || billFreq === 'quarterly';
   document.getElementById('bf-month-wrap').style.display = showMonth ? 'block' : 'none';
   document.getElementById('bf-year-wrap').style.display  = billFreq === 'once' ? 'block' : 'none';
@@ -3179,10 +3226,17 @@ function hasCCEntries(fromDate, toDate) {
 // Returns all occurrences of a bill within a date range
 function getBillOccurrencesInRange(b, fromDate, toDate) {
   var dates = [];
+  // Respect startMonth/startYear — bill didn't exist before this date
+  var billStart = null;
+  if (b.startYear !== undefined && b.startMonth !== undefined) {
+    billStart = new Date(b.startYear, b.startMonth, 1);
+  }
+  var effectiveFrom = billStart && billStart > fromDate ? billStart : fromDate;
+
   if (b.freq === 'monthly') {
-    var d = new Date(fromDate.getFullYear(), fromDate.getMonth(), b.day);
+    var d = new Date(effectiveFrom.getFullYear(), effectiveFrom.getMonth(), b.day);
     while (d <= toDate) {
-      if (d >= fromDate) dates.push(new Date(d));
+      if (d >= effectiveFrom) dates.push(new Date(d));
       d.setMonth(d.getMonth() + 1);
     }
   } else if (b.freq === 'weekly') {
@@ -3190,7 +3244,7 @@ function getBillOccurrencesInRange(b, fromDate, toDate) {
     var wp = b.startDate.split('-');
     var d = new Date(parseInt(wp[0]), parseInt(wp[1])-1, parseInt(wp[2]));
     while (d <= toDate) {
-      if (d >= fromDate) dates.push(new Date(d));
+      if (d >= effectiveFrom) dates.push(new Date(d));
       d.setDate(d.getDate() + 7);
     }
   } else if (b.freq === 'biweekly') {
@@ -3198,7 +3252,7 @@ function getBillOccurrencesInRange(b, fromDate, toDate) {
     var bp = b.startDate.split('-');
     var d = new Date(parseInt(bp[0]), parseInt(bp[1])-1, parseInt(bp[2]));
     while (d <= toDate) {
-      if (d >= fromDate) dates.push(new Date(d));
+      if (d >= effectiveFrom) dates.push(new Date(d));
       d.setDate(d.getDate() + 14);
     }
   } else if (b.freq === 'quarterly') {
@@ -3376,7 +3430,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.1.4';
+var APP_VERSION = 'v3.1.5';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
