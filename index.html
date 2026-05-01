@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.1.1</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.1.2</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -2396,7 +2396,7 @@ async function historyNav(dir) {
   // Add scheduled bills/income
   qEvents.forEach(function(ev) {
     if (ev.type === 'save') return; // skip savings transfers
-    var isPast = ev.date <= today;
+    var isPast = ev.date < today; // use < so today's events show as upcoming
     // Apply bill override if set
     var amt = ev.amt;
     if (ev.billId && ev.type !== 'cc') {
@@ -2442,7 +2442,7 @@ async function historyNav(dir) {
           note: 'CC billed',
           amt: b.amt,
           type: 'cc_bill',
-          isPast: occDate <= today,
+          isPast: occDate < today,
           isBill: true,
           billId: b.id || null,
         });
