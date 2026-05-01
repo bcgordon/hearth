@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.3</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.4</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3810,11 +3810,13 @@ function renderBalChart() {
   barsEl.innerHTML = '';
   labelsEl.innerHTML = '';
 
-  // Get min balance per month
+  // Get min balance per month — rolling 12 months from current month
   var months = [];
+  var chartNow = new Date();
+  var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   for (var i = 0; i < 12; i++) {
-    var d = new Date(2026, 3 + i, 1);
-    months.push({ year: d.getFullYear(), month: d.getMonth(), min: Infinity, label: ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'][i] });
+    var d = new Date(chartNow.getFullYear(), chartNow.getMonth() + i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth(), min: Infinity, label: monthNames[d.getMonth()] });
   }
 
   for (var j = 0; j < balProjection.length; j++) {
