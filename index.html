@@ -2911,6 +2911,19 @@ async function saveBill() {
     record.bills.push(bill);
   }
 
+  // Clear any stale billPending keys for this bill (date may have changed)
+  if (record.billPending) {
+    var billIdToClean = editingBillId || bill.id;
+    var prefix = 'bill_pending_' + billIdToClean + '_';
+    Object.keys(record.billPending).forEach(function(key) {
+      if (key.startsWith(prefix)) delete record.billPending[key];
+    });
+    // Also clean new bill ID if it changed (default → custom)
+    var newPrefix = 'bill_pending_' + bill.id + '_';
+    Object.keys(record.billPending).forEach(function(key) {
+      if (key.startsWith(newPrefix)) delete record.billPending[key];
+    });
+  }
   await cloudSet(record);
   hideBillForm();
   renderBillsList();
@@ -3432,7 +3445,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.1.7';
+var APP_VERSION = 'v3.1.8';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
