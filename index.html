@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.1.2</div>
+<div id="app-version" style="font-size:11px;color:var(--text-3);margin-top:8px"></div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3379,6 +3379,9 @@ async function refreshBalance() {
 // ── CC BALANCE CARD ──────────────────────────────────────────────────────────
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
+// ── APP VERSION ─────────────────────────────────────────────────────────────
+var APP_VERSION = 'v3.1.2';
+
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
 // Update CC_CYCLE_DAY if Capital One changes the billing date.
@@ -4106,7 +4109,7 @@ function renderCashflowGrid() {
         '<div class="' + netClass + '">' + netSign + fmt(net) + '</div>';
     } else {
       card.innerHTML =
-        '<div class="cf-month">' + monthNames[mo] + ' ' + (yr === 2027 ? "''" + String(yr).slice(2) : '') + '</div>' +
+        '<div class="cf-month">' + monthNames[mo] + ' ' + (yr !== (new Date()).getFullYear() ? "'" + String(yr).slice(2) : '') + '</div>' +
         '<div class="cf-row"><span class="cf-label">In</span><span class="cf-val cf-in">' + fmt(income) + '</span></div>' +
         '<div class="cf-row"><span class="cf-label">Bills</span><span class="cf-val cf-out">' + fmt(bills + ccPay) + '</span></div>' +
         '<div class="cf-row"><span class="cf-label">Savings</span><span class="cf-val" style="color:var(--sky-dim)">' + fmt(savings) + '</span></div>' +
@@ -4333,6 +4336,7 @@ window.addEventListener('resize', function() {
 initIPadLayout();
 
 document.getElementById('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+var _vEl = document.getElementById('app-version'); if (_vEl) _vEl.textContent = APP_VERSION;
 checkRememberMe();
 </script>
 </body>
