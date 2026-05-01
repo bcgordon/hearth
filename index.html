@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.4</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.6</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -2659,6 +2659,11 @@ async function historyNav(dir) {
     var editBtn = '';
     if (r.entryId) {
       editBtn = '<button onclick="openEntryEdit(' + r.entryId + ',\'' + r.entryQKey + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>';
+    } else if (isCCBill && r.billId && r.date) {
+      // CC scheduled bills get a pending toggle button
+      var bpKey = 'bill_pending_' + r.billId + '_' + r.date.getFullYear() + '_' + r.date.getMonth() + '_' + r.date.getDate();
+      var isBillPendingBtn = record.billPending && record.billPending[bpKey];
+      editBtn = '<button onclick="toggleBillPending(\'' + r.billId + '\',' + r.date.getFullYear() + ',' + r.date.getMonth() + ',' + r.date.getDate() + ')" style="font-size:13px;padding:4px 8px;min-height:28px;background:' + (isBillPendingBtn ? 'var(--sun-bg)' : 'var(--surface2)') + ';border:1px solid ' + (isBillPendingBtn ? 'var(--sun)' : 'var(--border)') + ';border-radius:4px;color:' + (isBillPendingBtn ? 'var(--sun-dim)' : 'var(--text-3)') + ';cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">' + (isBillPendingBtn ? '⏳ pending' : 'pending?') + '</button>';
     } else if (r.billId && r.billId.toString().startsWith('income_') || r.billId && r.billId.toString().startsWith('chk_') || r.billId && r.billId.toString().startsWith('custom_') || r.billId && r.billId.toString().startsWith('transfer_')) {
       editBtn = '<button onclick="deleteBillFromRegister(\'' + r.billId + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--red);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">delete</button>';
     }
@@ -3906,7 +3911,7 @@ function renderBalTimeline() {
     if (ev.balance < FLOOR) row.style.background = 'var(--coral-bg)';
     if (ev.type === 'save') row.style.opacity = '0.7';
 
-    var typeClass = ev.type === 'in' ? 'tl-in' : ev.type === 'cc' ? 'tl-cc' : ev.type === 'save' ? 'tl-save' : 'tl-out';
+    var typeClass = ev.type === 'in' ? 'tl-in' : (ev.type === 'cc' || ev.type === 'cc_bill') ? 'tl-cc' : ev.type === 'save' ? 'tl-save' : 'tl-out';
     var sign = ev.type === 'in' ? '+' : '-';
     var d = ev.date;
     var dateStr = (d.getMonth()+1) + '/' + d.getDate();
@@ -3921,7 +3926,7 @@ function renderBalTimeline() {
       ccEditBtn = ' <button onclick="editCCPayment(' + (ev.ccYear||0) + ',' + (ev.ccMonth||0) + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:6px 10px;min-height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">' + (isEstimate ? 'est.' : 'edit') + '</button>';
     }
     // Bill override edit button for non-CC, non-income bills
-    if (ev.billId && ev.type !== 'in' && ev.type !== 'cc') {
+    if (ev.billId && ev.type !== 'in' && (ev.type !== 'cc' || ev.type === 'cc_bill')) {
       var d = ev.date;
       var billOverrideKey = 'bill_override_' + ev.billId + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate();
       var hasBillOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined)
@@ -4020,6 +4025,21 @@ function editCCPayment(year, month, currentAmt) {
   });
 }
 
+
+async function toggleBillPending(billId, year, month, day) {
+  var billPendingKey = 'bill_pending_' + billId + '_' + year + '_' + month + '_' + day;
+  if (!record.billPending) record.billPending = {};
+  if (record.billPending[billPendingKey]) {
+    delete record.billPending[billPendingKey];
+    toast('Pending removed');
+  } else {
+    record.billPending[billPendingKey] = true;
+    toast('⏳ Marked as pending');
+  }
+  await cloudSet(record);
+  historyNav();
+  updateCCBalanceCard();
+}
 
 async function editBillEvent(billId, year, month, day, currentAmt) {
   var billOverrideKey = 'bill_override_' + billId + '_' + year + '_' + month + '_' + day;
