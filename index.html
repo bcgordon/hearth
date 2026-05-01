@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.3</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.4</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -1871,12 +1871,12 @@ function renderBudgetScreen() {
   html += '<span style="font-size:14px;font-weight:600;color:' + (ccOver ? 'var(--red)' : 'var(--text-2)') + '">' + fmt(ccActual) + ' / ' + fmt(ccBudget) + '</span>';
   html += '</div>';
   // Checking bills — drills into Balance timeline
-  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showScreen(&quot;screen-balance&quot;)">';
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showScreen(\'screen-balance\')">'; 
   html += '<span style="font-size:14px;color:var(--coral)">🏦 Checking bills ›</span>';
   html += '<span style="font-size:14px;font-weight:600;color:var(--text-2)">' + fmt(checkingBillsActual) + ' / ' + fmt(checkingBills) + '</span>';
   html += '</div>';
   // Savings — drills into sinking funds
-  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;cursor:pointer" onclick="showScreen(&quot;screen-funds&quot;)">';
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;cursor:pointer" onclick="showScreen(\'screen-funds\')">'; 
   html += '<span style="font-size:14px;color:var(--sky-dim)">🏛 Savings ›</span>';
   html += '<span style="font-size:14px;font-weight:600;color:var(--text-2)">' + fmt(savingsActual) + ' / ' + fmt(savingsTotal) + '</span>';
   html += '</div>';
