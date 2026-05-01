@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.1</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.2</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3244,58 +3244,136 @@ function getScheduledEvents() {
 }
 
 // Get CC spending total for a given month — app entries PLUS fixed CC-billed bills
-function getCCEntryCount(year, month) {
-  // Count logged CC expense entries for a given month (excludes checking/income)
-  var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
-  var entries = loadEntries(qKey);
-  var count = 0;
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    if (e.payMethod === 'checking' || e.payMethod === 'income') continue;
-    var d = new Date(e.ts);
-    if (d.getFullYear() === year && d.getMonth() === month) count++;
-  }
-  return count;
+// ── UNIFIED CC SPEND FUNCTION ────────────────────────────────────────────────
+// Returns total CC spend (logged entries + posted scheduled bills) for any date range.
+// This is the single source of truth for all CC calculations.
+function getCCSpend(fromDate, toDate, opts) {
+  opts = opts || {};
+  var includeScheduled = opts.includeScheduled !== false; // default true
+  var today = new Date(); today.setHours(23, 59, 59, 999);
+  var cutoff = opts.cutoff || today; // only count scheduled bills up to this date
+
+  var total = 0;
+  var manualAmts = []; // track to avoid double-counting with scheduled bills
+
+  // Load entries from all quarters that could overlap the date range
+  var qKeys = [getQuarterKeyForDate(fromDate), getQuarterKeyForDate(toDate)];
+  qKeys = qKeys.filter(function(k, i, a) { return a.indexOf(k) === i; });
+
+  qKeys.forEach(function(qKey) {
+    var entries = loadEntries(qKey);
+    entries.forEach(function(e) {
+      if (e.payMethod === 'checking' || e.payMethod === 'income') return;
+      var d = new Date(e.ts);
+      if (d >= fromDate && d <= toDate) {
+        total += e.amt;
+        manualAmts.push(Math.round(e.amt * 100));
+      }
+    });
+  });
+
+  if (!includeScheduled) return Math.round(total * 100) / 100;
+
+  // Add scheduled CC bills that have posted within the date range
+  var allCCBills = getAllBills();
+  allCCBills.forEach(function(b) {
+    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
+    var occurrences = getBillOccurrencesInRange(b, fromDate, toDate);
+    occurrences.forEach(function(occDate) {
+      if (occDate > cutoff) return; // only count if already posted
+      var rounded = Math.round(b.amt * 100);
+      var idx = manualAmts.indexOf(rounded);
+      if (idx === -1) {
+        total += b.amt;
+      } else {
+        manualAmts.splice(idx, 1); // consumed — avoid double count
+      }
+    });
+  });
+
+  return Math.round(total * 100) / 100;
 }
 
-function getCCSpendForCyclePart(year, month, dayStart, dayEnd) {
-  // Sum CC entries for a partial month (e.g. days 1-11)
-  var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
-  var entries = loadEntries(qKey);
-  var total = 0;
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    if (e.payMethod === 'checking' || e.payMethod === 'income') continue;
-    var d = new Date(e.ts);
-    if (d.getFullYear() === year && d.getMonth() === month && d.getDate() >= dayStart && d.getDate() <= dayEnd) {
-      total += e.amt;
-    }
-  }
-  return total;
-}
-
-function getCCSpendForMonth(year, month) {
-  // App-logged expenses
-  var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
-  var entries = loadEntries(qKey);
-  var total = 0;
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    var d = new Date(e.ts);
-    if (d.getFullYear() === year && d.getMonth() === month) {
+// Returns true if there are any logged CC entries in the date range
+function hasCCEntries(fromDate, toDate) {
+  var qKeys = [getQuarterKeyForDate(fromDate), getQuarterKeyForDate(toDate)];
+  qKeys = qKeys.filter(function(k, i, a) { return a.indexOf(k) === i; });
+  for (var qi = 0; qi < qKeys.length; qi++) {
+    var entries = loadEntries(qKeys[qi]);
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
       if (e.payMethod === 'checking' || e.payMethod === 'income') continue;
-      total += e.amt;
+      var d = new Date(e.ts);
+      if (d >= fromDate && d <= toDate) return true;
     }
   }
-  // Fixed CC-billed bills (e.g. Netflix, Comcast, etc.)
-  var bills = getAllBills();
-  for (var j = 0; j < bills.length; j++) {
-    var b = bills[j];
-    if (b.paidBy === 'cc' && b.type === 'out' && b.freq === 'monthly' && b.amt > 0) {
-      total += b.amt;
+  return false;
+}
+
+// Returns all occurrences of a bill within a date range
+function getBillOccurrencesInRange(b, fromDate, toDate) {
+  var dates = [];
+  if (b.freq === 'monthly') {
+    var d = new Date(fromDate.getFullYear(), fromDate.getMonth(), b.day);
+    while (d <= toDate) {
+      if (d >= fromDate) dates.push(new Date(d));
+      d.setMonth(d.getMonth() + 1);
     }
+  } else if (b.freq === 'weekly') {
+    if (!b.startDate) return dates;
+    var wp = b.startDate.split('-');
+    var d = new Date(parseInt(wp[0]), parseInt(wp[1])-1, parseInt(wp[2]));
+    while (d <= toDate) {
+      if (d >= fromDate) dates.push(new Date(d));
+      d.setDate(d.getDate() + 7);
+    }
+  } else if (b.freq === 'biweekly') {
+    if (!b.startDate) return dates;
+    var bp = b.startDate.split('-');
+    var d = new Date(parseInt(bp[0]), parseInt(bp[1])-1, parseInt(bp[2]));
+    while (d <= toDate) {
+      if (d >= fromDate) dates.push(new Date(d));
+      d.setDate(d.getDate() + 14);
+    }
+  } else if (b.freq === 'quarterly') {
+    var startMo = b.month !== undefined ? b.month : 0;
+    var baseYear = b.startYear || fromDate.getFullYear();
+    for (var qi = 0; qi < 20; qi++) {
+      var qmo = (startMo + qi * 3) % 12;
+      var qyr = baseYear + Math.floor((startMo + qi * 3) / 12);
+      var qd = new Date(qyr, qmo, b.day);
+      if (qd > toDate) break;
+      if (qd >= fromDate) dates.push(new Date(qd));
+    }
+  } else if (b.freq === 'annual') {
+    var baseYr = b.year || fromDate.getFullYear();
+    for (var ay = baseYr; ay <= toDate.getFullYear() + 1; ay++) {
+      var ad = new Date(ay, b.month, b.day);
+      if (ad > toDate) break;
+      if (ad >= fromDate) dates.push(new Date(ad));
+    }
+  } else if (b.freq === 'once') {
+    var od = new Date(b.year || fromDate.getFullYear(), b.month, b.day);
+    if (od >= fromDate && od <= toDate) dates.push(od);
   }
-  return total;
+  return dates;
+}
+
+// Backwards compatibility shims — these now delegate to getCCSpend
+function getCCEntryCount(year, month) {
+  var from = new Date(year, month, 1);
+  var to = new Date(year, month + 1, 0, 23, 59, 59);
+  return hasCCEntries(from, to) ? 1 : 0;
+}
+function getCCSpendForCyclePart(year, month, dayStart, dayEnd) {
+  var from = new Date(year, month, dayStart);
+  var to = new Date(year, month, dayEnd, 23, 59, 59);
+  return getCCSpend(from, to, { includeScheduled: false });
+}
+function getCCSpendForMonth(year, month) {
+  var from = new Date(year, month, 1);
+  var to = new Date(year, month + 1, 0, 23, 59, 59);
+  return getCCSpend(from, to);
 }
 
 // Build running balance projection anchored from actual balance entered today
@@ -3352,22 +3430,16 @@ function buildProjection() {
         if (override) {
           amt = parseFloat(override);
         } else {
-          // CC payment on the 19th pays for the billing cycle (12th of prev month - 11th of current)
-          var prevMonth = ccMonth === 0 ? 11 : ccMonth - 1;
-          var prevYear = ccMonth === 0 ? ccYear - 1 : ccYear;
-          var prevMonthSpend = getCCSpendForCyclePart(prevYear, prevMonth, 12, 31);
-          var partialSpend = getCCSpendForCyclePart(ccYear, ccMonth, 1, 11);
-          // Add fixed CC bills (Netflix, Spotify, etc.) for the cycle
-          var fixedCCMonthly = 0;
-          var allBillsForCC = getAllBills();
-          for (var fi = 0; fi < allBillsForCC.length; fi++) {
-            var fb = allBillsForCC[fi];
-            if (fb.paidBy === 'cc' && fb.type === 'out' && fb.freq === 'monthly' && fb.amt > 0) {
-              fixedCCMonthly += fb.amt;
-            }
-          }
-          var hasEntries = getCCEntryCount(prevYear, prevMonth) + getCCEntryCount(ccYear, ccMonth) > 0;
-          amt = hasEntries ? (prevMonthSpend + partialSpend + fixedCCMonthly) : (3500 + fixedCCMonthly);
+          // Estimate CC payment: actual spend in the billing cycle for this payment
+          // Cycle runs from CC_CYCLE_DAY of prev month to CC_CYCLE_DAY-1 of payment month
+          var _pmPrev = ccMonth === 0 ? 11 : ccMonth - 1;
+          var _pyPrev = ccMonth === 0 ? ccYear - 1 : ccYear;
+          var _cycleFrom = new Date(_pyPrev, _pmPrev, CC_CYCLE_DAY);
+          var _cycleTo = new Date(ccYear, ccMonth, CC_CYCLE_DAY - 1, 23, 59, 59);
+          var _hasEntries = hasCCEntries(_cycleFrom, _cycleTo);
+          amt = _hasEntries
+            ? getCCSpend(_cycleFrom, _cycleTo, { includeScheduled: true })
+            : 3500; // fallback estimate when no entries yet
         }
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
@@ -3468,66 +3540,9 @@ var CC_CYCLE_START = _ccCycle.start;
 var CC_CYCLE_END   = _ccCycle.end;
 
 function getCCAppTotal() {
-  var today = new Date(); today.setHours(0,0,0,0);
-
-  // Sum all manually logged CC-method entries within the current billing cycle
-  var total = 0;
-  var manualAmts = []; // track manual entry amounts to avoid double-counting
-  var _ccAppQKeys = [getQuarterKeyForDate(CC_CYCLE_START), getQuarterKeyForDate(CC_CYCLE_END)];
-  _ccAppQKeys = _ccAppQKeys.filter(function(k, i, a) { return a.indexOf(k) === i; });
-  _ccAppQKeys.forEach(function(qKey) {
-    var entries = loadEntries(qKey);
-    entries.forEach(function(e) {
-      if (e.payMethod === 'checking' || e.payMethod === 'income') return;
-        // credit entries have negative amounts and reduce the total
-      var d = new Date(e.ts);
-      if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) {
-        total += e.amt;
-        manualAmts.push(Math.round(e.amt * 100));
-      }
-    });
-  });
-
-  // Add scheduled CC bills that have posted (date passed) within cycle
-  // but only if they weren't also manually logged
-  var allCCBills = getAllBills();
-  allCCBills.forEach(function(b) {
-    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
-    var billDate = null;
-    if (b.freq === 'monthly') {
-      for (var mo = 0; mo <= 1; mo++) {
-        var checkDate = new Date(today.getFullYear(), today.getMonth() - mo, b.day);
-        if (checkDate >= CC_CYCLE_START && checkDate <= today) { billDate = checkDate; break; }
-      }
-    } else if (b.freq === 'once' || b.freq === 'annual') {
-      var yr = b.year || today.getFullYear();
-      var od = new Date(yr, b.month, b.day);
-      if (od >= CC_CYCLE_START && od <= today) billDate = od;
-    } else if (b.freq === 'quarterly') {
-      // Check last 3 months for a quarterly hit within the cycle
-      // Must also verify the date falls on a valid quarterly occurrence
-      for (var qm = 0; qm <= 3; qm++) {
-        var qDate = new Date(today.getFullYear(), today.getMonth() - qm, b.day);
-        if (qDate >= CC_CYCLE_START && qDate <= today) {
-          // Verify this is a real quarterly occurrence using startMonth
-          var startMo = b.month !== undefined ? b.month : 0;
-          var _qBaseYear = b.startYear || (new Date()).getFullYear();
-          var monthDiff = (qDate.getFullYear() * 12 + qDate.getMonth()) - (_qBaseYear * 12 + startMo);
-          if (monthDiff >= 0 && monthDiff % 3 === 0) { billDate = qDate; break; }
-        }
-      }
-    }
-    if (!billDate) return;
-    var rounded = Math.round(b.amt * 100);
-    var idx = manualAmts.indexOf(rounded);
-    if (idx === -1) {
-      total += b.amt;
-    } else {
-      manualAmts.splice(idx, 1);
-    }
-  });
-
-  return Math.round(total * 100) / 100;
+  // Single source of truth: all CC spend in current billing cycle up to today
+  var today = new Date(); today.setHours(23, 59, 59, 999);
+  return getCCSpend(CC_CYCLE_START, CC_CYCLE_END, { cutoff: today });
 }
 
 function updateCCBalanceCard() {
@@ -3537,7 +3552,10 @@ function updateCCBalanceCard() {
 
   // Cycle label
   var cycleEl = document.getElementById('cc-cycle-label');
-  if (cycleEl) cycleEl.textContent = '4/12 – 5/11';
+  if (cycleEl) {
+    var _cycFmt = function(d) { return (d.getMonth()+1) + '/' + d.getDate(); };
+    cycleEl.textContent = _cycFmt(CC_CYCLE_START) + ' – ' + _cycFmt(CC_CYCLE_END);
+  }
 
   // App tracked this cycle
   var appEl = document.getElementById('cc-app-total');
@@ -3606,7 +3624,7 @@ function updateCCBalanceCard() {
         if (!e.pending) return;
         if (e.payMethod === 'checking' || e.payMethod === 'income') return;
         var d = new Date(e.ts);
-        if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) confirmedPending += e.amt;
+        if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) confirmedPending += Math.abs(e.amt);
       });
     });
     // Also add scheduled bills tagged as pending
