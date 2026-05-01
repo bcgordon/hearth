@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.4</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.5</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -1456,19 +1456,7 @@ async function enterApp() {
     await cloudSet(record);
     localStorage.removeItem('dismissed_events');
   }
-  // Migrate any localStorage bill overrides to Supabase
-  if (record) {
-    if (!record.billOverrides) record.billOverrides = {};
-    var migrated = false;
-    for (var k in localStorage) {
-      if (k.startsWith('bill_override_')) {
-        record.billOverrides[k] = parseFloat(localStorage.getItem(k));
-        localStorage.removeItem(k);
-        migrated = true;
-      }
-    }
-    if (migrated) await cloudSet(record);
-  }
+
   buildCategoryGrid(getCategorySpend());
   refreshMain();
   showScreen('screen-main');
@@ -2414,7 +2402,7 @@ async function historyNav(dir) {
     if (ev.billId && ev.type !== 'cc') {
       var d = ev.date;
       var bk = 'bill_override_' + ev.billId + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate();
-      var bo = localStorage.getItem(bk);
+      var bo = record && record.billOverrides && record.billOverrides[bk] !== undefined ? record.billOverrides[bk] : null;
       if (bo !== null) amt = parseFloat(bo);
     }
     if (ev.type === 'cc') {
@@ -2425,7 +2413,7 @@ async function historyNav(dir) {
         var ccYear = ev.date.getFullYear();
         var ccMonth = ev.date.getMonth();
         var ck = 'cc_override_' + ccYear + '_' + ccMonth;
-        var co = localStorage.getItem(ck);
+        var co = record && record.ccOverrides && record.ccOverrides[ck] !== undefined ? record.ccOverrides[ck] : null;
         amt = co ? parseFloat(co) : (getCCSpendForMonth(ccYear, ccMonth) || 3500);
       }
     }
@@ -3269,8 +3257,7 @@ function buildProjection() {
   today.setHours(0,0,0,0);
 
   // Anchor: use actual balance if set, otherwise fall back to STARTING_BALANCE
-  var anchorBalance = balActualBalance !== null ? balActualBalance :
-    (localStorage.getItem('bal_actual') ? parseFloat(localStorage.getItem('bal_actual')) : STARTING_BALANCE);
+  var anchorBalance = balActualBalance !== null ? balActualBalance : STARTING_BALANCE;
 
   // Fast-forward anchor to end of current month so future projections
   // start from a realistic balance (not mid-month depleted)
@@ -3311,7 +3298,7 @@ function buildProjection() {
         var ccYear = ev.date.getFullYear();
         var ccMonth = ev.date.getMonth();
         var overrideKey = 'cc_override_' + ccYear + '_' + ccMonth;
-        var override = localStorage.getItem(overrideKey);
+        var override = record && record.ccOverrides && record.ccOverrides[overrideKey];
         if (override) {
           amt = parseFloat(override);
         } else {
@@ -3336,9 +3323,7 @@ function buildProjection() {
     if (ev.billId && ev.type !== 'cc') {
       var d2 = ev.date;
       var billOverrideKey = 'bill_override_' + ev.billId + '_' + d2.getFullYear() + '_' + d2.getMonth() + '_' + d2.getDate();
-      var billOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined)
-        ? record.billOverrides[billOverrideKey]
-        : localStorage.getItem(billOverrideKey);
+      var billOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined) ? record.billOverrides[billOverrideKey] : null;
       if (billOverride !== null && billOverride !== undefined) {
         amt = parseFloat(billOverride);
         ev.amt = amt;
@@ -3453,11 +3438,9 @@ function updateCCBalanceCard() {
   // Prefer Supabase record, fall back to localStorage
   var cloudCC = record && record.ccBalance;
   if (cloudCC) {
-    localStorage.setItem('cc_actual_bal', cloudCC.amt);
-    localStorage.setItem('cc_actual_bal_date', cloudCC.updated);
   }
-  var saved = localStorage.getItem('cc_actual_bal');
-  var savedDate = localStorage.getItem('cc_actual_bal_date');
+  var saved = cloudCC ? cloudCC.amt : null;
+  var savedDate = cloudCC ? cloudCC.updated : null;
   var actualEl = document.getElementById('cc-actual-display');
   var infoEl = document.getElementById('cc-anchor-info');
   var inputEl = document.getElementById('cc-actual-input');
@@ -3644,8 +3627,7 @@ function onCCActualInput(val) {
   var n = parseFloat(clean);
   if (!isNaN(n) && n >= 0) {
     var ts = Date.now();
-    localStorage.setItem('cc_actual_bal', n);
-    localStorage.setItem('cc_actual_bal_date', ts);
+
     if (record) {
       record.ccBalance = { amt: n, updated: ts };
       cloudSet(record);
@@ -3657,14 +3639,8 @@ function onCCActualInput(val) {
 function updateBalHero() {
   // Prefer Supabase record, fall back to localStorage
   var cloudBal = record && record.balance;
-  var amt = cloudBal ? cloudBal.amt : parseFloat(localStorage.getItem('bal_actual'));
-  var ts = cloudBal ? cloudBal.updated : parseInt(localStorage.getItem('bal_actual_date'));
-
-  // Sync cloud value into localStorage for offline use
-  if (cloudBal) {
-    localStorage.setItem('bal_actual', cloudBal.amt);
-    localStorage.setItem('bal_actual_date', cloudBal.updated);
-  }
+  var amt = cloudBal ? cloudBal.amt : null;
+  var ts = cloudBal ? cloudBal.updated : null;
 
   var el = document.getElementById('bal-current-amount');
   var infoEl = document.getElementById('bal-anchor-info');
@@ -3691,8 +3667,6 @@ function onActualBalanceInput(val) {
   if (!isNaN(n) && n > 0) {
     balActualBalance = n;
     var ts = Date.now();
-    localStorage.setItem('bal_actual', n);
-    localStorage.setItem('bal_actual_date', ts);
     if (record) {
       record.balance = { amt: n, updated: ts };
       cloudSet(record);
@@ -3854,7 +3828,7 @@ function renderBalTimeline() {
     var ccEditBtn = '';
     if (ev.type === 'cc' && !ev.fixedAmt) {
       var overrideKey = 'cc_override_' + ev.ccYear + '_' + ev.ccMonth;
-      var hasOverride = localStorage.getItem(overrideKey);
+      var hasOverride = record && record.billOverrides && record.billOverrides[overrideKey] !== undefined ? record.billOverrides[overrideKey] : null;
       var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       var ccLabel = ev.ccYear !== undefined ? monthNames[ev.ccMonth] + ' ' + ev.ccYear : '';
       var isEstimate = getCCSpendForMonth(ev.ccYear, ev.ccMonth) === 0 && !hasOverride;
@@ -3864,9 +3838,7 @@ function renderBalTimeline() {
     if (ev.billId && ev.type !== 'in' && (ev.type !== 'cc' || ev.type === 'cc_bill')) {
       var d = ev.date;
       var billOverrideKey = 'bill_override_' + ev.billId + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate();
-      var hasBillOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined)
-        ? record.billOverrides[billOverrideKey]
-        : localStorage.getItem(billOverrideKey);
+      var hasBillOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined) ? record.billOverrides[billOverrideKey] : null;
       var billEditLabel = hasBillOverride ? 'edit' : 'edit';
       ccEditBtn += ' <button onclick="editBillEvent(\'' + ev.billId + '\',' + d.getFullYear() + ',' + d.getMonth() + ',' + d.getDate() + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:6px 10px;min-height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">edit</button>';
     }
@@ -3941,21 +3913,23 @@ function amtModalSave() {
   _amtModalCallback = null;
 }
 
-function editCCPayment(year, month, currentAmt) {
+async function editCCPayment(year, month, currentAmt) {
   var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var label = monthNames[month] + ' ' + year;
-  showAmtModal('CC payment — ' + label, 'Leave blank and tap Reset to use actual entries or $6,000 estimate', currentAmt, function(val) {
+  showAmtModal('CC payment — ' + label, 'Leave blank and tap Reset to use actual entries or $6,000 estimate', currentAmt, async function(val) {
+    if (!record.ccOverrides) record.ccOverrides = {};
     var overrideKey = 'cc_override_' + year + '_' + month;
     if (val === '' || val === '0') {
-      localStorage.removeItem(overrideKey);
+      delete record.ccOverrides[overrideKey];
       toast('Reset to actual/estimate');
     } else {
       var n = parseFloat(String(val).replace(/[$,]/g,''));
       if (!isNaN(n) && n > 0) {
-        localStorage.setItem(overrideKey, n);
+        record.ccOverrides[overrideKey] = n;
         toast('CC payment updated');
       }
     }
+    await cloudSet(record);
     refreshBalance();
   });
 }
@@ -4017,7 +3991,6 @@ async function editBillEvent(billId, year, month, day, currentAmt) {
     if (!record.billPending) record.billPending = {};
     delete record.billOverrides[billOverrideKey];
     delete record.billPending[billPendingKey];
-    localStorage.removeItem(billOverrideKey);
     await cloudSet(record);
     refreshBalance();
     toast('Reset to scheduled amount');
@@ -4032,7 +4005,6 @@ async function editBillEvent(billId, year, month, day, currentAmt) {
     var n = parseFloat(String(val).replace(/[$,]/g,''));
     if (!isNaN(n) && n >= 0 && n !== currentAmt) {
       record.billOverrides[billOverrideKey] = n;
-      localStorage.setItem(billOverrideKey, n);
     }
     if (pending) {
       record.billPending[billPendingKey] = true;
