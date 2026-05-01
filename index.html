@@ -2354,10 +2354,12 @@ async function eeSave() {
 }
 
 async function historyNav(dir) {
-  if (historyView === 'month') {
-    historyMonthOffset += dir;
-  } else {
-    historyQOffset += dir;
+  if (dir !== undefined) {
+    if (historyView === 'month') {
+      historyMonthOffset += dir;
+    } else {
+      historyQOffset += dir;
+    }
   }
 
   const fresh = await cloudGet(); if (fresh) { record = fresh; config = record.config; }
@@ -3430,7 +3432,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.1.5';
+var APP_VERSION = 'v3.1.7';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
@@ -3997,7 +3999,11 @@ async function toggleBillPending(billId, year, month, day) {
     toast('⏳ Marked as pending');
   }
   await cloudSet(record);
-  historyNav();
+  // Only re-render if we're currently on the history screen
+  var _histScreen = document.getElementById('screen-history');
+  if (_histScreen && _histScreen.classList.contains('active')) {
+    await historyNav();
+  }
   updateCCBalanceCard();
 }
 
