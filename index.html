@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.2</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.3</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3471,9 +3471,15 @@ function getCCAppTotal() {
       if (od >= CC_CYCLE_START && od <= today) billDate = od;
     } else if (b.freq === 'quarterly') {
       // Check last 3 months for a quarterly hit within the cycle
+      // Must also verify the date falls on a valid quarterly occurrence
       for (var qm = 0; qm <= 3; qm++) {
         var qDate = new Date(today.getFullYear(), today.getMonth() - qm, b.day);
-        if (qDate >= CC_CYCLE_START && qDate <= today) { billDate = qDate; break; }
+        if (qDate >= CC_CYCLE_START && qDate <= today) {
+          // Verify this is a real quarterly occurrence using startMonth
+          var startMo = b.month !== undefined ? b.month : 0;
+          var monthDiff = (qDate.getFullYear() * 12 + qDate.getMonth()) - (2026 * 12 + startMo);
+          if (monthDiff >= 0 && monthDiff % 3 === 0) { billDate = qDate; break; }
+        }
       }
     }
     if (!billDate) return;
