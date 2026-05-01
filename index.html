@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.0.9</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.1</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -2482,6 +2482,7 @@ async function historyNav(dir) {
       isBill: true,
       isTransfer: ev.isTransfer || false,
       billId: ev.billId || null,
+      paidBy: ev.paidBy || null,
     });
   });
 
@@ -2637,6 +2638,8 @@ async function historyNav(dir) {
       color = 'var(--coral)'; sign = '-'; label = '🏦';
     } else if (isTransfer) {
       color = 'var(--sun)'; sign = ''; label = '⇄';
+    } else if (isScheduledOut && r.paidBy === 'cc') {
+      color = 'var(--sky-dim)'; sign = '-'; label = '💳';
     } else if (isScheduledOut) {
       color = 'var(--coral)'; sign = '-'; label = '↑';
     } else {
@@ -2644,7 +2647,10 @@ async function historyNav(dir) {
     }
 
     row.setAttribute('data-name', r.name + ' ' + (r.note || ''));
-    var pendingBadge = r.pending ? '<span style="font-size:11px;background:var(--sun-bg);color:var(--sun-dim);border:1px solid var(--sun);border-radius:4px;padding:1px 5px;margin-left:4px">⏳ pending</span>' : '';
+    // Check bill pending status
+    var billPendingKey = r.billId ? 'bill_pending_' + r.billId + '_' + (r.date ? r.date.getFullYear() + '_' + r.date.getMonth() + '_' + r.date.getDate() : '') : null;
+    var isBillPending = billPendingKey && record.billPending && record.billPending[billPendingKey];
+    var pendingBadge = (r.pending || isBillPending) ? '<span style="font-size:11px;background:var(--sun-bg);color:var(--sun-dim);border:1px solid var(--sun);border-radius:4px;padding:1px 5px;margin-left:4px">⏳ pending</span>' : '';
     var fundBadge = '';
     if (r.fundCoverage) {
       var fundNames = { medical: 'Medical fund', home: 'Home fund', travel: 'Travel fund', big: 'Big purchases fund' };
@@ -3166,7 +3172,7 @@ function getScheduledEvents() {
             // Respect startMonth/startYear if set
             var startOk = (!b.startMonth && !b.startYear) || new Date(b.startYear || 2026, b.startMonth || 0, 1) <= dd;
             if (dd > start && dd <= end && b.paidBy !== 'cc' && startOk)
-              events.push({ date: dd, name: b.name, amt: b.amt, type: b.type, billId: b.id, isTransfer: b.isTransfer || false });
+              events.push({ date: dd, name: b.name, amt: b.amt, type: b.type, billId: b.id, isTransfer: b.isTransfer || false, paidBy: b.paidBy || null });
           } catch(e) {}
         }
       }
@@ -3182,7 +3188,7 @@ function getScheduledEvents() {
       }
       while (wkD <= end) {
         if (wkD > start)
-          events.push({ date: new Date(wkD), name: b.name, amt: b.amt, type: b.type, billId: b.id });
+          events.push({ date: new Date(wkD), name: b.name, amt: b.amt, type: b.type, billId: b.id, paidBy: b.paidBy || null });
         wkD.setDate(wkD.getDate() + 7);
       }
     }
@@ -3191,7 +3197,7 @@ function getScheduledEvents() {
       var bwD = new Date(bwStart);
       while (bwD <= end) {
         if (bwD > start)
-          events.push({ date: new Date(bwD), name: b.name, amt: b.amt, type: b.type, billId: b.id });
+          events.push({ date: new Date(bwD), name: b.name, amt: b.amt, type: b.type, billId: b.id, paidBy: b.paidBy || null });
         bwD.setDate(bwD.getDate() + 14);
       }
     }
@@ -3200,7 +3206,7 @@ function getScheduledEvents() {
       for (var ay = 2026; ay <= 2027; ay++) {
         var ad = new Date(ay, b.month, b.day);
         if (ad > start && ad <= end)
-          events.push({ date: ad, name: b.name, amt: b.amt, type: b.type, billId: b.id });
+          events.push({ date: ad, name: b.name, amt: b.amt, type: b.type, billId: b.id, paidBy: b.paidBy || null });
       }
     }
 
@@ -3210,14 +3216,14 @@ function getScheduledEvents() {
         var qy = 2026 + Math.floor(((b.month || 0) + qi * 3) / 12);
         var qd = new Date(qy, qm, b.day);
         if (qd > start && qd <= end)
-          events.push({ date: qd, name: b.name, amt: b.amt, type: b.type, billId: b.id });
+          events.push({ date: qd, name: b.name, amt: b.amt, type: b.type, billId: b.id, paidBy: b.paidBy || null });
       }
     }
 
     else if (b.freq === 'once') {
       var od = new Date(b.year, b.month, b.day);
       if (od > start && od <= end)
-        events.push({ date: od, name: b.name, amt: b.amt, type: b.type, billId: b.id, isTransfer: b.isTransfer || false });
+        events.push({ date: od, name: b.name, amt: b.amt, type: b.type, billId: b.id, isTransfer: b.isTransfer || false, paidBy: b.paidBy || null });
     }
   }
 
@@ -3549,6 +3555,25 @@ function updateCCBalanceCard() {
         if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) confirmedPending += e.amt;
       });
     });
+    // Also add scheduled bills tagged as pending
+    if (record.billPending) {
+      Object.keys(record.billPending).forEach(function(key) {
+        if (!record.billPending[key]) return;
+        // key format: bill_pending_BILLID_YEAR_MONTH_DAY
+        var parts = key.split('_');
+        if (parts.length < 5) return;
+        var yr = parseInt(parts[parts.length-3]);
+        var mo = parseInt(parts[parts.length-2]);
+        var dy = parseInt(parts[parts.length-1]);
+        var billDate = new Date(yr, mo, dy);
+        if (billDate >= CC_CYCLE_START && billDate <= CC_CYCLE_END) {
+          // Find the bill amount
+          var billId = parts.slice(2, parts.length-3).join('_');
+          var bill = getAllBills().find(function(b) { return b.id === billId; });
+          if (bill && bill.paidBy === 'cc') confirmedPending += bill.amt;
+        }
+      });
+    }
     var pendingEl = document.getElementById('cc-confirmed-pending');
     if (pendingEl) pendingEl.textContent = confirmedPending > 0 ? fmt(confirmedPending) : '$0';
     var pendingDeltaEl = document.getElementById('cc-pending-delta');
@@ -3979,25 +4004,71 @@ function editCCPayment(year, month, currentAmt) {
 
 async function editBillEvent(billId, year, month, day, currentAmt) {
   var billOverrideKey = 'bill_override_' + billId + '_' + year + '_' + month + '_' + day;
+  var billPendingKey = 'bill_pending_' + billId + '_' + year + '_' + month + '_' + day;
   var d = new Date(year, month, day);
   var label = (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
-  showAmtModal('Edit amount — ' + label, 'This month only. Tap Reset to restore the scheduled amount.', currentAmt, async function(val) {
+  var isPending = record.billPending && record.billPending[billPendingKey];
+
+  // Build custom modal with amount + pending toggle
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+  
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:var(--surface);border-radius:var(--radius);padding:20px;width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.2)';
+  modal.innerHTML =
+    '<div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">Edit bill — ' + label + '</div>' +
+    '<div style="font-size:13px;color:var(--text-3);margin-bottom:16px">Changes apply to this occurrence only</div>' +
+    '<label style="font-size:14px;color:var(--text-2);display:block;margin-bottom:6px">Amount</label>' +
+    '<input id="bill-edit-amt" type="text" inputmode="decimal" value="' + currentAmt + '" style="width:100%;font-size:18px;font-weight:600;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:inherit;box-sizing:border-box;margin-bottom:16px">' +
+    '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;color:var(--text-2);margin-bottom:20px">' +
+      '<input type="checkbox" id="bill-edit-pending" ' + (isPending ? 'checked' : '') + ' style="width:20px;height:20px;cursor:pointer">' +
+      '<span>⏳ Pending — not yet posted to Capital One</span>' +
+    '</label>' +
+    '<div style="display:flex;gap:10px">' +
+      '<button id="bill-edit-reset" style="flex:1;padding:12px;font-size:15px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text-3);cursor:pointer;font-family:inherit">Reset</button>' +
+      '<button id="bill-edit-cancel" style="flex:1;padding:12px;font-size:15px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text-2);cursor:pointer;font-family:inherit">Cancel</button>' +
+      '<button id="bill-edit-save" style="flex:1;padding:12px;font-size:15px;border:none;border-radius:10px;background:var(--coral);color:white;cursor:pointer;font-family:inherit;font-weight:600">Save</button>' +
+    '</div>';
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  document.getElementById('bill-edit-amt').select();
+
+  document.getElementById('bill-edit-cancel').onclick = function() { overlay.remove(); };
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  document.getElementById('bill-edit-reset').onclick = async function() {
+    overlay.remove();
     if (!record.billOverrides) record.billOverrides = {};
-    if (val === '' || val === '0') {
-      delete record.billOverrides[billOverrideKey];
-      localStorage.removeItem(billOverrideKey);
-      toast('Reset to scheduled amount');
+    if (!record.billPending) record.billPending = {};
+    delete record.billOverrides[billOverrideKey];
+    delete record.billPending[billPendingKey];
+    localStorage.removeItem(billOverrideKey);
+    await cloudSet(record);
+    refreshBalance();
+    toast('Reset to scheduled amount');
+  };
+
+  document.getElementById('bill-edit-save').onclick = async function() {
+    var val = document.getElementById('bill-edit-amt').value;
+    var pending = document.getElementById('bill-edit-pending').checked;
+    overlay.remove();
+    if (!record.billOverrides) record.billOverrides = {};
+    if (!record.billPending) record.billPending = {};
+    var n = parseFloat(String(val).replace(/[$,]/g,''));
+    if (!isNaN(n) && n >= 0 && n !== currentAmt) {
+      record.billOverrides[billOverrideKey] = n;
+      localStorage.setItem(billOverrideKey, n);
+    }
+    if (pending) {
+      record.billPending[billPendingKey] = true;
     } else {
-      var n = parseFloat(String(val).replace(/[$,]/g,''));
-      if (!isNaN(n) && n >= 0) {
-        record.billOverrides[billOverrideKey] = n;
-        localStorage.setItem(billOverrideKey, n);
-        toast('Amount updated for this month only');
-      }
+      delete record.billPending[billPendingKey];
     }
     await cloudSet(record);
     refreshBalance();
-  });
+    toast(pending ? '⏳ Marked as pending' : 'Bill updated');
+  };
 }
 
 function renderCashflowGrid() {
