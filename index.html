@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v2.1.6</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.0</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -1509,6 +1509,7 @@ function selectUser(u) {
 function clearAddErr() { document.getElementById('add-err').style.display = 'none'; }
 
 function getCurrentQuarterKey() { const d = new Date(); return d.getFullYear() + '_Q' + (Math.floor(d.getMonth() / 3) + 1); }
+function getQuarterKeyForDate(d) { return d.getFullYear() + '_Q' + (Math.floor(d.getMonth() / 3) + 1); }
 
 function getQuarterKeyOffset(offset) {
   const d = new Date(); let m = d.getMonth() + offset * 3; let y = d.getFullYear();
@@ -2393,9 +2394,10 @@ async function historyNav(dir) {
     // CC billing cycle — April 12 to May 11
     qStart = new Date(CC_CYCLE_START);
     qEnd = new Date(CC_CYCLE_END);
-    qYear = 2026; qStartMonth = 3; // April
-    key = '2026_Q2';
-    document.getElementById('history-label').textContent = '4/12 – 5/11';
+    qYear = CC_CYCLE_START.getFullYear(); qStartMonth = CC_CYCLE_START.getMonth();
+    key = getQuarterKeyForDate(CC_CYCLE_START);
+    var _cycleLabel = (CC_CYCLE_START.getMonth()+1) + '/' + CC_CYCLE_START.getDate() + ' – ' + (CC_CYCLE_END.getMonth()+1) + '/' + CC_CYCLE_END.getDate();
+    document.getElementById('history-label').textContent = _cycleLabel;
     document.querySelector('.hist-nav').style.display = 'none';
     var drillBack2 = document.getElementById('hist-drill-back'); if (drillBack2) { drillBack2.style.display = ''; drillBack2.dataset.dest = historyBackTo || 'screen-main'; }
     var catFilters2 = document.getElementById('hist-cat-filters'); if (catFilters2) catFilters2.style.display = 'none';
@@ -2513,7 +2515,7 @@ async function historyNav(dir) {
     } else if (b.freq === 'quarterly') {
       for (var qi = 0; qi < 8; qi++) {
         var qm2 = ((b.month || 0) + qi * 3) % 12;
-        var qy2 = 2026 + Math.floor(((b.month || 0) + qi * 3) / 12);
+        var qy2 = (new Date()).getFullYear() + Math.floor(((b.month || 0) + qi * 3) / 12);
         var qd2 = new Date(qy2, qm2, b.day);
         if (qd2 >= qStart && qd2 <= qEnd) {
           rows.push({ date: qd2, name: b.name, note: 'CC billed', amt: b.amt, type: 'cc_bill', isPast: qd2 <= today, isBill: true });
@@ -3125,8 +3127,9 @@ function parseDateLocal(s) {
 
 function getScheduledEvents() {
   var events = [];
-  var start = new Date(2026, 2, 1); // March 1 2026
-  var end   = new Date(2027, 3, 10);
+  var _now = new Date();
+  var start = new Date(_now.getFullYear(), _now.getMonth() - 2, 1); // 2 months back
+  var end   = new Date(_now.getFullYear() + 1, _now.getMonth() + 1, 28); // 13 months forward
 
   function adjWknd(d, fwd) {
     var dd = new Date(d);
@@ -3140,21 +3143,18 @@ function getScheduledEvents() {
   // (bi-weekly and semi-monthly paychecks are in DEFAULT_BILLS and editable)
 
   // ── CC AUTO-PAY ─────────────────────────────────────────────────────────
-  events.push({ date: new Date(2026, 4, 6), name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
-  // Recurring CC payment on 6th from June onward (until Capital One confirms date change)
-  for (var cm = 5; cm <= 14; cm++) {
-    var cmy = 2026 + Math.floor(cm / 12);
-    var cmm = cm % 12;
-    var cd6 = new Date(cmy, cmm, 6);
-    if (cd6 > start && cd6 <= end)
-      events.push({ date: cd6, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
-  }
-  // 19th payments start May 2026 — May 19 shows with 'est.' button for manual override
-  for (var y3 = 2026; y3 <= 2027; y3++) {
-    for (var m3 = 0; m3 < 12; m3++) {
-      var d19 = new Date(y3, m3, 19);
-
-    }
+  // Fixed $6,000 final payment on May 6 2026
+  var _may6 = new Date(2026, 4, 6);
+  if (_may6 > start && _may6 <= end)
+    events.push({ date: _may6, name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
+  // Recurring CC payment on 6th — dynamic from June 2026 onward
+  var _ccPayStart = new Date(2026, 5, 1); // June 2026
+  var _ccD = new Date(_ccPayStart);
+  while (_ccD <= end) {
+    var _ccPay = new Date(_ccD.getFullYear(), _ccD.getMonth(), 6);
+    if (_ccPay > start && _ccPay <= end)
+      events.push({ date: _ccPay, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
+    _ccD.setMonth(_ccD.getMonth() + 1);
   }
 
   // ── BILLS FROM getAllBills() ─────────────────────────────────────────────
@@ -3163,7 +3163,8 @@ function getScheduledEvents() {
     var b = bills[bi];
 
     if (b.freq === 'monthly') {
-      for (var y2 = 2026; y2 <= 2027; y2++) {
+      var _projStartYear = (new Date()).getFullYear();
+  for (var y2 = _projStartYear; y2 <= _projStartYear + 1; y2++) {
         for (var m2 = 0; m2 < 12; m2++) {
           try {
             var dd;
@@ -3208,7 +3209,8 @@ function getScheduledEvents() {
     }
 
     else if (b.freq === 'annual') {
-      for (var ay = 2026; ay <= 2027; ay++) {
+      var _ayStart = (new Date()).getFullYear();
+      for (var ay = _ayStart; ay <= _ayStart + 1; ay++) {
         var ad = new Date(ay, b.month, b.day);
         if (ad > start && ad <= end)
           events.push({ date: ad, name: b.name, amt: b.amt, type: b.type, billId: b.id, paidBy: b.paidBy || null });
@@ -3218,7 +3220,7 @@ function getScheduledEvents() {
     else if (b.freq === 'quarterly') {
       for (var qi = 0; qi < 8; qi++) {
         var qm = ((b.month || 0) + qi * 3) % 12;
-        var qy = 2026 + Math.floor(((b.month || 0) + qi * 3) / 12);
+        var qy = (new Date()).getFullYear() + Math.floor(((b.month || 0) + qi * 3) / 12);
         var qd = new Date(qy, qm, b.day);
         if (qd > start && qd <= end)
           events.push({ date: qd, name: b.name, amt: b.amt, type: b.type, billId: b.id, paidBy: b.paidBy || null });
@@ -3437,8 +3439,33 @@ async function refreshBalance() {
 // ── CC BALANCE CARD ──────────────────────────────────────────────────────────
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
-var CC_CYCLE_START = new Date(2026, 3, 12); // April 12
-var CC_CYCLE_END   = new Date(2026, 4, 11, 23, 59, 59); // May 11
+// ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
+// The billing cycle runs from the 12th of one month to the 11th of the next.
+// Update CC_CYCLE_DAY if Capital One changes the billing date.
+var CC_CYCLE_DAY = 12; // cycle starts on the 12th of each month
+
+function getCCCycle() {
+  var today = new Date();
+  var day = today.getDate();
+  var month = today.getMonth();
+  var year = today.getFullYear();
+  // If today is before the cycle day, current cycle started last month
+  var cycleStartMonth = day < CC_CYCLE_DAY ? month - 1 : month;
+  var cycleStartYear = year;
+  if (cycleStartMonth < 0) { cycleStartMonth = 11; cycleStartYear--; }
+  var start = new Date(cycleStartYear, cycleStartMonth, CC_CYCLE_DAY);
+  // Cycle ends on day before CC_CYCLE_DAY of the following month
+  var endMonth = cycleStartMonth + 1;
+  var endYear = cycleStartYear;
+  if (endMonth > 11) { endMonth = 0; endYear++; }
+  var end = new Date(endYear, endMonth, CC_CYCLE_DAY - 1, 23, 59, 59);
+  return { start: start, end: end };
+}
+
+// Compute once at load time — used throughout
+var _ccCycle = getCCCycle();
+var CC_CYCLE_START = _ccCycle.start;
+var CC_CYCLE_END   = _ccCycle.end;
 
 function getCCAppTotal() {
   var today = new Date(); today.setHours(0,0,0,0);
@@ -3446,7 +3473,9 @@ function getCCAppTotal() {
   // Sum all manually logged CC-method entries within the current billing cycle
   var total = 0;
   var manualAmts = []; // track manual entry amounts to avoid double-counting
-  ['2026_Q2'].forEach(function(qKey) {
+  var _ccAppQKeys = [getQuarterKeyForDate(CC_CYCLE_START), getQuarterKeyForDate(CC_CYCLE_END)];
+  _ccAppQKeys = _ccAppQKeys.filter(function(k, i, a) { return a.indexOf(k) === i; });
+  _ccAppQKeys.forEach(function(qKey) {
     var entries = loadEntries(qKey);
     entries.forEach(function(e) {
       if (e.payMethod === 'checking' || e.payMethod === 'income') return;
@@ -3482,7 +3511,8 @@ function getCCAppTotal() {
         if (qDate >= CC_CYCLE_START && qDate <= today) {
           // Verify this is a real quarterly occurrence using startMonth
           var startMo = b.month !== undefined ? b.month : 0;
-          var monthDiff = (qDate.getFullYear() * 12 + qDate.getMonth()) - (2026 * 12 + startMo);
+          var _qBaseYear = b.startYear || (new Date()).getFullYear();
+          var monthDiff = (qDate.getFullYear() * 12 + qDate.getMonth()) - (_qBaseYear * 12 + startMo);
           if (monthDiff >= 0 && monthDiff % 3 === 0) { billDate = qDate; break; }
         }
       }
@@ -3568,7 +3598,9 @@ function updateCCBalanceCard() {
     }
     // Confirmed pending — sum of entries tagged as pending in current cycle
     var confirmedPending = 0;
-    ['2026_Q2'].forEach(function(qKey) {
+    var _pendQKeys = [getQuarterKeyForDate(CC_CYCLE_START), getQuarterKeyForDate(CC_CYCLE_END)];
+    _pendQKeys = _pendQKeys.filter(function(k, i, a) { return a.indexOf(k) === i; });
+    _pendQKeys.forEach(function(qKey) {
       var entries = loadEntries(qKey);
       entries.forEach(function(e) {
         if (!e.pending) return;
