@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.0</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.0.1</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -625,7 +625,7 @@ textarea { resize: none; }
   <div class="progress-track" style="margin-bottom:10px">
     <div id="bar-e" class="prog-e" style="width:0%"></div>
     <div id="bar-n" class="prog-n" style="width:0%"></div>
-    <div id="bar-f" style="height:100%;width:0%;background:var(--sky-dim);transition:width 0.4s"></div>
+
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
     <div style="text-align:center;cursor:pointer" onclick="showTypeRegister('essential')">
@@ -2072,7 +2072,8 @@ function refreshMain() {
   // Progress bar — three segments: essential, non-essential, fixed CC bills
   var pctE = ccCeiling > 0 ? Math.min(totE / ccCeiling * 100, 100) : 0;
   var pctN = ccCeiling > 0 ? Math.min(totN / ccCeiling * 100, 100 - pctE) : 0;
-  var pctF = ccCeiling > 0 ? Math.min(fixedCCTotal / ccCeiling * 100, 100 - pctE - pctN) : 0;
+  // bar-f removed — progress bar shows only essential + non-essential
+
 
   // Month label
   var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -2080,8 +2081,7 @@ function refreshMain() {
   document.getElementById('dash-month-budget-label').textContent = fmt(ccCeiling) + '/mo CC target';
   document.getElementById('bar-e').style.width = pctE.toFixed(1) + '%';
   document.getElementById('bar-n').style.width = pctN.toFixed(1) + '%';
-  var barF = document.getElementById('bar-f');
-  if (barF) barF.style.width = pctF.toFixed(1) + '%';
+
   document.getElementById('lbl-e').textContent = fmt(totE);
   document.getElementById('lbl-n').textContent = fmt(totN);
   // Essential/Non-essential budget totals for sub-labels
