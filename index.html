@@ -565,7 +565,7 @@ textarea { resize: none; }
 <div class="lock-title">Hearth</div>
 <div class="lock-sub" style="font-style:italic;color:var(--text-3);font-size:15px;margin-top:-16px;margin-bottom:4px">where the budget lives</div>
 <div class="lock-sub">Enter your household code to continue</div>
-<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.1.0</div>
+<div style="font-size:11px;color:var(--text-3);margin-top:8px">v3.1.1</div>
 </div>
 <div class="lock-form">
 <input id="code-input" type="password" name="password" autocomplete="current-password" placeholder="household code..." style="text-align:center;letter-spacing:0.1em" />
@@ -3367,11 +3367,11 @@ var allScheduledEvents = [];
 async function refreshBalance() {
   const fresh = await cloudGet();
   if (fresh) { record = fresh; config = record.config; }
-  balProjection = buildProjection();
+  updateBalHero();              // set balActualBalance first
+  balProjection = buildProjection(); // then build projection with correct anchor
   renderBalChart();
   renderBalTimeline();
   renderDangerAlerts();
-  updateBalHero();
   updateCCBalanceCard();
   renderCashflowGrid();
 }
