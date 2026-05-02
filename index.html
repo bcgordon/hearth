@@ -3445,7 +3445,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.1.9';
+var APP_VERSION = 'v3.2.0';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
@@ -3546,6 +3546,9 @@ function updateCCBalanceCard() {
       } else {
         trackedDeltaEl.textContent = fmt(Math.abs(delta)) + ' pending';
         trackedDeltaEl.style.color = 'var(--sky-dim)';
+        trackedDeltaEl.style.cursor = 'pointer';
+        trackedDeltaEl.style.textDecoration = 'underline dotted';
+        trackedDeltaEl.onclick = showAppTrackedPendingDetail;
       }
     }
     // Confirmed pending — sum of entries tagged as pending in current cycle
@@ -3740,6 +3743,73 @@ function showPendingRegister() {
   modal.className = 'pending-overlay';
   overlay.appendChild(modal);
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function showAppTrackedPendingDetail() {
+  var fmt = function(n) { return '$' + Math.abs(n).toFixed(2); };
+  var items = [];
+  var total = 0;
+
+  // Manual CC entries in current cycle
+  var qKeys = [getQuarterKeyForDate(CC_CYCLE_START), getQuarterKeyForDate(CC_CYCLE_END)];
+  qKeys.filter(function(k,i,a){return a.indexOf(k)===i;}).forEach(function(qKey){
+    loadEntries(qKey).forEach(function(e){
+      if (e.payMethod === 'checking' || e.payMethod === 'income') return;
+      var d = new Date(e.ts);
+      if (d >= CC_CYCLE_START && d <= CC_CYCLE_END) {
+        items.push({ date: d, name: e.note || e.cat || 'Entry', amt: Math.abs(e.amt), type: 'entry' });
+        total += Math.abs(e.amt);
+      }
+    });
+  });
+
+  // Scheduled CC bills in current cycle up to today
+  var today = new Date(); today.setHours(23,59,59,999);
+  getAllBills().forEach(function(b){
+    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0) return;
+    var occs = getBillOccurrencesInRange(b, CC_CYCLE_START, CC_CYCLE_END);
+    occs.forEach(function(occDate){
+      if (occDate > today) return;
+      items.push({ date: occDate, name: b.name, amt: b.amt, type: 'bill' });
+      total += b.amt;
+    });
+  });
+
+  // Sort by date
+  items.sort(function(a,b){ return a.date - b.date; });
+
+  // Build modal
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center';
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;padding:20px;width:100%;max-width:500px;max-height:80vh;overflow-y:auto';
+
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+  html += '<div style="font-size:18px;font-weight:600;color:var(--text)">💳 App Tracked This Cycle</div>';
+  html += '<button onclick="document.querySelector(\'.app-tracked-overlay\').remove()" style="font-size:22px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:0 4px">×</button>';
+  html += '</div>';
+
+  items.forEach(function(item){
+    var dateStr = (item.date.getMonth()+1) + '/' + item.date.getDate();
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">';
+    html += '<div>';
+    html += '<div style="font-size:15px;color:var(--text)">' + item.name + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-3)">' + dateStr + ' · ' + (item.type === 'bill' ? '📅 scheduled' : '✏️ manual') + '</div>';
+    html += '</div>';
+    html += '<div style="font-size:15px;font-weight:600;color:var(--sky)">' + fmt(item.amt) + '</div>';
+    html += '</div>';
+  });
+
+  html += '<div style="display:flex;justify-content:space-between;padding:12px 0;margin-top:4px">';
+  html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Total</span>';
+  html += '<span style="font-size:17px;font-weight:700;color:var(--sky)">' + fmt(total) + '</span>';
+  html += '</div>';
+
+  modal.innerHTML = html;
+  modal.className = 'app-tracked-overlay';
+  overlay.appendChild(modal);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
   document.body.appendChild(overlay);
 }
 
