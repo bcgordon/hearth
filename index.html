@@ -3334,7 +3334,7 @@ function buildProjection() {
     if (dismissed[pevKey]) continue;
     var pevAmt = pev.amt || 0;
     if (pev.type === 'in') projectedEndOfMonth += pevAmt;
-    else if (pev.type !== 'cc') projectedEndOfMonth -= pevAmt; // exclude CC payments
+    else projectedEndOfMonth -= pevAmt; // include CC payments — they come from checking
   }
 
   var balance = anchorBalance;
@@ -3446,7 +3446,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.2.1';
+var APP_VERSION = 'v3.2.2';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
