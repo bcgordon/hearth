@@ -1046,6 +1046,7 @@ textarea { resize: none; }
   <button id="hist-view-q" class="pill sel-e" onclick="setHistoryView('quarter')">Quarter</button>
   <button id="hist-view-m" class="pill" onclick="setHistoryView('month')">Month</button>
   <button id="hist-view-cc" class="pill" onclick="setHistoryView('cccycle')">CC Cycle</button>
+  <button id="hist-view-pl" class="pill" onclick="setHistoryView('pl')">P&amp;L</button>
 </div>
 <div id="hist-cat-filters" style="display:none;justify-content:center;gap:8px;margin-bottom:14px">
   <button id="hist-cat-e" class="pill" onclick="toggleCatTypeFilter('essential')">Essential</button>
@@ -1374,7 +1375,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type') { historyQOffset = 0; historyMonthOffset = 0; historyView = historyView || 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); historyNav(0); }
+  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type' && historyView !== 'pl') { historyQOffset = 0; historyMonthOffset = 0; historyView = historyView || 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var plP = document.getElementById('hist-view-pl'); if (plP) plP.className = 'pill' + (historyView === 'pl' ? ' sel-e' : ''); if (historyView === 'pl') { renderPLView(); } else { historyNav(0); } }
   if (id === 'screen-budget') { renderBudgetScreen(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -2177,8 +2178,178 @@ function setHistoryView(view) {
   document.getElementById('hist-view-q').className = 'pill' + (view === 'quarter' ? ' sel-e' : '');
   document.getElementById('hist-view-m').className = 'pill' + (view === 'month' ? ' sel-e' : '');
   var ccPill = document.getElementById('hist-view-cc'); if (ccPill) ccPill.className = 'pill' + (view === 'cccycle' ? ' sel-n' : '');
+  var plPill = document.getElementById('hist-view-pl'); if (plPill) plPill.className = 'pill' + (view === 'pl' ? ' sel-e' : '');
   var hs = document.getElementById('history-search'); if (hs) hs.value = '';
+  if (view === 'pl') { renderPLView(); return; }
   historyNav(0);
+}
+
+// ── P&L VIEW ─────────────────────────────────────────────────────────────────
+var plMonthOffset = 0;
+
+function renderPLView() {
+  var fmt = function(n) { return '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); };
+  var fmtR = function(n) { return (n >= 0 ? '+' : '-') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); };
+
+  // Update nav display
+  var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + plMonthOffset);
+  var yr = d.getFullYear(); var mo = d.getMonth();
+  var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var monthFrom = new Date(yr, mo, 1);
+  var monthTo = new Date(yr, mo + 1, 0, 23, 59, 59);
+
+  document.getElementById('history-label').textContent = mn[mo] + ' ' + yr;
+  document.querySelector('.hist-nav').style.display = '';
+  var catFilters = document.getElementById('hist-cat-filters'); if (catFilters) catFilters.style.display = 'none';
+  var drillBack = document.getElementById('hist-drill-back'); if (drillBack) drillBack.style.display = 'none';
+
+  // ── INCOME ────────────────────────────────────────────────────────────────
+  var scheduledIncome = 0;
+  var manualIncome = 0;
+  var incomeItems = [];
+
+  // Scheduled paychecks
+  getAllBills().forEach(function(b) {
+    if (b.type !== 'in' || b.amt <= 0) return;
+    var occs = getBillOccurrencesInRange(b, monthFrom, monthTo);
+    occs.forEach(function(occDate) {
+      scheduledIncome += b.amt;
+      incomeItems.push({ name: b.name, amt: b.amt, date: occDate, tag: 'paycheck' });
+    });
+  });
+
+  // Manually logged income
+  var qKey = getQuarterKeyForDate(monthFrom);
+  loadEntries(qKey).forEach(function(e) {
+    if (e.payMethod !== 'income') return;
+    var ed = new Date(e.ts);
+    if (ed < monthFrom || ed > monthTo) return;
+    manualIncome += e.amt;
+    incomeItems.push({ name: e.note || 'Income', amt: e.amt, date: ed, tag: 'manual' });
+  });
+
+  var totalIncome = scheduledIncome + manualIncome;
+
+  // ── EXPENSES ──────────────────────────────────────────────────────────────
+  var ccDiscretionary = 0, ccScheduled = 0, checkingBillsTotal = 0;
+  var expItems = [];
+  var SKIP_CATS = { 'CC Payment': true };
+
+  // Manual CC entries
+  loadEntries(qKey).forEach(function(e) {
+    if (e.payMethod === 'income') return;
+    if (e.payMethod === 'checking' && SKIP_CATS[e.cat]) return; // skip CC payments
+    if (e.fundCoverage) return; // skip fund-covered (savings)
+    if (e.isTransfer) return;
+    var ed = new Date(e.ts);
+    if (ed < monthFrom || ed > monthTo) return;
+    if (e.amt <= 0) return; // skip credits
+    if (e.payMethod === 'checking') {
+      checkingBillsTotal += e.amt;
+      expItems.push({ name: e.note || e.cat || 'Checking', amt: e.amt, date: ed, tag: 'checking-manual' });
+    } else {
+      ccDiscretionary += e.amt;
+      expItems.push({ name: e.note || e.cat || 'CC', amt: e.amt, date: ed, tag: 'cc-manual' });
+    }
+  });
+
+  // Scheduled CC bills
+  getAllBills().forEach(function(b) {
+    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0) return;
+    var occs = getBillOccurrencesInRange(b, monthFrom, monthTo);
+    occs.forEach(function(occDate) {
+      ccScheduled += b.amt;
+      expItems.push({ name: b.name, amt: b.amt, date: occDate, tag: 'cc-scheduled' });
+    });
+  });
+
+  // Scheduled checking bills (exclude sinking funds and CC payments)
+  getAllBills().forEach(function(b) {
+    if (b.paidBy === 'cc' || b.type === 'in' || b.type === 'save' || b.amt <= 0) return;
+    if (b.isTransfer) return;
+    var occs = getBillOccurrencesInRange(b, monthFrom, monthTo);
+    occs.forEach(function(occDate) {
+      checkingBillsTotal += b.amt;
+      expItems.push({ name: b.name, amt: b.amt, date: occDate, tag: 'checking-scheduled' });
+    });
+  });
+
+  var totalExpenses = ccDiscretionary + ccScheduled + checkingBillsTotal;
+  var net = totalIncome - totalExpenses;
+
+  // ── RENDER ────────────────────────────────────────────────────────────────
+  var cont = document.getElementById('history-list');
+  var html = '';
+
+  // Summary cards
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">';
+  html += '<div class="card" style="text-align:center;padding:14px">';
+  html += '<div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Income</div>';
+  html += '<div style="font-size:24px;font-weight:700;color:var(--grass)">' + fmt(totalIncome) + '</div>';
+  html += '</div>';
+  html += '<div class="card" style="text-align:center;padding:14px">';
+  html += '<div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Expenses</div>';
+  html += '<div style="font-size:24px;font-weight:700;color:var(--coral)">' + fmt(totalExpenses) + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Net
+  html += '<div class="card" style="text-align:center;padding:14px;margin-bottom:16px">';
+  html += '<div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Net</div>';
+  html += '<div style="font-size:28px;font-weight:700;color:' + (net >= 0 ? 'var(--grass)' : 'var(--red)') + '">' + fmtR(net) + '</div>';
+  if (net >= 0) html += '<div style="font-size:13px;color:var(--text-3);margin-top:4px">Available for sinking funds</div>';
+  else html += '<div style="font-size:13px;color:var(--red);margin-top:4px">Over budget by ' + fmt(Math.abs(net)) + '</div>';
+  html += '</div>';
+
+  // Expense breakdown
+  html += '<div class="card" style="margin-bottom:12px">';
+  html += '<div class="section-head" style="margin-bottom:10px">Expense Breakdown</div>';
+  
+  // CC Discretionary
+  html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)">';
+  html += '<div><div style="font-size:15px;color:var(--text)">💳 CC Discretionary</div>';
+  html += '<div style="font-size:12px;color:var(--text-3)">Manual CC entries</div></div>';
+  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(ccDiscretionary) + '</div>';
+  html += '</div>';
+
+  // CC Scheduled
+  html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)">';
+  html += '<div><div style="font-size:15px;color:var(--text)">📅 CC Scheduled Bills</div>';
+  html += '<div style="font-size:12px;color:var(--text-3)">Netflix, Comcast, etc.</div></div>';
+  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(ccScheduled) + '</div>';
+  html += '</div>';
+
+  // Checking Bills
+  html += '<div style="display:flex;justify-content:space-between;padding:8px 0">';
+  html += '<div><div style="font-size:15px;color:var(--text)">🏦 Checking Bills</div>';
+  html += '<div style="font-size:12px;color:var(--text-3)">Mortgage, utilities, etc.</div></div>';
+  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(checkingBillsTotal) + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Detail list
+  expItems.sort(function(a,b){ return a.date - b.date; });
+  html += '<div class="card">';
+  html += '<div class="section-head" style="margin-bottom:10px">All Transactions</div>';
+  expItems.forEach(function(item) {
+    var dateStr = (item.date.getMonth()+1) + '/' + item.date.getDate();
+    var tagColor = item.tag.startsWith('cc') ? 'var(--sky)' : 'var(--coral)';
+    var tagLabel = item.tag === 'cc-manual' ? '💳' : item.tag === 'cc-scheduled' ? '📅' : '🏦';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)">';
+    html += '<div><div style="font-size:14px;color:var(--text)">' + tagLabel + ' ' + item.name + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-3)">' + dateStr + '</div></div>';
+    html += '<div style="font-size:14px;font-weight:600;color:var(--coral)">-' + fmt(item.amt) + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  cont.innerHTML = html;
+
+  // Update nav arrows
+  document.querySelector('.hist-nav [onclick*="historyNav(-1)"]') && 
+    (document.querySelector('.hist-nav [onclick*="historyNav(-1)"]').onclick = function(){ plMonthOffset--; renderPLView(); });
+  document.querySelector('.hist-nav [onclick*="historyNav(1)"]') &&
+    (document.querySelector('.hist-nav [onclick*="historyNav(1)"]').onclick = function(){ plMonthOffset++; renderPLView(); });
 }
 
 function getMonthLabel(offset) {
@@ -3446,7 +3617,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.2.2';
+var APP_VERSION = 'v3.2.3';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
