@@ -2341,35 +2341,22 @@ function renderPLView() {
   else html += '<div style="font-size:13px;color:var(--red);margin-top:4px">Over budget by ' + fmt(Math.abs(net)) + '</div>';
   html += '</div>';
 
-  // Expense breakdown — tappable rows
-  // Store items in window for modal access
+  // Store items globally for drilldown access
   window._plCCManual = expItems.filter(function(i){ return i.tag === 'cc-manual'; });
   window._plCCScheduled = expItems.filter(function(i){ return i.tag === 'cc-scheduled'; });
   window._plChecking = expItems.filter(function(i){ return i.tag.startsWith('checking'); });
 
   html += '<div class="card" style="margin-bottom:12px">';
   html += '<div class="section-head" style="margin-bottom:10px">Expense Breakdown</div>';
-
-  // CC Discretionary
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick=\"showPLDrilldown(window._plCCManual, \\"💳 CC Discretionary\\")\">';
-  html += '<div><div style="font-size:15px;color:var(--sky)">💳 CC Discretionary ›</div>';
-  html += '<div style="font-size:12px;color:var(--text-3)">Manual CC entries</div></div>';
-  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(ccDiscretionary) + '</div>';
-  html += '</div>';
-
-  // CC Scheduled
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick=\"showPLDrilldown(window._plCCScheduled, \\"📅 CC Scheduled Bills\\")\">';
-  html += '<div><div style="font-size:15px;color:var(--sky)">📅 CC Scheduled Bills ›</div>';
-  html += '<div style="font-size:12px;color:var(--text-3)">Netflix, Comcast, etc.</div></div>';
-  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(ccScheduled) + '</div>';
-  html += '</div>';
-
-  // Checking Bills
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer" onclick=\"showPLDrilldown(window._plChecking, \\"🏦 Checking Bills\\")\">';
-  html += '<div><div style="font-size:15px;color:var(--sky)">🏦 Checking Bills ›</div>';
-  html += '<div style="font-size:12px;color:var(--text-3)">Mortgage, utilities, etc.</div></div>';
-  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(checkingBillsTotal) + '</div>';
-  html += '</div>';
+  html += '<div id="pl-bd-cc-manual" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer">';
+  html += '<div><div style="font-size:15px;color:var(--sky)">💳 CC Discretionary ›</div><div style="font-size:12px;color:var(--text-3)">Manual CC entries</div></div>';
+  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(ccDiscretionary) + '</div></div>';
+  html += '<div id="pl-bd-cc-sched" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer">';
+  html += '<div><div style="font-size:15px;color:var(--sky)">📅 CC Scheduled Bills ›</div><div style="font-size:12px;color:var(--text-3)">Netflix, Comcast, etc.</div></div>';
+  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(ccScheduled) + '</div></div>';
+  html += '<div id="pl-bd-checking" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer">';
+  html += '<div><div style="font-size:15px;color:var(--sky)">🏦 Checking Bills ›</div><div style="font-size:12px;color:var(--text-3)">Mortgage, utilities, etc.</div></div>';
+  html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(checkingBillsTotal) + '</div></div>';
   html += '</div>';
 
   // Detail list
@@ -2389,6 +2376,14 @@ function renderPLView() {
   html += '</div>';
 
   cont.innerHTML = html;
+
+  // Wire up breakdown drilldown clicks
+  var bdCCManual = document.getElementById('pl-bd-cc-manual');
+  if (bdCCManual) bdCCManual.onclick = function(){ showPLDrilldown(window._plCCManual, '💳 CC Discretionary'); };
+  var bdCCSched = document.getElementById('pl-bd-cc-sched');
+  if (bdCCSched) bdCCSched.onclick = function(){ showPLDrilldown(window._plCCScheduled, '📅 CC Scheduled Bills'); };
+  var bdChecking = document.getElementById('pl-bd-checking');
+  if (bdChecking) bdChecking.onclick = function(){ showPLDrilldown(window._plChecking, '🏦 Checking Bills'); };
 
   // Update nav arrows
   document.querySelector('.hist-nav [onclick*="historyNav(-1)"]') && 
@@ -3662,7 +3657,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.2.4';
+var APP_VERSION = 'v3.2.5';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
