@@ -2184,6 +2184,46 @@ function setHistoryView(view) {
   historyNav(0);
 }
 
+function showPLDrilldown(items, title) {
+  var fmt = function(n) { return '$' + Math.abs(Math.round(n)).toFixed(2); };
+  var total = items.reduce(function(s,i){ return s + i.amt; }, 0);
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center';
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;padding:20px;width:100%;max-width:500px;max-height:80vh;overflow-y:auto';
+
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+  html += '<div style="font-size:17px;font-weight:600;color:var(--text)">' + title + '</div>';
+  html += '<button onclick="document.querySelector(\".pl-drilldown\").remove()" style="font-size:22px;background:none;border:none;cursor:pointer;color:var(--text-3)">×</button>';
+  html += '</div>';
+
+  if (items.length === 0) {
+    html += '<p style="color:var(--text-3);font-style:italic;text-align:center;padding:20px 0">No transactions</p>';
+  } else {
+    var sorted = items.slice().sort(function(a,b){ return a.date - b.date; });
+    sorted.forEach(function(item) {
+      var dateStr = (item.date.getMonth()+1) + '/' + item.date.getDate();
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border)">';
+      html += '<div><div style="font-size:15px;color:var(--text)">' + item.name + '</div>';
+      html += '<div style="font-size:12px;color:var(--text-3)">' + dateStr + '</div></div>';
+      html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">-' + fmt(item.amt) + '</div>';
+      html += '</div>';
+    });
+    html += '<div style="display:flex;justify-content:space-between;padding:12px 0;margin-top:4px">';
+    html += '<span style="font-size:16px;font-weight:600">Total</span>';
+    html += '<span style="font-size:16px;font-weight:700;color:var(--coral)">-' + fmt(total) + '</span>';
+    html += '</div>';
+  }
+
+  modal.innerHTML = html;
+  modal.className = 'pl-drilldown';
+  overlay.appendChild(modal);
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
 // ── P&L VIEW ─────────────────────────────────────────────────────────────────
 var plMonthOffset = 0;
 
@@ -2301,27 +2341,32 @@ function renderPLView() {
   else html += '<div style="font-size:13px;color:var(--red);margin-top:4px">Over budget by ' + fmt(Math.abs(net)) + '</div>';
   html += '</div>';
 
-  // Expense breakdown
+  // Expense breakdown — tappable rows
+  // Store items in window for modal access
+  window._plCCManual = expItems.filter(function(i){ return i.tag === 'cc-manual'; });
+  window._plCCScheduled = expItems.filter(function(i){ return i.tag === 'cc-scheduled'; });
+  window._plChecking = expItems.filter(function(i){ return i.tag.startsWith('checking'); });
+
   html += '<div class="card" style="margin-bottom:12px">';
   html += '<div class="section-head" style="margin-bottom:10px">Expense Breakdown</div>';
-  
+
   // CC Discretionary
-  html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)">';
-  html += '<div><div style="font-size:15px;color:var(--text)">💳 CC Discretionary</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick=\"showPLDrilldown(window._plCCManual, \\"💳 CC Discretionary\\")\">';
+  html += '<div><div style="font-size:15px;color:var(--sky)">💳 CC Discretionary ›</div>';
   html += '<div style="font-size:12px;color:var(--text-3)">Manual CC entries</div></div>';
   html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(ccDiscretionary) + '</div>';
   html += '</div>';
 
   // CC Scheduled
-  html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)">';
-  html += '<div><div style="font-size:15px;color:var(--text)">📅 CC Scheduled Bills</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick=\"showPLDrilldown(window._plCCScheduled, \\"📅 CC Scheduled Bills\\")\">';
+  html += '<div><div style="font-size:15px;color:var(--sky)">📅 CC Scheduled Bills ›</div>';
   html += '<div style="font-size:12px;color:var(--text-3)">Netflix, Comcast, etc.</div></div>';
   html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(ccScheduled) + '</div>';
   html += '</div>';
 
   // Checking Bills
-  html += '<div style="display:flex;justify-content:space-between;padding:8px 0">';
-  html += '<div><div style="font-size:15px;color:var(--text)">🏦 Checking Bills</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer" onclick=\"showPLDrilldown(window._plChecking, \\"🏦 Checking Bills\\")\">';
+  html += '<div><div style="font-size:15px;color:var(--sky)">🏦 Checking Bills ›</div>';
   html += '<div style="font-size:12px;color:var(--text-3)">Mortgage, utilities, etc.</div></div>';
   html += '<div style="font-size:15px;font-weight:600;color:var(--coral)">' + fmt(checkingBillsTotal) + '</div>';
   html += '</div>';
@@ -3617,7 +3662,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.2.3';
+var APP_VERSION = 'v3.2.4';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
