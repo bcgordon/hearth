@@ -616,6 +616,7 @@ textarea { resize: none; }
 <button class="icon-btn" onclick="showScreen('screen-settings')">Settings</button>
 </div>
 </div>
+<div id="quote-of-day" style="padding:10px 16px 2px;font-size:14px;color:var(--text-3);font-style:italic;text-align:center;line-height:1.5"></div>
 <!-- Monthly budget card (primary) -->
 <div class="card card-sky" style="margin-bottom:12px">
   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
@@ -2011,6 +2012,7 @@ function getEntryDiscretionary(e) {
 }
 
 function refreshMain() {
+  renderQuoteOfDay();
   const now = new Date();
   const qKey = getCurrentQuarterKey();
   document.getElementById('main-quarter-label').textContent = quarterLabel(qKey);
@@ -3660,7 +3662,108 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.2.7';
+var APP_VERSION = 'v3.2.9';
+
+// ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
+var DAILY_QUOTES = [
+  {"q": "Life moves pretty fast. If you don't stop and look around once in a while, you could miss it.", "m": "Ferris Bueller's Day Off (1986)"},
+  {"q": "Carpe diem. Seize the day, boys. Make your lives extraordinary.", "m": "Dead Poets Society (1989)"},
+  {"q": "You had me at hello.", "m": "Jerry Maguire (1996)"},
+  {"q": "Show me the money!", "m": "Jerry Maguire (1996)"},
+  {"q": "Help me help you.", "m": "Jerry Maguire (1996)"},
+  {"q": "Life is like a box of chocolates — you never know what you're gonna get.", "m": "Forrest Gump (1994)"},
+  {"q": "Stupid is as stupid does.", "m": "Forrest Gump (1994)"},
+  {"q": "Get busy living, or get busy dying.", "m": "The Shawshank Redemption (1994)"},
+  {"q": "Hope is a good thing, maybe the best of things, and no good thing ever dies.", "m": "The Shawshank Redemption (1994)"},
+  {"q": "Keep the change, ya filthy animal.", "m": "Home Alone (1990)"},
+  {"q": "Nobody puts Baby in a corner.", "m": "Dirty Dancing (1987)"},
+  {"q": "Hakuna Matata — it means no worries for the rest of your days.", "m": "The Lion King (1994)"},
+  {"q": "Oh yes, the past can hurt. But you can either run from it or learn from it.", "m": "The Lion King (1994)"},
+  {"q": "Remember who you are.", "m": "The Lion King (1994)"},
+  {"q": "The flower that blooms in adversity is the most rare and beautiful of all.", "m": "Mulan (1998)"},
+  {"q": "You ain't never had a friend like me.", "m": "Aladdin (1992)"},
+  {"q": "To infinity and beyond!", "m": "Toy Story (1995)"},
+  {"q": "You've got a friend in me.", "m": "Toy Story (1995)"},
+  {"q": "Reach for the sky!", "m": "Toy Story (1995)"},
+  {"q": "Sometimes the right path is not the easiest one.", "m": "Pocahontas (1995)"},
+  {"q": "Be yourself, no matter what they say.", "m": "10 Things I Hate About You (1999)"},
+  {"q": "You can't sit with us! Just kidding — you can always find your people.", "m": "inspired by Clueless (1995)"},
+  {"q": "As if!", "m": "Clueless (1995)"},
+  {"q": "I'm the king of the world!", "m": "Titanic (1997)"},
+  {"q": "A person can do anything once they decide to.", "m": "Pretty Woman (1990)"},
+  {"q": "Don't ever let somebody tell you you can't do something.", "m": "inspired by The Pursuit of Happyness era"},
+  {"q": "It's not who I am on the outside, but what I do that defines me.", "m": "inspired by 90s action dramas"},
+  {"q": "You're gonna need a bigger boat.", "m": "Jaws (1975) — but still a great life lesson"},
+  {"q": "Every passing minute is another chance to turn it all around.", "m": "Vanilla Sky (2001)"},
+  {"q": "What we do in life echoes in eternity.", "m": "Gladiator (2000)"},
+  {"q": "Why so serious? Just kidding — smile more.", "m": "inspired by the 90s"},
+  {"q": "Just when I thought I was out, they pull me back in.", "m": "The Godfather Part III (1990)"},
+  {"q": "You talking to me? Good — believe in yourself.", "m": "inspired by Taxi Driver era bravado"},
+  {"q": "Mama always said life was like a box of chocolates.", "m": "Forrest Gump (1994)"},
+  {"q": "I love the smell of napalm in the morning.", "m": "Apocalypse Now (1979) — sometimes you just have to start the day strong"},
+  {"q": "We're gonna need a montage.", "m": "inspired by every 80s training movie ever"},
+  {"q": "No more rhyming and I mean it! Anybody want a peanut?", "m": "The Princess Bride (1987)"},
+  {"q": "Have fun storming the castle!", "m": "The Princess Bride (1987)"},
+  {"q": "As you wish.", "m": "The Princess Bride (1987)"},
+  {"q": "Life is pain, Highness. Anyone who says differently is selling something.", "m": "The Princess Bride (1987)"},
+  {"q": "Get to the chopper!", "m": "Predator (1987) — sometimes you just need to move fast"},
+  {"q": "I feel the need — the need for speed.", "m": "Top Gun (1986)"},
+  {"q": "You can be my wingman any time.", "m": "Top Gun (1986)"},
+  {"q": "Take my breath away.", "m": "Top Gun (1986)"},
+  {"q": "Is it safe?", "m": "Marathon Man (1976) — the real question every morning"},
+  {"q": "Go ahead, make my day.", "m": "Sudden Impact (1983)"},
+  {"q": "I'm gonna make him an offer he can't refuse.", "m": "The Godfather (1972) — classic wisdom"},
+  {"q": "Toto, I've a feeling we're not in Kansas anymore.", "m": "The Wizard of Oz — embrace change"},
+  {"q": "There's no place like home.", "m": "The Wizard of Oz — always come back to what matters"},
+  {"q": "E.T. phone home.", "m": "E.T. (1982) — stay connected to the people you love"},
+  {"q": "Be excellent to each other.", "m": "Bill & Ted's Excellent Adventure (1989)"},
+  {"q": "Strange things are afoot at the Circle K.", "m": "Bill & Ted's Excellent Adventure (1989)"},
+  {"q": "Party on, dudes!", "m": "Bill & Ted's Excellent Adventure (1989)"},
+  {"q": "You can do anything you put your mind to.", "m": "Rudy (1993)"},
+  {"q": "Rudy! Rudy! Rudy!", "m": "Rudy (1993) — find people who cheer your name"},
+  {"q": "Are you crying? There's no crying in baseball!", "m": "A League of Their Own (1992)"},
+  {"q": "The stuff that dreams are made of.", "m": "The Maltese Falcon — timeless hustle"},
+  {"q": "I'm walking here!", "m": "Midnight Cowboy — stand your ground"},
+  {"q": "Frankly my dear, I don't give a damn.", "m": "Gone with the Wind — let it go"},
+  {"q": "You can't fight in here — this is the War Room!", "m": "Dr. Strangelove — pick your battles"},
+  {"q": "Wax on, wax off.", "m": "The Karate Kid (1984)"},
+  {"q": "Strike first, strike hard, no mercy — wait, actually show mercy.", "m": "The Karate Kid (1984)"},
+  {"q": "You're the best around! Nothing's gonna ever keep you down.", "m": "The Karate Kid (1984)"},
+  {"q": "Get him a body bag! Just kidding — be kind out there.", "m": "The Karate Kid (1984)"},
+  {"q": "I now pronounce you man and wife. Somebody get me a beer.", "m": "inspired by 80s wedding comedies"},
+  {"q": "Roads? Where we're going, we don't need roads.", "m": "Back to the Future (1985)"},
+  {"q": "If you put your mind to it, you can accomplish anything.", "m": "Back to the Future (1985)"},
+  {"q": "Great Scott!", "m": "Back to the Future (1985) — let today surprise you"},
+  {"q": "This is heavy.", "m": "Back to the Future (1985) — some days are, and that's okay"},
+  {"q": "You make me want to be a better man.", "m": "As Good as It Gets (1997)"},
+  {"q": "What about Bob? What about being present today?", "m": "What About Bob (1991)"},
+  {"q": "Baby steps.", "m": "What About Bob (1991)"},
+  {"q": "Bueller... Bueller... Bueller...", "m": "Ferris Bueller's Day Off (1986) — make sure you show up for your own life"},
+  {"q": "The question isn't who is going to let me; it's who is going to stop me.", "m": "inspired by 80s go-getter energy"},
+  {"q": "Don't you forget about me.", "m": "The Breakfast Club (1985)"},
+  {"q": "We're all pretty bizarre. Some of us are just better at hiding it.", "m": "The Breakfast Club (1985)"},
+  {"q": "When you grow up, your heart dies. Don't let it.", "m": "The Breakfast Club (1985)"},
+  {"q": "Saturday detention, or not — you are not alone.", "m": "The Breakfast Club (1985)"},
+  {"q": "Greed, for lack of a better word, is good. Hard work, though? That's better.", "m": "inspired by Wall Street (1987)"},
+  {"q": "First you get the money, then you get the power, then you get... perspective.", "m": "inspired by Scarface (1983)"},
+  {"q": "Say hello to my little friend — today's to-do list.", "m": "Scarface (1983) — get after it"},
+  {"q": "I'm king of the world!", "m": "Titanic (1997) — feel that way on a Monday"},
+  {"q": "I'll never let go.", "m": "Titanic (1997) — hold on to what matters"},
+  {"q": "Paint me like one of your French girls — live boldly.", "m": "Titanic (1997)"},
+  {"q": "You are what you love, not what loves you.", "m": "Adaptation (2002) — close enough, great enough"},
+  {"q": "Good morning, Vietnam!", "m": "Good Morning, Vietnam (1987) — greet today with energy"},
+  {"q": "Goooood morning!", "m": "Good Morning, Vietnam (1987)"},
+  {"q": "Somebody stop me!", "m": "The Mask (1994) — rein it in and focus"},
+  {"q": "Smokin'!", "m": "The Mask (1994) — you've got this"}
+];
+
+function renderQuoteOfDay() {
+  var el = document.getElementById('quote-of-day');
+  if (!el) return;
+  var dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  var q = DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+  el.innerHTML = '“' + q.q + '”<br><span style="font-size:12px;opacity:0.7;font-style:normal">— ' + q.m + '</span>';
+}
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
