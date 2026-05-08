@@ -949,8 +949,11 @@ textarea { resize: none; }
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
       <div style="background:var(--surface2);border-radius:var(--radius);padding:12px;text-align:center">
         <div style="font-size:12px;color:var(--text-3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Next bill due</div>
-        <div style="font-size:20px;font-weight:600;color:var(--coral)">$6,000</div>
-        <div style="font-size:12px;color:var(--text-3);margin-top:2px">Due May 6</div>
+        <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+          <div style="font-size:20px;font-weight:600;color:var(--coral)" id="cc-next-bill-amt">—</div>
+          <button id="cc-next-bill-edit" style="font-size:12px;padding:3px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit">edit</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:2px" id="cc-next-bill-date">—</div>
       </div>
       <div style="background:var(--surface2);border-radius:var(--radius);padding:12px;text-align:center">
         <div style="font-size:12px;color:var(--text-3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Current cycle</div>
@@ -3657,7 +3660,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.2.5';
+var APP_VERSION = 'v3.2.7';
 
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
@@ -3695,7 +3698,13 @@ function getCCAppTotal() {
 
 function updateCCBalanceCard() {
   var appTotal = getCCAppTotal();
-  var nextBill = 6000; // May 6 fixed payment
+  // Find next CC payment dynamically from projection
+  var today = new Date(); today.setHours(0,0,0,0);
+  var nextCCEvent = (balProjection || []).find(function(e) {
+    return e.type === 'cc' && e.date >= today && e.amt > 0;
+  });
+  var nextBill = nextCCEvent ? nextCCEvent.amt : 3500;
+  var nextBillDate = nextCCEvent ? nextCCEvent.date : null;
   var fmt = function(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 
   // Cycle label
@@ -3703,6 +3712,42 @@ function updateCCBalanceCard() {
   if (cycleEl) {
     var _cycFmt = function(d) { return (d.getMonth()+1) + '/' + d.getDate(); };
     cycleEl.textContent = _cycFmt(CC_CYCLE_START) + ' – ' + _cycFmt(CC_CYCLE_END);
+  }
+
+  // Update next bill display
+  var nextBillAmtEl = document.getElementById('cc-next-bill-amt');
+  var nextBillDateEl = document.getElementById('cc-next-bill-date');
+  // Check for manual override
+  var _nbOverrideKey = nextBillDate ? 'cc_override_' + nextBillDate.getFullYear() + '_' + nextBillDate.getMonth() : null;
+  var _nbOverride = _nbOverrideKey && record && record.ccOverrides && record.ccOverrides[_nbOverrideKey];
+  var displayNextBill = _nbOverride ? parseFloat(_nbOverride) : nextBill;
+
+  if (nextBillAmtEl) nextBillAmtEl.textContent = fmt(displayNextBill);
+  if (nextBillDateEl) nextBillDateEl.textContent = nextBillDate
+    ? 'Due ' + (nextBillDate.getMonth()+1) + '/' + nextBillDate.getDate() + (_nbOverride ? ' ✏️' : '')
+    : 'Estimated';
+
+  // Wire edit button
+  var editBtn = document.getElementById('cc-next-bill-edit');
+  if (editBtn && nextBillDate) {
+    editBtn.onclick = function() {
+      var yr = nextBillDate.getFullYear(); var mo = nextBillDate.getMonth();
+      showAmtModal('Next CC bill due ' + (mo+1) + '/' + nextBillDate.getDate(),
+        'Override the estimated amount. Leave blank to reset.',
+        displayNextBill, async function(val) {
+          if (!record.ccOverrides) record.ccOverrides = {};
+          var key = 'cc_override_' + yr + '_' + mo;
+          if (!val || val === '0') {
+            delete record.ccOverrides[key];
+            toast('Reset to estimated amount');
+          } else {
+            var n = parseFloat(String(val).replace(/[$,]/g,''));
+            if (!isNaN(n) && n > 0) { record.ccOverrides[key] = n; toast('Next bill updated'); }
+          }
+          await cloudSet(record);
+          updateCCBalanceCard();
+        });
+    };
   }
 
   // App tracked this cycle
@@ -3730,7 +3775,7 @@ function updateCCBalanceCard() {
     if (inputEl && document.activeElement !== inputEl) inputEl.value = actual;
 
     // Current cycle = total minus next bill
-    var currentCycle = Math.max(0, actual - nextBill);
+    var currentCycle = Math.max(0, actual - displayNextBill);
     if (cycCurEl) cycCurEl.textContent = fmt(currentCycle);
 
     // Delta between current cycle actual and app tracked (scheduled bills included in appTotal)
