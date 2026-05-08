@@ -19,9 +19,9 @@
 --surface2: #FFF8E8;
 --border: #D6C89A;
 --border-dark: #B8A870;
---text: #2C2416;
---text-2: #6B5A38;
---text-3: #A8956A;
+--text: #1A1A1A;
+--text-2: #2E2E2E;
+--text-3: #6B5A38;
 --coral: #E8522A;
 --coral-bg: #FEF0EB;
 --coral-dim: #C03E1A;
@@ -79,7 +79,7 @@ body.dark.theme-sunset { --coral-bg: #2A1008; --sky-bg: #280A18; --grass-bg: #1C
 .toggle-switch input:checked + .toggle-track { background: var(--sky); border-color: var(--sky-dim); }
 .toggle-switch input:checked + .toggle-track::after { transform: translateX(24px); background: #fff; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Zilla Slab', Georgia, serif; font-size: 14px; background: var(--bg); background-image: radial-gradient(circle at 20% 10%, rgba(232,82,42,0.06) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(26,126,184,0.06) 0%, transparent 50%), radial-gradient(circle at 60% 30%, rgba(58,158,74,0.05) 0%, transparent 40%); color: var(--text); min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 17px 60px; }
+body { font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; background: var(--bg); background-image: radial-gradient(circle at 20% 10%, rgba(232,82,42,0.06) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(26,126,184,0.06) 0%, transparent 50%), radial-gradient(circle at 60% 30%, rgba(58,158,74,0.05) 0%, transparent 40%); color: var(--text); min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 17px 60px; }
 body.dark { background-image: radial-gradient(circle at 20% 10%, rgba(232,82,42,0.04) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(26,126,184,0.04) 0%, transparent 50%), radial-gradient(circle at 60% 30%, rgba(58,158,74,0.03) 0%, transparent 40%); }
 .screen { display: none; }
 .screen.active { display: block; }
@@ -3662,7 +3662,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.2.9';
+var APP_VERSION = 'v3.3.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
