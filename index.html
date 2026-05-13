@@ -1097,6 +1097,14 @@ textarea { resize: none; }
 <button class="btn btn-sky btn-full" style="padding:16px;border-radius:var(--radius-sm)" onclick="saveSettings()">Save settings</button>
 <div class="divider" style="margin:0"></div>
 <div>
+<label class="label">CC Billing Cycle Start Day</label>
+<div style="display:flex;align-items:center;gap:12px">
+  <input id="set-cc-cycle-day" type="number" min="1" max="28" style="width:80px" />
+  <span style="font-size:14px;color:var(--text-3)">day of month (e.g. 13 = 13th)</span>
+</div>
+</div>
+<div class="divider" style="margin:0"></div>
+<div>
 <label class="label">Color theme</label>
 <div class="theme-swatches" id="theme-swatches">
 <button class="theme-swatch" data-theme="" style="background:#E8522A" title="Coral"></button>
@@ -1386,6 +1394,7 @@ async function showScreen(id) {
     
     document.getElementById('set-budget').value = config.budget || '';
     document.getElementById('set-names').value = (config.names || []).join('\n');
+    document.getElementById('set-cc-cycle-day').value = config.ccCycleDay || CC_CYCLE_DAY;
     document.getElementById('dark-mode-toggle').checked = document.body.classList.contains('dark');
     const saved = localStorage.getItem('hft_theme') || '';
     document.querySelectorAll('.theme-swatch').forEach(s => s.classList.toggle('active', s.dataset.theme === saved));
@@ -1492,6 +1501,13 @@ async function enterApp() {
       }
     });
     if (_migrated) cloudSet(record);
+  }
+  // Load CC cycle day from config
+  if (record && record.config && record.config.ccCycleDay) {
+    CC_CYCLE_DAY = record.config.ccCycleDay;
+    var _configCycle = getCCCycle();
+    CC_CYCLE_START = _configCycle.start;
+    CC_CYCLE_END = _configCycle.end;
   }
   updateBalHero(); // set balActualBalance before any projection runs
   buildCategoryGrid(getCategorySpend());
@@ -2861,10 +2877,20 @@ async function saveSettings() {
   const names = document.getElementById('set-names').value.split('\n').map(n => n.trim()).filter(Boolean).slice(0, 3);
   if (!budget || budget <= 0 || !names.length) return;
   config.budget = budget; config.names = names;
+  // Save CC cycle day
+  var ccDay = parseInt(document.getElementById('set-cc-cycle-day').value);
+  if (ccDay >= 1 && ccDay <= 28) {
+    config.ccCycleDay = ccDay;
+    CC_CYCLE_DAY = ccDay;
+    // Recompute cycle
+    var _newCycle = getCCCycle();
+    CC_CYCLE_START = _newCycle.start;
+    CC_CYCLE_END = _newCycle.end;
+  }
   if (!record) record = { config, entries: {} };
   record.config = config;
   await cloudSet(record);
-  refreshMain(); showScreen('screen-main'); toast('Settings saved');
+  refreshMain(); updateCCBalanceCard(); showScreen('screen-main'); toast('Settings saved');
 }
 
 function doLock() {
@@ -3662,7 +3688,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.3.1';
+var APP_VERSION = 'v3.3.2';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -3768,7 +3794,7 @@ function renderQuoteOfDay() {
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
 // Update CC_CYCLE_DAY if Capital One changes the billing date.
-var CC_CYCLE_DAY = 13; // cycle starts on the 13th of each month
+var CC_CYCLE_DAY = 13; // cycle starts on the 13th — overridden by config.ccCycleDay on login
 
 function getCCCycle() {
   var today = new Date();
