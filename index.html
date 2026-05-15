@@ -3725,7 +3725,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.3.4';
+var APP_VERSION = 'v3.3.6';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -3940,18 +3940,19 @@ function updateCCBalanceCard() {
     if (actualEl) actualEl.textContent = fmt(actual);
     if (inputEl && document.activeElement !== inputEl) inputEl.value = actual;
 
-    // Current cycle = total minus next bill
-    var currentCycle = Math.max(0, actual - displayNextBill);
+    // Current cycle = Capital One posted balance (what user entered)
+    var currentCycle = actual;
     if (cycCurEl) cycCurEl.textContent = fmt(currentCycle);
 
-    // Delta between current cycle actual and app tracked (scheduled bills included in appTotal)
-    var delta = currentCycle - appTotal;
+    // Delta = app tracked minus Capital One posted
+    // Positive delta = Hearth has more than posted = pending items
+    var delta = appTotal - currentCycle;
     if (deltaEl) {
-      if (Math.abs(delta) < 0.50) {
+      if (Math.abs(delta) < 1.00) {
         deltaEl.textContent = '✓ All current cycle charges tracked';
         deltaEl.style.color = 'var(--grass)';
-      } else if (delta > 0) {
-        deltaEl.textContent = fmt(delta) + ' not yet logged in Hearth';
+      } else if (delta < 0) {
+        deltaEl.textContent = fmt(Math.abs(delta)) + ' not yet logged in Hearth';
         deltaEl.style.color = 'var(--sun-dim)';
       } else {
         deltaEl.textContent = fmt(Math.abs(delta)) + ' pending — logged but not yet posted';
@@ -3966,12 +3967,14 @@ function updateCCBalanceCard() {
       } else if (delta > 0) {
         trackedDeltaEl.textContent = fmt(delta) + ' not yet logged';
         trackedDeltaEl.style.color = 'var(--sun-dim)';
-      } else {
-        trackedDeltaEl.textContent = fmt(Math.abs(delta)) + ' pending';
+      } else if (delta > 0) {
+        trackedDeltaEl.textContent = fmt(delta) + ' pending';
         trackedDeltaEl.style.color = 'var(--sky-dim)';
         trackedDeltaEl.style.cursor = 'pointer';
         trackedDeltaEl.style.textDecoration = 'underline dotted';
         trackedDeltaEl.onclick = showAppTrackedPendingDetail;
+      } else {
+        trackedDeltaEl.textContent = '';
       }
     }
     // Confirmed pending — sum of entries tagged as pending in current cycle
@@ -4010,7 +4013,7 @@ function updateCCBalanceCard() {
     if (pendingEl) pendingEl.textContent = confirmedPending > 0 ? fmt(confirmedPending) : '$0';
     var pendingDeltaEl = document.getElementById('cc-pending-delta');
     if (pendingDeltaEl) {
-      var pendingGap = Math.abs(delta) - confirmedPending;
+      var pendingGap = delta - confirmedPending; // positive delta = pending in Hearth
       if (confirmedPending === 0) {
         pendingDeltaEl.textContent = '';
       } else if (Math.abs(pendingGap) < 0.50) {
