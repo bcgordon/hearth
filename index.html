@@ -1518,11 +1518,10 @@ async function enterApp() {
       var _cp = function(s) { var p = s.split('-'); return new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])); };
       CC_CYCLE_START = _cp(record.config.ccCycleStart);
       CC_CYCLE_END = _cp(record.config.ccCycleEnd); CC_CYCLE_END.setHours(23,59,59,999);
-    } else if (record.config.ccCycleDay) {
-      CC_CYCLE_DAY = record.config.ccCycleDay;
-      var _configCycle = getCCCycle();
-      CC_CYCLE_START = _configCycle.start;
-      CC_CYCLE_END = _configCycle.end;
+    } else {
+      // Default transition cycle Apr 12 - May 25 2026
+      CC_CYCLE_START = new Date(2026, 3, 12);
+      CC_CYCLE_END = new Date(2026, 4, 25, 23, 59, 59);
     }
   }
   updateBalHero(); // set balActualBalance before any projection runs
@@ -3385,17 +3384,37 @@ function getScheduledEvents() {
   // (bi-weekly and semi-monthly paychecks are in DEFAULT_BILLS and editable)
 
   // ── CC AUTO-PAY ─────────────────────────────────────────────────────────
-  // Fixed $6,000 final payment on May 6 2026
+  // Fixed $6,000 payment on May 6 2026 (old cycle payoff)
   var _may6 = new Date(2026, 4, 6);
   if (_may6 > start && _may6 <= end)
-    events.push({ date: _may6, name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true });
-  // Recurring CC payment on 6th — dynamic from June 2026 onward
-  var _ccPayStart = new Date(2026, 5, 1); // June 2026
-  var _ccD = new Date(_ccPayStart);
+    events.push({ date: _may6, name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true, ccYear: 2026, ccMonth: 4 });
+
+  // Transition payment: Jun 19 2026 — covers Apr 12 - May 25 cycle
+  var _jun19 = new Date(2026, 5, 19);
+  if (_jun19 > start && _jun19 <= end)
+    events.push({ date: _jun19, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false, ccYear: 2026, ccMonth: 5,
+      ccCycleFrom: new Date(2026, 3, 12), ccCycleTo: new Date(2026, 4, 25, 23, 59, 59) });
+
+  // Jul 19 2026 — covers May 26 - Jun 24
+  var _jul19 = new Date(2026, 6, 19);
+  if (_jul19 > start && _jul19 <= end)
+    events.push({ date: _jul19, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false, ccYear: 2026, ccMonth: 6,
+      ccCycleFrom: new Date(2026, 4, 26), ccCycleTo: new Date(2026, 5, 24, 23, 59, 59) });
+
+  // Aug 19 onward — 19th of each month, cycle = 25th prev-prev to 24th prev
+  var _ccRegStart = new Date(2026, 7, 1); // Aug 2026
+  var _ccD = new Date(_ccRegStart);
   while (_ccD <= end) {
-    var _ccPay = new Date(_ccD.getFullYear(), _ccD.getMonth(), 6);
-    if (_ccPay > start && _ccPay <= end)
-      events.push({ date: _ccPay, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false });
+    var _ccPay = new Date(_ccD.getFullYear(), _ccD.getMonth(), 19);
+    if (_ccPay > start && _ccPay <= end) {
+      var _fm = _ccD.getMonth() - 2; var _fy = _ccD.getFullYear();
+      if (_fm < 0) { _fm += 12; _fy--; }
+      var _tm = _ccD.getMonth() - 1; var _ty = _ccD.getFullYear();
+      if (_tm < 0) { _tm += 12; _ty--; }
+      events.push({ date: _ccPay, name: 'Credit card auto-pay', amt: 0, type: 'cc', fixedAmt: false,
+        ccYear: _ccD.getFullYear(), ccMonth: _ccD.getMonth(),
+        ccCycleFrom: new Date(_fy, _fm, 25), ccCycleTo: new Date(_ty, _tm, 24, 23, 59, 59) });
+    }
     _ccD.setMonth(_ccD.getMonth() + 1);
   }
 
@@ -3621,15 +3640,17 @@ function buildProjection() {
         if (override) {
           amt = parseFloat(override);
         } else {
-          // Estimate CC payment: cycle runs from CC_CYCLE_DAY of 2 months before payment
-          // to CC_CYCLE_DAY-1 of 1 month before payment
-          // e.g. June 6 payment covers Apr 12 - May 11
-          var _pm2 = ccMonth - 2; var _py2 = ccYear;
-          if (_pm2 < 0) { _pm2 += 12; _py2--; }
-          var _pm1 = ccMonth - 1; var _py1 = ccYear;
-          if (_pm1 < 0) { _pm1 += 12; _py1--; }
-          var _cycleFrom = new Date(_py2, _pm2, CC_CYCLE_DAY);
-          var _cycleTo = new Date(_py1, _pm1, CC_CYCLE_DAY - 1, 23, 59, 59);
+          // Use explicit cycle dates if provided, otherwise estimate from CC_CYCLE_DAY
+          var _cycleFrom = ev.ccCycleFrom || null;
+          var _cycleTo = ev.ccCycleTo || null;
+          if (!_cycleFrom || !_cycleTo) {
+            var _pm2 = ccMonth - 2; var _py2 = ccYear;
+            if (_pm2 < 0) { _pm2 += 12; _py2--; }
+            var _pm1 = ccMonth - 1; var _py1 = ccYear;
+            if (_pm1 < 0) { _pm1 += 12; _py1--; }
+            _cycleFrom = new Date(_py2, _pm2, CC_CYCLE_DAY);
+            _cycleTo = new Date(_py1, _pm1, CC_CYCLE_DAY - 1, 23, 59, 59);
+          }
           var _hasEntries = hasCCEntries(_cycleFrom, _cycleTo);
           amt = _hasEntries
             ? getCCSpend(_cycleFrom, _cycleTo, { includeScheduled: true })
@@ -3704,7 +3725,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.3.3';
+var APP_VERSION = 'v3.3.4';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
