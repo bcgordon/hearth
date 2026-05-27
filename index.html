@@ -3725,7 +3725,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.3.6';
+var APP_VERSION = 'v3.3.7';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -3940,13 +3940,14 @@ function updateCCBalanceCard() {
     if (actualEl) actualEl.textContent = fmt(actual);
     if (inputEl && document.activeElement !== inputEl) inputEl.value = actual;
 
-    // Current cycle = Capital One posted balance (what user entered)
-    var currentCycle = actual;
+    // Current cycle = app tracked this cycle (entries + scheduled CC bills so far)
+    var currentCycle = appTotal;
     if (cycCurEl) cycCurEl.textContent = fmt(currentCycle);
 
-    // Delta = app tracked minus Capital One posted
-    // Positive delta = Hearth has more than posted = pending items
-    var delta = appTotal - currentCycle;
+    // Delta = app tracked minus Capital One total balance
+    // Positive = Hearth tracking more than posted (items pending in Capital One)
+    // Negative = Capital One has charges not yet logged in Hearth
+    var delta = appTotal - actual;
     if (deltaEl) {
       if (Math.abs(delta) < 1.00) {
         deltaEl.textContent = '✓ All current cycle charges tracked';
