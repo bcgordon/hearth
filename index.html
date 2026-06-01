@@ -3610,6 +3610,28 @@ function buildProjection() {
     var pevKey = pev.date.getFullYear() + '-' + pev.date.getMonth() + '-' + pev.date.getDate() + '-' + pev.name.replace(/\s/g,'_');
     if (dismissed[pevKey]) continue;
     var pevAmt = pev.amt || 0;
+    // For CC payment events, compute actual amount the same way the main loop does
+    if (pev.type === 'cc' && !pev.fixedAmt) {
+      var _pevCycleFrom = pev.ccCycleFrom || null;
+      var _pevCycleTo = pev.ccCycleTo || null;
+      if (!_pevCycleFrom || !_pevCycleTo) {
+        var _ppm2 = pev.ccMonth - 2; var _ppy2 = pev.ccYear;
+        if (_ppm2 < 0) { _ppm2 += 12; _ppy2--; }
+        var _ppm1 = pev.ccMonth - 1; var _ppy1 = pev.ccYear;
+        if (_ppm1 < 0) { _ppm1 += 12; _ppy1--; }
+        _pevCycleFrom = new Date(_ppy2, _ppm2, CC_CYCLE_DAY);
+        _pevCycleTo = new Date(_ppy1, _ppm1, CC_CYCLE_DAY - 1, 23, 59, 59);
+      }
+      // Check for override first
+      var _pevOKey = 'cc_override_' + pev.ccYear + '_' + pev.ccMonth;
+      var _pevOverride = record && record.ccOverrides && record.ccOverrides[_pevOKey];
+      if (_pevOverride) {
+        pevAmt = parseFloat(_pevOverride);
+      } else {
+        var _pevHasEntries = hasCCEntries(_pevCycleFrom, _pevCycleTo);
+        pevAmt = _pevHasEntries ? getCCSpend(_pevCycleFrom, _pevCycleTo, { includeScheduled: true }) : 3500;
+      }
+    }
     if (pev.type === 'in') projectedEndOfMonth += pevAmt;
     else projectedEndOfMonth -= pevAmt; // include CC payments — they come from checking
   }
@@ -3725,7 +3747,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.3.8';
+var APP_VERSION = 'v3.3.9';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
