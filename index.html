@@ -3747,7 +3747,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.3.9';
+var APP_VERSION = 'v3.4.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -4376,13 +4376,13 @@ function renderBalChart() {
   barsEl.innerHTML = '';
   labelsEl.innerHTML = '';
 
-  // Get min balance per month — rolling 12 months from current month
+  // Get min checking balance per month — rolling 12 months from current month
   var months = [];
   var chartNow = new Date();
   var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   for (var i = 0; i < 12; i++) {
     var d = new Date(chartNow.getFullYear(), chartNow.getMonth() + i, 1);
-    months.push({ year: d.getFullYear(), month: d.getMonth(), min: Infinity, label: monthNames[d.getMonth()] });
+    months.push({ year: d.getFullYear(), month: d.getMonth(), min: Infinity, label: monthNames[d.getMonth()], savings: 0 });
   }
 
   for (var j = 0; j < balProjection.length; j++) {
@@ -4394,39 +4394,79 @@ function renderBalChart() {
     }
   }
 
+  // ── SINKING FUNDS ACCUMULATION ──────────────────────────────────────────────
+  // Start from current actual fund balance
+  var startingFunds = 0;
+  FUND_DEFS.forEach(function(f) { startingFunds += getFundBalance(f.id); });
+
+  // Walk through projection save events, accumulating month by month
+  var today = new Date(); today.setHours(0,0,0,0);
+  var runningFunds = startingFunds;
+  for (var sm = 0; sm < months.length; sm++) {
+    var monoStart = new Date(months[sm].year, months[sm].month, 1);
+    var monoEnd = new Date(months[sm].year, months[sm].month + 1, 0, 23, 59, 59);
+    // Add scheduled save transfers in this month that fall on/after today
+    // (current balance already reflects past transfers)
+    balProjection.forEach(function(p) {
+      if (p.type !== 'save') return;
+      if (p.date < monoStart || p.date > monoEnd) return;
+      if (p.date < today) return; // already in actual balance
+      runningFunds += p.amt;
+    });
+    months[sm].savings = runningFunds;
+  }
+
+  // Max value for scaling = max of (checking + savings)
   var maxVal = 0;
   for (var l = 0; l < months.length; l++) {
-    if (months[l].min !== Infinity && months[l].min > maxVal) maxVal = months[l].min;
+    var chk = months[l].min === Infinity ? 0 : months[l].min;
+    var totalBank = chk + months[l].savings;
+    if (totalBank > maxVal) maxVal = totalBank;
   }
   if (maxVal < 1) maxVal = 10000;
 
   for (var m = 0; m < months.length; m++) {
     var mo = months[m];
-    var val = mo.min === Infinity ? 0 : mo.min;
-    var pct = Math.max(Math.min(val / maxVal * 100, 100), 2);
-    var color = val >= 5000 ? 'var(--grass)' : val >= FLOOR ? 'var(--sun)' : 'var(--red)';
+    var chkVal = mo.min === Infinity ? 0 : mo.min;
+    var savVal = mo.savings;
+    var totalVal = chkVal + savVal;
 
+    // Heights as % of max
+    var chkPct = Math.max(chkVal / maxVal * 100, 0);
+    var savPct = Math.max(savVal / maxVal * 100, 0);
+    if (chkPct + savPct < 2) chkPct = 2; // min visible
+
+    var chkColor = chkVal >= 5000 ? 'var(--grass)' : chkVal >= FLOOR ? 'var(--sun)' : 'var(--red)';
+    var savColor = 'var(--sky-dim)';
+
+    // Container bar (stacks checking bottom + savings top)
     var bar = document.createElement('div');
     bar.className = 'chart-bar';
-    bar.style.height = pct + '%';
-    bar.style.background = color;
-    bar.title = mo.label + ': $' + (val < 0 ? '-' : '') + Math.abs(Math.round(val)).toLocaleString();
-    bar.style.cursor = 'pointer';
-    bar.style.position = 'relative';
-    (function(label, balance) {
+    bar.style.cssText = 'display:flex;flex-direction:column-reverse;justify-content:flex-start;background:transparent;cursor:pointer;position:relative;height:' + Math.min(chkPct + savPct, 100) + '%';
+
+    var chkSeg = document.createElement('div');
+    chkSeg.style.cssText = 'width:100%;background:' + chkColor + ';height:' + (chkPct / (chkPct + savPct) * 100) + '%;border-radius:0 0 3px 3px';
+    var savSeg = document.createElement('div');
+    savSeg.style.cssText = 'width:100%;background:' + savColor + ';height:' + (savPct / (chkPct + savPct) * 100) + '%;border-radius:3px 3px 0 0;opacity:0.85';
+
+    bar.appendChild(chkSeg);
+    bar.appendChild(savSeg);
+
+    (function(label, chk, sav, total) {
       bar.onclick = function(e) {
         e.stopPropagation();
-        // Remove any existing tip
         var existing = document.getElementById('chart-tip');
         if (existing) existing.remove();
         var tip = document.createElement('div');
         tip.id = 'chart-tip';
-        tip.textContent = label + ': $' + (balance < 0 ? '-' : '') + Math.abs(Math.round(balance)).toLocaleString();
-        tip.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:20px;font-size:15px;font-weight:600;z-index:999;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
+        tip.innerHTML = '<div style="font-weight:700;margin-bottom:4px">' + label + ': $' + Math.round(total).toLocaleString() + ' total</div>' +
+          '<div style="font-size:13px;opacity:0.9">Checking: $' + (chk<0?'-':'') + Math.abs(Math.round(chk)).toLocaleString() + '</div>' +
+          '<div style="font-size:13px;opacity:0.9">Savings: $' + Math.round(sav).toLocaleString() + '</div>';
+        tip.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--text);color:var(--bg);padding:12px 20px;border-radius:14px;font-size:15px;z-index:999;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.3);text-align:center';
         document.body.appendChild(tip);
-        setTimeout(function() { if (tip.parentNode) tip.remove(); }, 2000);
+        setTimeout(function() { if (tip.parentNode) tip.remove(); }, 2500);
       };
-    })(mo.label, val);
+    })(mo.label, chkVal, savVal, totalVal);
     barsEl.appendChild(bar);
 
     var lbl = document.createElement('div');
