@@ -2778,9 +2778,13 @@ async function historyNav(dir) {
   rows.sort(function(a, b) { return a.date - b.date; });
 
   // Summary stats
+  // Outflow reflects actual spending only — excludes the CC payment (settles
+  // already-counted charges) and sinking-fund transfers (saving, not spending).
+  // The transaction list below still shows every row.
   var totalIn = 0, totalOut = 0;
   rows.forEach(function(r) {
     if (r.type === 'in') totalIn += r.amt;
+    else if (r.type === 'cc' || r.type === 'save') return;
     else totalOut += r.amt;
   });
   var net = totalIn - totalOut;
@@ -3747,7 +3751,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.4.0';
+var APP_VERSION = 'v3.4.1';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
