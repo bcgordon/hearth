@@ -2868,10 +2868,12 @@ async function historyNav(dir) {
     if (r.entryId) {
       editBtn = '<button onclick="openEntryEdit(' + r.entryId + ',\'' + r.entryQKey + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>';
     } else if (isCCBill && r.billId && r.date) {
-      // CC scheduled bills get a pending toggle button
+      // CC scheduled bills get an amount-edit button plus a pending toggle
       var bpKey = 'bill_pending_' + r.billId + '_' + r.date.getFullYear() + '_' + r.date.getMonth() + '_' + r.date.getDate();
       var isBillPendingBtn = record.billPending && record.billPending[bpKey];
-      editBtn = '<button onclick="toggleBillPending(\'' + r.billId + '\',' + r.date.getFullYear() + ',' + r.date.getMonth() + ',' + r.date.getDate() + ')" style="font-size:13px;padding:4px 8px;min-height:28px;background:' + (isBillPendingBtn ? 'var(--sun-bg)' : 'var(--surface2)') + ';border:1px solid ' + (isBillPendingBtn ? 'var(--sun)' : 'var(--border)') + ';border-radius:4px;color:' + (isBillPendingBtn ? 'var(--sun-dim)' : 'var(--text-3)') + ';cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">' + (isBillPendingBtn ? '⏳ pending' : 'pending?') + '</button>';
+      var ccEditAmtBtn = '<button onclick="editBillEvent(\'' + r.billId + '\',' + r.date.getFullYear() + ',' + r.date.getMonth() + ',' + r.date.getDate() + ',' + (r.amt || 0) + ')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>';
+      var ccPendingBtn = '<button onclick="toggleBillPending(\'' + r.billId + '\',' + r.date.getFullYear() + ',' + r.date.getMonth() + ',' + r.date.getDate() + ')" style="font-size:13px;padding:4px 8px;min-height:28px;background:' + (isBillPendingBtn ? 'var(--sun-bg)' : 'var(--surface2)') + ';border:1px solid ' + (isBillPendingBtn ? 'var(--sun)' : 'var(--border)') + ';border-radius:4px;color:' + (isBillPendingBtn ? 'var(--sun-dim)' : 'var(--text-3)') + ';cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">' + (isBillPendingBtn ? '⏳ pending' : 'pending?') + '</button>';
+      editBtn = ccEditAmtBtn + ccPendingBtn;
     } else if (r.billId && r.billId.toString().startsWith('income_') || r.billId && r.billId.toString().startsWith('chk_') || r.billId && r.billId.toString().startsWith('custom_') || r.billId && r.billId.toString().startsWith('transfer_')) {
       editBtn = '<button onclick="deleteBillFromRegister(\'' + r.billId + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--red);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">delete</button>';
     }
@@ -3751,7 +3753,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.4.1';
+var APP_VERSION = 'v3.4.2';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -4713,6 +4715,8 @@ async function editBillEvent(billId, year, month, day, currentAmt) {
     }
     await cloudSet(record);
     refreshBalance();
+    var _histScreen = document.getElementById('screen-history');
+    if (_histScreen && _histScreen.classList.contains('active')) historyNav();
     toast(pending ? '⏳ Marked as pending' : 'Bill updated');
   };
 }
