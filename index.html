@@ -2684,7 +2684,7 @@ async function historyNav(dir) {
       var d = ev.date;
       var bk = 'bill_override_' + ev.billId + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate();
       var bo = record && record.billOverrides && record.billOverrides[bk] !== undefined ? record.billOverrides[bk] : null;
-      if (bo !== null) amt = parseFloat(bo);
+      if (bo !== null && bo !== 'skip') amt = parseFloat(bo);
     }
     if (ev.type === 'cc') {
       // Compute CC payment amount same as projection
@@ -2715,17 +2715,21 @@ async function historyNav(dir) {
   if (historyView !== 'category' && historyView !== 'type') {
     getAllBills().forEach(function(b) {
       if (b.paidBy !== 'cc' || b.type !== 'out' || !b.amt) return;
-      var occs = getBillOccurrencesInRange(b, qStart, qEnd);
+      var occs = getBillOccurrencesInRange(b, qStart, qEnd, { includeSkipped: true });
       occs.forEach(function(occDate) {
+        var ovKey = 'bill_override_' + b.id + '_' + occDate.getFullYear() + '_' + occDate.getMonth() + '_' + occDate.getDate();
+        var ov = record && record.billOverrides ? record.billOverrides[ovKey] : undefined;
+        var rowAmt = (ov !== undefined && ov !== 'skip') ? parseFloat(ov) : b.amt;
         rows.push({
           date: occDate,
           name: b.name,
           note: 'CC billed',
-          amt: b.amt,
+          amt: rowAmt,
           type: 'cc_bill',
           isPast: occDate < today,
           isBill: true,
           billId: b.id || null,
+          isSkipped: !!occDate._skipped,
         });
       });
     });
@@ -2783,6 +2787,7 @@ async function historyNav(dir) {
   // The transaction list below still shows every row.
   var totalIn = 0, totalOut = 0;
   rows.forEach(function(r) {
+    if (r.isSkipped) return;
     if (r.type === 'in') totalIn += r.amt;
     else if (r.type === 'cc' || r.type === 'save') return;
     else totalOut += r.amt;
@@ -2872,20 +2877,26 @@ async function historyNav(dir) {
       var bpKey = 'bill_pending_' + r.billId + '_' + r.date.getFullYear() + '_' + r.date.getMonth() + '_' + r.date.getDate();
       var isBillPendingBtn = record.billPending && record.billPending[bpKey];
       var ccEditAmtBtn = '<button onclick="editBillEvent(\'' + r.billId + '\',' + r.date.getFullYear() + ',' + r.date.getMonth() + ',' + r.date.getDate() + ',' + (r.amt || 0) + ')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">edit</button>';
+      var ccSkipKey = 'bill_override_' + r.billId + '_' + r.date.getFullYear() + '_' + r.date.getMonth() + '_' + r.date.getDate();
+      var isCCSkipped = record.billOverrides && record.billOverrides[ccSkipKey] === 'skip';
+      var ccSkipBtn = '<button onclick="toggleBillSkip(\'' + r.billId + '\',' + r.date.getFullYear() + ',' + r.date.getMonth() + ',' + r.date.getDate() + ')" style="font-size:13px;padding:4px 8px;min-height:28px;background:' + (isCCSkipped ? 'var(--sun-bg)' : 'var(--surface2)') + ';border:1px solid ' + (isCCSkipped ? 'var(--sun)' : 'var(--border)') + ';border-radius:4px;color:' + (isCCSkipped ? 'var(--sun-dim)' : 'var(--text-3)') + ';cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">' + (isCCSkipped ? 'skipped' : 'skip') + '</button>';
       var ccPendingBtn = '<button onclick="toggleBillPending(\'' + r.billId + '\',' + r.date.getFullYear() + ',' + r.date.getMonth() + ',' + r.date.getDate() + ')" style="font-size:13px;padding:4px 8px;min-height:28px;background:' + (isBillPendingBtn ? 'var(--sun-bg)' : 'var(--surface2)') + ';border:1px solid ' + (isBillPendingBtn ? 'var(--sun)' : 'var(--border)') + ';border-radius:4px;color:' + (isBillPendingBtn ? 'var(--sun-dim)' : 'var(--text-3)') + ';cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">' + (isBillPendingBtn ? '⏳ pending' : 'pending?') + '</button>';
-      editBtn = ccEditAmtBtn + ccPendingBtn;
+      editBtn = ccEditAmtBtn + ccSkipBtn + ccPendingBtn;
     } else if (r.billId && r.billId.toString().startsWith('income_') || r.billId && r.billId.toString().startsWith('chk_') || r.billId && r.billId.toString().startsWith('custom_') || r.billId && r.billId.toString().startsWith('transfer_')) {
       editBtn = '<button onclick="deleteBillFromRegister(\'' + r.billId + '\')" style="font-size:13px;padding:4px 8px;min-height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--red);cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap">delete</button>';
     }
+    var skippedBadge = r.isSkipped ? '<span style="font-size:11px;background:var(--surface2);color:var(--text-3);border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:4px">skipped</span>' : '';
+    var skipNameStyle = r.isSkipped ? 'opacity:0.5;' : '';
+    var skipAmtStyle = r.isSkipped ? 'opacity:0.5;text-decoration:line-through;' : '';
     row.innerHTML =
-      '<span style="font-size:18px;min-width:20px;text-align:center">' + label + '</span>' +
+      '<span style="font-size:18px;min-width:20px;text-align:center;' + (r.isSkipped ? 'opacity:0.5;' : '') + '">' + label + '</span>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + pendingBadge + fundBadge + '</div>' +
-        (r.note ? '<div style="font-size:13px;color:var(--text-3)">' + r.note + '</div>' : '') +
-        (!r.isPast ? '<div style="font-size:12px;color:var(--sky-dim)">projected</div>' : '') +
+        '<div style="font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + skipNameStyle + '">' + r.name + pendingBadge + fundBadge + skippedBadge + '</div>' +
+        (r.note ? '<div style="font-size:13px;color:var(--text-3);' + skipNameStyle + '">' + r.note + '</div>' : '') +
+        (!r.isPast && !r.isSkipped ? '<div style="font-size:12px;color:var(--sky-dim)">projected</div>' : '') +
       '</div>' +
       '<div style="display:flex;align-items:center;gap:4px">' +
-        '<div style="font-size:17px;font-weight:600;color:' + color + ';white-space:nowrap">' + sign + fmtAmt(r.amt) + '</div>' +
+        '<div style="font-size:17px;font-weight:600;color:' + color + ';white-space:nowrap;' + skipAmtStyle + '">' + sign + fmtAmt(r.amt) + '</div>' +
         editBtn +
       '</div>';
 
@@ -3523,7 +3534,7 @@ function hasCCEntries(fromDate, toDate) {
 }
 
 // Returns all occurrences of a bill within a date range
-function getBillOccurrencesInRange(b, fromDate, toDate) {
+function getBillOccurrencesInRange(b, fromDate, toDate, opts) {
   var dates = [];
   // Respect startMonth/startYear — bill didn't exist before this date
   var billStart = null;
@@ -3575,6 +3586,26 @@ function getBillOccurrencesInRange(b, fromDate, toDate) {
     var od = new Date(b.year || fromDate.getFullYear(), b.month, b.day);
     if (od >= fromDate && od <= toDate) dates.push(od);
   }
+
+  // Honor per-occurrence skips: a 'skip' sentinel in billOverrides removes that
+  // occurrence everywhere (register, getCCSpend, projection, P&L) since they all
+  // flow through this one function. The register passes includeSkipped to still
+  // SHOW skipped rows (so they can be un-skipped), tagging them via _skipped.
+  var includeSkipped = opts && opts.includeSkipped;
+  if (b.id !== undefined && record && record.billOverrides) {
+    if (includeSkipped) {
+      dates.forEach(function(dt) {
+        var skKey = 'bill_override_' + b.id + '_' + dt.getFullYear() + '_' + dt.getMonth() + '_' + dt.getDate();
+        if (record.billOverrides[skKey] === 'skip') dt._skipped = true;
+      });
+    } else {
+      dates = dates.filter(function(dt) {
+        var skKey = 'bill_override_' + b.id + '_' + dt.getFullYear() + '_' + dt.getMonth() + '_' + dt.getDate();
+        return record.billOverrides[skKey] !== 'skip';
+      });
+    }
+  }
+
   return dates;
 }
 
@@ -3695,7 +3726,7 @@ function buildProjection() {
       var d2 = ev.date;
       var billOverrideKey = 'bill_override_' + ev.billId + '_' + d2.getFullYear() + '_' + d2.getMonth() + '_' + d2.getDate();
       var billOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined) ? record.billOverrides[billOverrideKey] : null;
-      if (billOverride !== null && billOverride !== undefined) {
+      if (billOverride !== null && billOverride !== undefined && billOverride !== 'skip') {
         amt = parseFloat(billOverride);
         // Note: don't mutate ev.amt
       }
@@ -3753,7 +3784,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.4.2';
+var APP_VERSION = 'v3.4.3';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -4719,6 +4750,25 @@ async function editBillEvent(billId, year, month, day, currentAmt) {
     if (_histScreen && _histScreen.classList.contains('active')) historyNav();
     toast(pending ? '⏳ Marked as pending' : 'Bill updated');
   };
+}
+
+async function toggleBillSkip(billId, year, month, day) {
+  var skipKey = 'bill_override_' + billId + '_' + year + '_' + month + '_' + day;
+  if (!record.billOverrides) record.billOverrides = {};
+  var currentlySkipped = record.billOverrides[skipKey] === 'skip';
+  if (currentlySkipped) {
+    delete record.billOverrides[skipKey];
+  } else {
+    record.billOverrides[skipKey] = 'skip';
+    // Clear any pending flag on a skipped occurrence — it no longer exists
+    var pendKey = 'bill_pending_' + billId + '_' + year + '_' + month + '_' + day;
+    if (record.billPending) delete record.billPending[pendKey];
+  }
+  await cloudSet(record);
+  refreshBalance();
+  var _histScreen = document.getElementById('screen-history');
+  if (_histScreen && _histScreen.classList.contains('active')) historyNav();
+  toast(currentlySkipped ? 'Bill restored this month' : 'Bill skipped this month');
 }
 
 function renderCashflowGrid() {
