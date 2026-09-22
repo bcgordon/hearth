@@ -3563,6 +3563,18 @@ function getCCSpend(fromDate, toDate, opts) {
   return Math.round(total * 100) / 100;
 }
 
+function getScheduledCCInCycle(fromDate, toDate) {
+  // Sum ONLY scheduled CC bills in the cycle, ignoring the posted-cutoff
+  // (used for forecasting future CC payments, where bills are future-dated).
+  var total = 0;
+  getAllBills().forEach(function(b) {
+    if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
+    var occurrences = getBillOccurrencesInRange(b, fromDate, toDate);
+    total += occurrences.length * b.amt;
+  });
+  return Math.round(total * 100) / 100;
+}
+
 // Returns true if there are any logged CC entries in the date range
 function hasCCEntries(fromDate, toDate) {
   var qKeys = [getQuarterKeyForDate(fromDate), getQuarterKeyForDate(toDate)];
@@ -3717,14 +3729,16 @@ function buildProjection() {
         _pevCycleFrom = new Date(_ppy2, _ppm2, CC_CYCLE_DAY);
         _pevCycleTo = new Date(_ppy1, _ppm1, CC_CYCLE_DAY - 1, 23, 59, 59);
       }
-      // Check for override first
+      // Same logic as the main CC amount calc: for future cycles, use the
+      // discretionary placeholder (override or 3500) PLUS scheduled CC bills.
       var _pevOKey = 'cc_override_' + pev.ccYear + '_' + pev.ccMonth;
       var _pevOverride = record && record.ccOverrides && record.ccOverrides[_pevOKey];
-      if (_pevOverride) {
-        pevAmt = parseFloat(_pevOverride);
+      var _pevHasEntries = hasCCEntries(_pevCycleFrom, _pevCycleTo);
+      if (_pevHasEntries) {
+        pevAmt = getCCSpend(_pevCycleFrom, _pevCycleTo, { includeScheduled: true });
       } else {
-        var _pevHasEntries = hasCCEntries(_pevCycleFrom, _pevCycleTo);
-        pevAmt = _pevHasEntries ? getCCSpend(_pevCycleFrom, _pevCycleTo, { includeScheduled: true }) : 3500;
+        var _pevDisc = _pevOverride ? parseFloat(_pevOverride) : 3500;
+        pevAmt = _pevDisc + getScheduledCCInCycle(_pevCycleFrom, _pevCycleTo);
       }
     }
     if (pev.type === 'in') projectedEndOfMonth += pevAmt;
@@ -3754,24 +3768,26 @@ function buildProjection() {
         var ccMonth = ev.date.getMonth();
         var overrideKey = 'cc_override_' + ccYear + '_' + ccMonth;
         var override = record && record.ccOverrides && record.ccOverrides[overrideKey];
-        if (override) {
-          amt = parseFloat(override);
+        // Compute cycle dates first (needed for scheduled-bill summing in all paths)
+        var _cycleFrom = ev.ccCycleFrom || null;
+        var _cycleTo = ev.ccCycleTo || null;
+        if (!_cycleFrom || !_cycleTo) {
+          var _pm2 = ccMonth - 2; var _py2 = ccYear;
+          if (_pm2 < 0) { _pm2 += 12; _py2--; }
+          var _pm1 = ccMonth - 1; var _py1 = ccYear;
+          if (_pm1 < 0) { _pm1 += 12; _py1--; }
+          _cycleFrom = new Date(_py2, _pm2, CC_CYCLE_DAY);
+          _cycleTo = new Date(_py1, _pm1, CC_CYCLE_DAY - 1, 23, 59, 59);
+        }
+        var _hasEntries = hasCCEntries(_cycleFrom, _cycleTo);
+        if (_hasEntries) {
+          // Real logged spending exists — it already includes scheduled bills. Use as-is.
+          amt = getCCSpend(_cycleFrom, _cycleTo, { includeScheduled: true });
         } else {
-          // Use explicit cycle dates if provided, otherwise estimate from CC_CYCLE_DAY
-          var _cycleFrom = ev.ccCycleFrom || null;
-          var _cycleTo = ev.ccCycleTo || null;
-          if (!_cycleFrom || !_cycleTo) {
-            var _pm2 = ccMonth - 2; var _py2 = ccYear;
-            if (_pm2 < 0) { _pm2 += 12; _py2--; }
-            var _pm1 = ccMonth - 1; var _py1 = ccYear;
-            if (_pm1 < 0) { _pm1 += 12; _py1--; }
-            _cycleFrom = new Date(_py2, _pm2, CC_CYCLE_DAY);
-            _cycleTo = new Date(_py1, _pm1, CC_CYCLE_DAY - 1, 23, 59, 59);
-          }
-          var _hasEntries = hasCCEntries(_cycleFrom, _cycleTo);
-          amt = _hasEntries
-            ? getCCSpend(_cycleFrom, _cycleTo, { includeScheduled: true })
-            : 3500; // fallback estimate when no entries yet
+          // Future cycle: discretionary placeholder (override or default 3500)
+          // PLUS scheduled CC bills in the cycle, so bills are never hidden.
+          var _disc = override ? parseFloat(override) : 3500;
+          amt = _disc + getScheduledCCInCycle(_cycleFrom, _cycleTo);
         }
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
@@ -3842,7 +3858,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.5.3';
+var APP_VERSION = 'v3.6.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -4000,10 +4016,11 @@ function updateCCBalanceCard() {
   // Update next bill display
   var nextBillAmtEl = document.getElementById('cc-next-bill-amt');
   var nextBillDateEl = document.getElementById('cc-next-bill-date');
-  // Check for manual override
+  // Check for manual override (for the ✏️ indicator only — the amount comes
+  // from the projection, which already adds scheduled CC bills to the override).
   var _nbOverrideKey = nextBillDate ? 'cc_override_' + nextBillDate.getFullYear() + '_' + nextBillDate.getMonth() : null;
   var _nbOverride = _nbOverrideKey && record && record.ccOverrides && record.ccOverrides[_nbOverrideKey];
-  var displayNextBill = _nbOverride ? parseFloat(_nbOverride) : nextBill;
+  var displayNextBill = nextBill;
 
   if (nextBillAmtEl) nextBillAmtEl.textContent = fmt(displayNextBill);
   if (nextBillDateEl) nextBillDateEl.textContent = nextBillDate
