@@ -3958,7 +3958,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.6.1';
+var APP_VERSION = 'v3.7.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -4749,6 +4749,10 @@ function renderBalTimeline() {
       var hasBillOverride = (record && record.billOverrides && record.billOverrides[billOverrideKey] !== undefined) ? record.billOverrides[billOverrideKey] : null;
       var billEditLabel = hasBillOverride ? 'edit' : 'edit';
       ccEditBtn += ' <button onclick="editBillEvent(\'' + ev.billId + '\',' + d.getFullYear() + ',' + d.getMonth() + ',' + d.getDate() + ',' + Math.round(ev.amt) + ')" style="font-size:14px;padding:6px 10px;min-height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-3);cursor:pointer;font-family:inherit;margin-left:4px">edit</button>';
+      // Phase 1: cover-from-fund toggle (flag only; projection wiring comes in Phase 2)
+      var _fcKey = 'fund_cover_' + ev.billId + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate();
+      var _isFundCovered = record && record.fundCovers && record.fundCovers[_fcKey] === true;
+      ccEditBtn += ' <button onclick="toggleFundCover(\'' + ev.billId + '\',' + d.getFullYear() + ',' + d.getMonth() + ',' + d.getDate() + ')" style="font-size:14px;padding:6px 10px;min-height:36px;background:' + (_isFundCovered ? 'var(--sky-bg)' : 'var(--surface2)') + ';border:1px solid ' + (_isFundCovered ? 'var(--sky)' : 'var(--border)') + ';border-radius:4px;color:' + (_isFundCovered ? 'var(--sky-dim)' : 'var(--text-3)') + ';cursor:pointer;font-family:inherit;margin-left:4px;white-space:nowrap">' + (_isFundCovered ? '💰 fund' : 'fund') + '</button>';
     }
     var evKey = ev.date.getFullYear() + '-' + ev.date.getMonth() + '-' + ev.date.getDate() + '-' + ev.name.replace(/\s/g,'_');
     var today2 = new Date(); today2.setHours(0,0,0,0);
@@ -4948,6 +4952,25 @@ async function toggleBillSkip(billId, year, month, day) {
   var _histScreen = document.getElementById('screen-history');
   if (_histScreen && _histScreen.classList.contains('active')) historyNav();
   toast(currentlySkipped ? 'Bill restored this month' : 'Bill skipped this month');
+}
+
+// ── FUND COVERAGE (Phase 1: per-occurrence flag, data model + toggle only) ────
+// Marks a specific expense occurrence as "covered by sinking fund." Stored in
+// record.fundCovers keyed exactly like billOverrides. Phase 1 does NOT yet alter
+// the checking projection or the fund chart — it only persists the flag and shows
+// the toggle state. Projection wiring comes in Phase 2, chart in Phase 3.
+async function toggleFundCover(billId, year, month, day) {
+  var key = 'fund_cover_' + billId + '_' + year + '_' + month + '_' + day;
+  if (!record.fundCovers) record.fundCovers = {};
+  var covered = record.fundCovers[key] === true;
+  if (covered) {
+    delete record.fundCovers[key];
+  } else {
+    record.fundCovers[key] = true;
+  }
+  await cloudSet(record);
+  refreshBalance();
+  toast(covered ? 'Expense back on checking' : 'Expense marked fund-covered');
 }
 
 function renderCashflowGrid() {
