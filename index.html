@@ -3796,6 +3796,18 @@ function getCCSpendForMonth(year, month) {
   return getCCSpend(from, to);
 }
 
+// Phase 2: is this scheduled expense occurrence marked "covered by sinking fund"?
+// If so, the checking projection skips its drain (the money comes from savings).
+// The occurrence still appears everywhere else (register, P&L) — only the checking
+// projection treats it as not-from-checking.
+function isFundCovered(ev) {
+  if (!ev || !ev.billId || !ev.date) return false;
+  if (ev.type === 'in' || ev.type === 'save' || ev.type === 'cc') return false; // only regular expense bills
+  if (!record || !record.fundCovers) return false;
+  var key = 'fund_cover_' + ev.billId + '_' + ev.date.getFullYear() + '_' + ev.date.getMonth() + '_' + ev.date.getDate();
+  return record.fundCovers[key] === true;
+}
+
 // Build running balance projection anchored from actual balance entered today
 function buildProjection() {
   var events = getScheduledEvents();
@@ -3842,6 +3854,7 @@ function buildProjection() {
       }
     }
     if (pev.type === 'in') projectedEndOfMonth += pevAmt;
+    else if (isFundCovered(pev)) { /* fund-covered: does not drain checking */ }
     else projectedEndOfMonth -= pevAmt; // include CC payments — they come from checking
   }
 
@@ -3912,8 +3925,13 @@ function buildProjection() {
       _usedEOMBalance = true;
     }
 
+    // Phase 2: fund-covered expenses do NOT drain checking (paid from savings).
+    var _evFundCovered = isFundCovered(ev);
+
     if (ev.type === 'in') {
       balance += amt;
+    } else if (_evFundCovered) {
+      // does not affect checking balance
     } else {
       balance -= amt;
     }
@@ -3930,6 +3948,7 @@ function buildProjection() {
       ccMonth: ev.ccMonth,
       billId: ev.billId,
       isTransfer: ev.isTransfer || false,
+      fundCovered: _evFundCovered,
     });
   }
   return projection;
@@ -3958,7 +3977,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.7.0';
+var APP_VERSION = 'v3.7.1';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -4723,6 +4742,7 @@ function renderBalTimeline() {
     row.className = 'tl-event';
     if (ev.balance < FLOOR) row.style.background = 'var(--coral-bg)';
     if (ev.type === 'save') row.style.opacity = '0.7';
+    if (ev.fundCovered) row.style.opacity = '0.6'; // fund-covered: shown but doesn't drain checking
 
     var typeClass = ev.type === 'in' ? 'tl-in' : (ev.type === 'cc' || ev.type === 'cc_bill') ? 'tl-cc' : ev.type === 'save' ? 'tl-save' : 'tl-out';
     var sign = ev.type === 'in' ? '+' : '-';
