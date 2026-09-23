@@ -3977,7 +3977,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.7.1';
+var APP_VERSION = 'v3.7.2';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -4630,21 +4630,28 @@ function renderBalChart() {
   var startingFunds = 0;
   FUND_DEFS.forEach(function(f) { startingFunds += getFundBalance(f.id); });
 
-  // Walk through projection save events, accumulating month by month
+  // Walk through projection save events, accumulating month by month.
+  // Phase 3: ALSO accumulate earmarked "use" — fund-covered expenses draw the
+  // fund down. runningFunds = contributions in; runningUse = cumulative earmarked
+  // spending. Net available = runningFunds - runningUse.
   var today = new Date(); today.setHours(0,0,0,0);
   var runningFunds = startingFunds;
+  var runningUse = 0;
   for (var sm = 0; sm < months.length; sm++) {
     var monoStart = new Date(months[sm].year, months[sm].month, 1);
     var monoEnd = new Date(months[sm].year, months[sm].month + 1, 0, 23, 59, 59);
     // Add scheduled save transfers in this month that fall on/after today
     // (current balance already reflects past transfers)
     balProjection.forEach(function(p) {
-      if (p.type !== 'save') return;
       if (p.date < monoStart || p.date > monoEnd) return;
-      if (p.date < today) return; // already in actual balance
-      runningFunds += p.amt;
+      if (p.date < today) return; // already reflected in current balances
+      if (p.type === 'save') runningFunds += p.amt;
+      // Fund-covered expenses draw down the fund (cumulative)
+      if (p.fundCovered && p.type !== 'in' && p.type !== 'save') runningUse += p.amt;
     });
-    months[sm].savings = runningFunds;
+    months[sm].savings = runningFunds;           // total contributed (gross)
+    months[sm].earmarked = runningUse;            // cumulative earmarked use
+    months[sm].available = runningFunds - runningUse; // net still available
   }
 
   // Max value for scaling = max of (checking + savings)
@@ -4659,7 +4666,9 @@ function renderBalChart() {
   for (var m = 0; m < months.length; m++) {
     var mo = months[m];
     var chkVal = mo.min === Infinity ? 0 : mo.min;
-    var savVal = mo.savings;
+    var savVal = mo.savings;                    // gross contributed
+    var earmarkVal = mo.earmarked || 0;         // committed to fund-covered expenses
+    var availVal = Math.max(savVal - earmarkVal, 0); // still available
     var totalVal = chkVal + savVal;
 
     // Heights as % of max
@@ -4668,7 +4677,6 @@ function renderBalChart() {
     if (chkPct + savPct < 2) chkPct = 2; // min visible
 
     var chkColor = chkVal >= 3000 ? 'var(--grass)' : chkVal >= FLOOR ? 'var(--sun)' : 'var(--red)';
-    var savColor = 'var(--sky-dim)';
 
     // Container bar (stacks checking bottom + savings top)
     var bar = document.createElement('div');
@@ -4677,27 +4685,51 @@ function renderBalChart() {
 
     var chkSeg = document.createElement('div');
     chkSeg.style.cssText = 'width:100%;background:' + chkColor + ';height:' + (chkPct / (chkPct + savPct) * 100) + '%;border-radius:0 0 3px 3px';
-    var savSeg = document.createElement('div');
-    savSeg.style.cssText = 'width:100%;background:' + savColor + ';height:' + (savPct / (chkPct + savPct) * 100) + '%;border-radius:3px 3px 0 0;opacity:0.85';
-
     bar.appendChild(chkSeg);
-    bar.appendChild(savSeg);
 
-    (function(label, chk, sav, total) {
+    // Savings split into available (solid) + earmarked (faded/hatched) sub-segments.
+    // Both together = gross savings height; the faded portion shows what's spoken for.
+    var savFrac = savPct / (chkPct + savPct) * 100; // % of bar height that is savings
+    var availFracOfSav = savVal > 0 ? (availVal / savVal) : 1;
+    var earmarkFracOfSav = savVal > 0 ? (earmarkVal / savVal) : 0;
+
+    var availSeg = document.createElement('div');
+    availSeg.style.cssText = 'width:100%;background:var(--sky-dim);opacity:0.85;height:' + (savFrac * availFracOfSav) + '%';
+    var earmarkSeg = document.createElement('div');
+    // Faded, hatched look for the "spoken for" portion
+    earmarkSeg.style.cssText = 'width:100%;height:' + (savFrac * earmarkFracOfSav) + '%;border-radius:3px 3px 0 0;' +
+      'background:repeating-linear-gradient(45deg,var(--sky-dim),var(--sky-dim) 3px,transparent 3px,transparent 6px);opacity:0.55';
+    // Available sits below earmarked within the savings zone; round the true top segment
+    if (earmarkVal > 0) {
+      bar.appendChild(availSeg);
+      bar.appendChild(earmarkSeg);
+    } else {
+      availSeg.style.borderRadius = '3px 3px 0 0';
+      bar.appendChild(availSeg);
+    }
+
+    (function(label, chk, gross, earmark, avail, total) {
       bar.onclick = function(e) {
         e.stopPropagation();
         var existing = document.getElementById('chart-tip');
         if (existing) existing.remove();
         var tip = document.createElement('div');
         tip.id = 'chart-tip';
-        tip.innerHTML = '<div style="font-weight:700;margin-bottom:4px">' + label + ': $' + Math.round(total).toLocaleString() + ' total</div>' +
+        var tipHtml = '<div style="font-weight:700;margin-bottom:4px">' + label + ': $' + Math.round(total).toLocaleString() + ' total</div>' +
           '<div style="font-size:13px;opacity:0.9">Checking: $' + (chk<0?'-':'') + Math.abs(Math.round(chk)).toLocaleString() + '</div>' +
-          '<div style="font-size:13px;opacity:0.9">Savings: $' + Math.round(sav).toLocaleString() + '</div>';
+          '<div style="font-size:13px;opacity:0.9">Funds available: $' + Math.round(avail).toLocaleString() + '</div>';
+        if (earmark > 0) {
+          tipHtml += '<div style="font-size:13px;opacity:0.9">Earmarked (fund-covered): $' + Math.round(earmark).toLocaleString() + '</div>';
+        }
+        if (avail < 0 || (gross - earmark) < 0) {
+          tipHtml += '<div style="font-size:12px;color:#ffb3a0;margin-top:3px">⚠ earmarked use exceeds contributions</div>';
+        }
+        tip.innerHTML = tipHtml;
         tip.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--text);color:var(--bg);padding:12px 20px;border-radius:14px;font-size:15px;z-index:999;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.3);text-align:center';
         document.body.appendChild(tip);
         setTimeout(function() { if (tip.parentNode) tip.remove(); }, 2500);
       };
-    })(mo.label, chkVal, savVal, totalVal);
+    })(mo.label, chkVal, savVal, earmarkVal, availVal, totalVal);
     barsEl.appendChild(bar);
 
     var lbl = document.createElement('div');
