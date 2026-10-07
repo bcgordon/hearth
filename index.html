@@ -3841,16 +3841,17 @@ function buildProjection() {
         _pevCycleFrom = new Date(_ppy2, _ppm2, CC_CYCLE_DAY);
         _pevCycleTo = new Date(_ppy1, _ppm1, CC_CYCLE_DAY - 1, 23, 59, 59);
       }
-      // Same logic as the main CC amount calc: for future cycles, use the
-      // discretionary placeholder (override or 3500) PLUS scheduled CC bills.
+      // Same precedence as the main CC amount calc: an override is authoritative
+      // and wins over logged/estimated; else logged spending; else 3500 + scheduled.
       var _pevOKey = 'cc_override_' + pev.ccYear + '_' + pev.ccMonth;
       var _pevOverride = record && record.ccOverrides && record.ccOverrides[_pevOKey];
       var _pevHasEntries = hasCCEntries(_pevCycleFrom, _pevCycleTo);
-      if (_pevHasEntries) {
+      if (_pevOverride) {
+        pevAmt = parseFloat(_pevOverride);
+      } else if (_pevHasEntries) {
         pevAmt = getCCSpend(_pevCycleFrom, _pevCycleTo, { includeScheduled: true });
       } else {
-        var _pevDisc = _pevOverride ? parseFloat(_pevOverride) : 3500;
-        pevAmt = _pevDisc + getScheduledCCInCycle(_pevCycleFrom, _pevCycleTo);
+        pevAmt = 3500 + getScheduledCCInCycle(_pevCycleFrom, _pevCycleTo);
       }
     }
     if (pev.type === 'in') projectedEndOfMonth += pevAmt;
@@ -3893,14 +3894,17 @@ function buildProjection() {
           _cycleTo = new Date(_py1, _pm1, CC_CYCLE_DAY - 1, 23, 59, 59);
         }
         var _hasEntries = hasCCEntries(_cycleFrom, _cycleTo);
-        if (_hasEntries) {
+        if (override) {
+          // A manual override is authoritative — it wins over logged/estimated,
+          // so a closed statement can be pinned to its real Capital One total.
+          amt = parseFloat(override);
+        } else if (_hasEntries) {
           // Real logged spending exists — it already includes scheduled bills. Use as-is.
           amt = getCCSpend(_cycleFrom, _cycleTo, { includeScheduled: true });
         } else {
-          // Future cycle: discretionary placeholder (override or default 3500)
-          // PLUS scheduled CC bills in the cycle, so bills are never hidden.
-          var _disc = override ? parseFloat(override) : 3500;
-          amt = _disc + getScheduledCCInCycle(_cycleFrom, _cycleTo);
+          // Future cycle: discretionary placeholder (3500) PLUS scheduled CC
+          // bills in the cycle, so bills are never hidden.
+          amt = 3500 + getScheduledCCInCycle(_cycleFrom, _cycleTo);
         }
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
@@ -3977,7 +3981,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.7.2';
+var APP_VERSION = 'v3.8.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
