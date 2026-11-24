@@ -203,6 +203,13 @@ textarea { resize: none; }
 .pace-cushion { border-top: 1.5px dashed var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
 .pace-cushion .pace-track { height: 8px; margin-top: 0; }
 .pace-cushion-math { font-size: 13px; color: var(--text-3); line-height: 1.45; }
+.watch-item { display: flex; flex-direction: column; gap: 3px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.watch-item:last-child { border-bottom: none; padding-bottom: 0; }
+.watch-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 16px; }
+.watch-note { font-size: 13px; color: var(--text-3); font-style: italic; }
+.watch-status { font-size: 14px; color: var(--text-2); }
+.watch-actions { display: flex; gap: 14px; }
+.watch-actions button { background: none; border: none; padding: 2px 0; font-family: inherit; font-size: 13px; color: var(--sky); cursor: pointer; text-decoration: underline dotted; }
 .pace-more { background: none; border: none; padding: 4px 0; font-family: inherit; font-size: 14px; color: var(--sky); cursor: pointer; text-align: left; text-decoration: underline dotted; }
 .updbar { position: fixed; left: 50%; bottom: calc(max(env(safe-area-inset-bottom), 16px) + 84px); transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 10px; width: calc(100% - 32px); max-width: 460px; box-sizing: border-box; padding: 10px 10px 10px 18px; background: var(--surface); color: var(--text); border: 1.5px solid var(--coral); border-radius: var(--radius-pill); box-shadow: 0 3px 0 var(--coral); font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; z-index: 9997; transition: transform 0.3s cubic-bezier(.4,0,.2,1), opacity 0.3s; }
 .updbar.on { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
@@ -719,6 +726,13 @@ textarea { resize: none; }
   <div class="pace-cats" id="pace-cats"></div>
   <button class="pace-more" id="pace-more" onclick="togglePaceCats()"></button>
   <div class="pace-cushion" id="pace-cushion"></div>
+</div>
+
+<!-- Watch list (v4.0.0) -->
+<div class="card" id="watch-card" style="margin-bottom:14px;display:none;flex-direction:column;gap:10px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="section-head" style="margin:0">Watch list</span><span style="font-size:12px;color:var(--text-3)">from your notes</span></div>
+  <div id="watch-list" style="display:flex;flex-direction:column;gap:10px"></div>
+  <button class="pace-more" id="watch-more" onclick="watchShowAll=!watchShowAll;renderWatchList()"></button>
 </div>
 
 <!-- Quarter tracker (replaces monthly cards) -->
@@ -2323,6 +2337,7 @@ function refreshMain() {
   renderEntriesList(qEntries.slice().reverse().slice(0, 10), 'entries-list', true, qKey);
   renderMonthlyBreakdown();
   try { renderPacing(); } catch (e) { console.error('pacing', e); }
+  try { renderWatchList(); } catch (e) { console.error('watch', e); }
   updateSidebar();
 }
 
@@ -2536,6 +2551,108 @@ function renderPacing() {
   more.style.display = hidden > 0 ? '' : 'none';
   more.textContent = paceShowAllCats ? 'Show fewer' : 'Show all ' + rows.length + ' categories';
 }
+// ── WATCH LIST (v4.0.0) ─────────────────────────────────────────────────────
+// Charges whose note flags them ("check this", "investigate", "cancel",
+// "last time", "get rid of", "??", "(?)"), grouped by merchant (first word of
+// the note). Still charging = a charge after the latest flag. Marking one done
+// hides it until that merchant charges again (record.watchDone[key] = ts).
+var WATCH_FLAG = /check this|investigate|cancel|last time|get rid of|\?\?|\(\?\)|\+ ?\?\)/i;
+var watchShowAll = false;
+function _watchKey(note) {
+  var w = String(note || '').toLowerCase().replace(/[^a-z0-9 .]/g, ' ').trim().split(/\s+/)[0] || '';
+  return w.slice(0, 6);
+}
+function getWatchItems() {
+  if (!record || !record.entries) return [];
+  var all = [];
+  Object.keys(record.entries).forEach(function(k) { (record.entries[k] || []).forEach(function(e) { if (e.note && e.payMethod !== 'income') all.push(e); }); });
+  var groups = {};
+  all.forEach(function(e) {
+    var key = _watchKey(e.note); if (!key) return;
+    (groups[key] = groups[key] || []).push(e);
+  });
+  var done = (record.watchDone) || {};
+  var now = Date.now(), items = [];
+  Object.keys(groups).forEach(function(key) {
+    var list = groups[key].slice().sort(function(a, b) { return a.ts - b.ts; });
+    var flagged = list.filter(function(e) { return WATCH_FLAG.test(e.note); });
+    if (!flagged.length) return;
+    var lastFlag = flagged[flagged.length - 1];
+    var after = list.filter(function(e) { return e.ts > lastFlag.ts; });
+    var last = list[list.length - 1];
+    var doneAt = done[key];
+    var chargedAfterDone = doneAt ? list.filter(function(e) { return e.ts > doneAt; }) : [];
+    if (doneAt && !chargedAfterDone.length) return; // resolved and quiet
+    var quietDays = Math.floor((now - last.ts) / 86400000);
+    var status, rank;
+    if (doneAt) { status = 'again'; rank = 4; }
+    else if (after.length) { status = 'charging'; rank = 3; }
+    else if (quietDays >= 35) { status = 'quiet'; rank = 1; }
+    else { status = 'watching'; rank = 2; }
+    var name = String(lastFlag.note).split(/[\(\-:]/)[0].trim() || key;
+    items.push({ key: key, name: name, note: lastFlag.note, flagTs: lastFlag.ts, last: last, after: after, afterDone: chargedAfterDone, quietDays: quietDays, status: status, rank: rank });
+  });
+  items.sort(function(a, b) { return b.rank - a.rank || b.last.ts - a.last.ts; });
+  return items;
+}
+function renderWatchList() {
+  var card = document.getElementById('watch-card'); if (!card) return;
+  var items = getWatchItems();
+  card.style.display = items.length ? 'flex' : 'none';
+  if (!items.length) return;
+  var fmt = function(n) { return '$' + n.toFixed(2).replace(/\.00$/, ''); };
+  var d = function(ts) { var x = new Date(ts); return (x.getMonth() + 1) + '/' + x.getDate(); };
+  var pills = { again: ['Charged again', 'over'], charging: ['Still charging', 'over'], watching: ['Watching', 'ahead'], quiet: ['Looks done', 'ok'] };
+  var shown = watchShowAll ? items : items.slice(0, 4);
+  var box = document.getElementById('watch-list'); box.innerHTML = '';
+  shown.forEach(function(it) {
+    var sum = function(a) { return a.reduce(function(t, e) { return t + e.amt; }, 0); };
+    var status;
+    if (it.status === 'again') status = 'Charged ' + it.afterDone.length + '\u00d7 (' + fmt(sum(it.afterDone)) + ') since you marked it done. Latest ' + d(it.last.ts) + '.';
+    else if (it.status === 'charging') status = 'Charged ' + it.after.length + '\u00d7 since you flagged it on ' + d(it.flagTs) + ' (' + fmt(sum(it.after)) + '). Latest ' + fmt(it.last.amt) + ' on ' + d(it.last.ts) + '.';
+    else if (it.status === 'quiet') status = 'No charge since ' + d(it.last.ts) + ' (' + it.quietDays + ' days).';
+    else status = 'Flagged ' + d(it.flagTs) + '. Watching for the next charge.';
+    var div = document.createElement('div'); div.className = 'watch-item';
+    div.innerHTML = '<div class="watch-top"><span>' + it.name + '</span><span class="pace-pill ' + pills[it.status][1] + '" style="font-size:11px;padding:2px 8px">' + pills[it.status][0] + '</span></div>' +
+      '<div class="watch-status">' + status + '</div><div class="watch-note">Your note: \u201c' + String(it.note).replace(/</g, '&lt;') + '\u201d</div>' +
+      '<div class="watch-actions"><button data-a="see">See charges</button><button data-a="done">' + (it.status === 'quiet' ? 'Mark done' : 'Mark done (cancelled)') + '</button></div>';
+    div.querySelector('[data-a="see"]').onclick = function() { watchSeeCharges(it.name); };
+    div.querySelector('[data-a="done"]').onclick = function() { watchMarkDone(it.key, it.name); };
+    box.appendChild(div);
+  });
+  var more = document.getElementById('watch-more');
+  more.style.display = items.length > 4 ? '' : 'none';
+  more.textContent = watchShowAll ? 'Show fewer' : 'Show all ' + items.length;
+}
+async function watchMarkDone(key, name) {
+  var fresh = await cloudGet(); if (fresh) record = fresh;
+  if (!record.watchDone) record.watchDone = {};
+  record.watchDone[key] = Date.now();
+  await cloudSet(record);
+  renderWatchList();
+  toast(name + ' marked done. It comes back if it charges again.');
+}
+function watchSeeCharges(name) {
+  var key = _watchKey(name), rows = [];
+  Object.keys(record.entries || {}).forEach(function(k) { (record.entries[k] || []).forEach(function(e) { if (_watchKey(e.note) === key && e.payMethod !== 'income') rows.push(e); }); });
+  rows.sort(function(a, b) { return b.ts - a.ts; });
+  var total = rows.reduce(function(t, e) { return t + e.amt; }, 0);
+  var money = function(n) { return '$' + n.toFixed(2); };
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center';
+  var html = '<div style="background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;padding:20px;width:100%;max-width:500px;max-height:80vh;overflow-y:auto">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:17px;font-weight:600;color:var(--text)">' + String(name).replace(/</g, '&lt;') + '</div><button data-x style="font-size:22px;background:none;border:none;cursor:pointer;color:var(--text-3)">\u00d7</button></div>';
+  html += '<div style="font-size:13px;color:var(--text-3);margin-bottom:10px">' + rows.length + ' charges since April \u00b7 ' + money(total) + '</div>';
+  rows.forEach(function(e) {
+    var x = new Date(e.ts), flag = WATCH_FLAG.test(e.note);
+    html += '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)"><div><div style="font-size:15px;color:var(--text)">' + String(e.note).replace(/</g, '&lt;') + (flag ? ' <span style="font-size:11px;color:var(--sun-dim)">\u2691</span>' : '') + '</div><div style="font-size:12px;color:var(--text-3)">' + (x.getMonth() + 1) + '/' + x.getDate() + '/' + String(x.getFullYear()).slice(2) + ' \u00b7 ' + (e.cat || '') + '</div></div><div style="font-size:15px;font-weight:600;color:var(--coral);white-space:nowrap">' + money(e.amt) + '</div></div>';
+  });
+  html += '</div>';
+  overlay.innerHTML = html;
+  overlay.onclick = function(ev) { if (ev.target === overlay || ev.target.hasAttribute('data-x')) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
 function togglePaceCats() { paceShowAllCats = !paceShowAllCats; renderPacing(); }
 
 function renderPaceChart(cum, last, days, thisLbl, lastLbl, expected, info) {
@@ -4636,7 +4753,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.16.0';
+var APP_VERSION = 'v4.0.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
