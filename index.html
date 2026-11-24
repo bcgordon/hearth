@@ -851,6 +851,11 @@ textarea { resize: none; }
             </select>
           </div>
         </div>
+        <div id="bf-firstdate-wrap" style="display:none">
+          <label class="label">First payment date</label>
+          <input id="bf-first-date" type="date" style="font-size:17px;font-family:inherit;width:100%" />
+          <div style="font-size:13px;color:var(--text-3);margin-top:4px">Repeats every week (or two) from this date.</div>
+        </div>
         <div id="bf-endon-wrap">
           <label class="label">Ending (optional)</label>
           <div style="display:flex;gap:8px">
@@ -1031,7 +1036,7 @@ textarea { resize: none; }
       <div class="chart-labels" id="bal-chart-labels"></div>
     </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px">
-      <span style="font-size:19px;color:var(--grass)">&#9632; Safe (&gt;$5k)</span>
+      <span style="font-size:19px;color:var(--grass)">&#9632; Safe ($3k+)</span>
       <span style="font-size:19px;color:var(--sun)">&#9632; Watch ($2k-$3k)</span>
       <span style="font-size:19px;color:var(--red)">&#9632; Danger (&lt;$2k)</span>
     </div>
@@ -1617,6 +1622,13 @@ function selectUser(u) {
   (config.names || []).forEach(name => { const el = document.getElementById('pill-u-' + name); if (el) el.className = 'pill' + (name === u ? ' sel-u' : ''); });
 }
 
+// Guards against half-typed years on iOS date pickers (e.g. 0006 → quarter "6_Q3").
+function isSaneEntryDate(d) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return false;
+  var y = d.getFullYear(), thisYear = new Date().getFullYear();
+  return y >= thisYear - 2 && y <= thisYear + 1;
+}
+
 function clearAddErr() { document.getElementById('add-err').style.display = 'none'; }
 
 function getCurrentQuarterKey() { const d = new Date(); return d.getFullYear() + '_Q' + (Math.floor(d.getMonth() / 3) + 1); }
@@ -1726,6 +1738,7 @@ async function submitEntry() {
   // Use selected date or default to today
   var dateVal = document.getElementById('add-date').value;
   var entryDate = dateVal ? new Date(dateVal + 'T12:00:00') : new Date();
+  if (!isSaneEntryDate(entryDate)) { err.textContent = 'Please check the date — the year looks wrong'; err.style.display = 'block'; btn.textContent = 'Save expense'; btn.disabled = false; return; }
   var entryTs = entryDate.getTime();
   var entryQNum = Math.floor(entryDate.getMonth() / 3) + 1;
   var qKey = entryDate.getFullYear() + '_Q' + entryQNum;
@@ -2318,49 +2331,51 @@ function showCCBreakdown(ccYear, ccMonth, cycleFromStr, cycleToStr) {
   var cyc = function(d) { return (d.getMonth()+1) + '/' + d.getDate(); };
 
   var lines = [];      // {name, amt, sub?}
-  var total = 0;
-  var hasEntries = hasCCEntries(cycleFrom, cycleTo);
-  var overrideKey = 'cc_override_' + ccYear + '_' + ccMonth;
-  var override = record && record.ccOverrides && record.ccOverrides[overrideKey];
-
-  if (hasEntries) {
-    // Current/real cycle: show actual logged discretionary charges + scheduled bills
+  var fc = forecastCCPayment(ccYear, ccMonth, cycleFrom, cycleTo);
+  var total = fc.amt;
+  var hasEntries = fc.mode === 'actual' || fc.mode === 'inprogress';
+  var cutoff = new Date(); cutoff.setHours(23, 59, 59, 999);
+  var pushScheduled = function(which) { // which: 'all' | 'posted' | 'upcoming'
+    getAllBills().forEach(function(b) {
+      if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
+      getBillOccurrencesInRange(b, cycleFrom, cycleTo).forEach(function(od) {
+        var posted = od <= cutoff;
+        if (which === 'posted' && !posted) return;
+        if (which === 'upcoming' && posted) return;
+        lines.push({ name: b.name, amt: b.amt, sub: cyc(od) + (posted ? ' · scheduled' : ' · scheduled, not yet posted') });
+      });
+    });
+  };
+  var pushEntries = function() {
     var qKeys = [getQuarterKeyForDate(cycleFrom), getQuarterKeyForDate(cycleTo)];
     qKeys = qKeys.filter(function(k,i,a){ return a.indexOf(k)===i; });
     qKeys.forEach(function(qKey) {
       (loadEntries(qKey) || []).forEach(function(e) {
         if (e.payMethod === 'checking' || e.payMethod === 'income') return;
         var d = new Date(e.ts);
-        if (d >= cycleFrom && d <= cycleTo) {
-          lines.push({ name: (e.note || e.cat || 'Charge'), amt: e.amt, sub: cyc(d) });
-          total += e.amt;
-        }
+        if (d >= cycleFrom && d <= cycleTo) lines.push({ name: (e.note || e.cat || 'Charge'), amt: e.amt, sub: cyc(d) });
       });
     });
-    // scheduled CC bills in cycle (posted)
-    getAllBills().forEach(function(b) {
-      if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
-      getBillOccurrencesInRange(b, cycleFrom, cycleTo).forEach(function(od) {
-        lines.push({ name: b.name, amt: b.amt, sub: cyc(od) + ' · scheduled' });
-        total += b.amt;
-      });
-    });
+  };
+
+  if (fc.mode === 'override') {
+    lines.push({ name: 'Payment amount (set manually)', amt: fc.amt, sub: 'overrides logged and estimated figures' });
+  } else if (fc.mode === 'actual') {
+    pushEntries(); pushScheduled('all');
+  } else if (fc.mode === 'inprogress') {
+    pushEntries(); pushScheduled('all');
+    if (fc.usingEstimate) {
+      var _gap = Math.round((fc.estimate - fc.soFar - fc.stillToPost) * 100) / 100;
+      lines.push({ name: 'Rest of cycle (estimate)', amt: _gap, sub: 'keeps the forecast at $3,500 + bills until the statement closes' });
+    }
   } else {
-    // Future cycle: discretionary placeholder + scheduled CC bills
-    var disc = override ? parseFloat(override) : 3500;
-    lines.push({ name: 'Discretionary spending (estimate)', amt: disc, sub: override ? 'custom placeholder' : 'default placeholder' });
-    total += disc;
-    getAllBills().forEach(function(b) {
-      if (b.paidBy !== 'cc' || b.type !== 'out' || b.amt <= 0 || b.isFundTransfer) return;
-      getBillOccurrencesInRange(b, cycleFrom, cycleTo).forEach(function(od) {
-        lines.push({ name: b.name, amt: b.amt, sub: cyc(od) + ' · scheduled' });
-        total += b.amt;
-      });
-    });
+    lines.push({ name: 'Discretionary spending (estimate)', amt: 3500, sub: 'default placeholder' });
+    pushScheduled('all');
   }
 
   var title = '💳 ' + monthNames[ccMonth] + ' ' + ccYear + ' payment';
-  var subtitle = 'Cycle ' + cyc(cycleFrom) + ' – ' + cyc(cycleTo) + (hasEntries ? ' · actual' : ' · forecast');
+  var _modeLabel = { override: ' · set manually', actual: ' · actual', inprogress: ' · in progress', forecast: ' · forecast' }[fc.mode];
+  var subtitle = 'Cycle ' + cyc(cycleFrom) + ' – ' + cyc(cycleTo) + _modeLabel;
 
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center';
@@ -2385,8 +2400,8 @@ function showCCBreakdown(ccYear, ccMonth, cycleFromStr, cycleToStr) {
   html += '<span style="font-size:16px;font-weight:700;color:var(--text)">Projected payment</span>';
   html += '<span style="font-size:16px;font-weight:700;color:var(--coral)">' + fmt(total) + '</span>';
   html += '</div>';
-  if (!hasEntries) {
-    html += '<div style="font-size:12px;color:var(--text-3);font-style:italic;margin-top:8px">Forecast: the discretionary figure is an estimate. As you log real charges this cycle, the total will reflect actual spending.</div>';
+  if (fc.mode === 'forecast' || (fc.mode === 'inprogress' && fc.usingEstimate)) {
+    html += '<div style="font-size:12px;color:var(--text-3);font-style:italic;margin-top:8px">Forecast: until the statement closes, this never drops below $3,500 + scheduled bills. Once logged charges pass that, the total follows actual spending.</div>';
   }
 
   modal.innerHTML = html;
@@ -2700,6 +2715,7 @@ async function eeSave() {
   var note = document.getElementById('ee-note').value.trim();
   var dateVal = document.getElementById('ee-date').value;
   var newTs = dateVal ? new Date(dateVal + 'T12:00:00').getTime() : _eeEntry.ts;
+  if (!isSaneEntryDate(new Date(newTs))) { toast('Please check the date — the year looks wrong'); return; }
   var newQNum = Math.floor(new Date(newTs).getMonth() / 3) + 1;
   var newQKey = new Date(newTs).getFullYear() + '_Q' + newQNum;
   document.getElementById('entry-edit-modal').style.display = 'none';
@@ -3167,8 +3183,11 @@ function getAllBills() {
 
 function getBillFreqLabel(b) {
   if (b.freq === 'monthly') return 'Monthly, day ' + b.day;
-  if (b.freq === 'weekly')   return 'Weekly, day ' + b.day;
-  if (b.freq === 'biweekly') return 'Bi-weekly';
+  var _wd = ['Sundays','Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays'];
+  var _sd = b.startDate ? b.startDate.split('-') : null;
+  var _sdDay = _sd ? new Date(+_sd[0], +_sd[1] - 1, +_sd[2]).getDay() : null;
+  if (b.freq === 'weekly')   return _sd ? 'Weekly, ' + _wd[_sdDay] : '⚠ Weekly — needs a first date';
+  if (b.freq === 'biweekly') return _sd ? 'Bi-weekly, ' + _wd[_sdDay] : '⚠ Bi-weekly — needs a first date';
   if (b.freq === 'annual') return 'Annual, month ' + b.month + ' day ' + b.day;
   if (b.freq === 'quarterly') { var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return 'Quarterly, starting ' + mn[b.month] + ' ' + b.day; }
   if (b.freq === 'once') {
@@ -3249,6 +3268,7 @@ function showAddBill() {
   document.getElementById('bf-name').value = '';
   document.getElementById('bf-amt').value = '';
   document.getElementById('bf-day').value = '';
+  document.getElementById('bf-first-date').value = '';
   document.getElementById('bf-err').style.display = 'none';
   document.getElementById('bill-form-title').textContent = 'Add bill';
   updateFreqUI();
@@ -3283,6 +3303,7 @@ function editBill(id) {
   document.getElementById('bf-name').value = b.name;
   document.getElementById('bf-amt').value = b.amt;
   document.getElementById('bf-day').value = b.day || '';
+  document.getElementById('bf-first-date').value = b.startDate || '';
   if (b.month !== undefined) document.getElementById('bf-month').value = b.month;
   if (b.year !== undefined) document.getElementById('bf-year').value = b.year;
   // Populate starting from
@@ -3325,9 +3346,17 @@ async function saveBill() {
   if ((billFreq === 'monthly' || billFreq === 'annual' || billFreq === 'once' || billFreq === 'quarterly') && (!day || day < 1 || day > 31)) {
     errEl.textContent = 'Please enter a valid day (1-31)'; errEl.style.display = 'block'; return;
   }
+  var isWeeklyish = billFreq === 'weekly' || billFreq === 'biweekly';
+  var firstDate = document.getElementById('bf-first-date').value;
+  if (isWeeklyish && !/^\d{4}-\d{2}-\d{2}$/.test(firstDate)) {
+    errEl.textContent = 'Please pick the first payment date'; errEl.style.display = 'block'; return;
+  }
   errEl.style.display = 'none';
 
-  var bill = {
+  // Start from the existing bill so fields the form doesn't show (isFundTransfer,
+  // note, cat, eom, startDate…) survive an edit, then overlay what the form owns.
+  var existing = editingBillId ? getAllBills().find(function(x) { return x.id === editingBillId; }) : null;
+  var bill = Object.assign({}, existing || {}, {
     id: editingBillId || ('custom_' + Date.now()),
     name: name,
     amt: amt,
@@ -3335,7 +3364,16 @@ async function saveBill() {
     type: billType,
     paidBy: billType === 'out' ? billPaidBy : 'checking',
     day: day || 1,
-  };
+  });
+  // Drop fields that belong to a different frequency (re-set below where they apply)
+  delete bill.month; delete bill.year; delete bill.startMonth; delete bill.startYear;
+  delete bill.endMonth; delete bill.endYear; delete bill.startDate;
+  if (isWeeklyish) {
+    var _fp = firstDate.split('-');
+    var _fd = new Date(+_fp[0], +_fp[1] - 1, +_fp[2]);
+    bill.startDate = firstDate;
+    bill.day = _fd.getDay();
+  }
 
   if (billFreq === 'annual' || billFreq === 'once') {
     bill.month = parseInt(document.getElementById('bf-month').value);
@@ -3345,9 +3383,12 @@ async function saveBill() {
     bill.month = parseInt(document.getElementById('bf-month').value);
   }
   // Add startMonth/startYear for recurring bills
-  if (billFreq === 'monthly' || billFreq === 'weekly' || billFreq === 'biweekly' || billFreq === 'quarterly') {
+  if (billFreq === 'monthly' || billFreq === 'quarterly') {
     bill.startMonth = parseInt(document.getElementById('bf-start-month').value);
     bill.startYear  = parseInt(document.getElementById('bf-start-year').value);
+  } else if (isWeeklyish) {
+    bill.startMonth = _fd.getMonth();
+    bill.startYear  = _fd.getFullYear();
   }
 
   // Add endMonth/endYear if set (blank = ongoing). Applies to all recurring types.
@@ -3417,12 +3458,15 @@ function updateFreqUI() {
   });
   // Show/hide starting from field based on frequency
   var sfWrap = document.getElementById('bf-startfrom-wrap');
-  if (sfWrap) sfWrap.style.display = (billFreq === 'once' || billFreq === 'annual') ? 'none' : 'block';
+  var _isWk = billFreq === 'weekly' || billFreq === 'biweekly';
+  if (sfWrap) sfWrap.style.display = (billFreq === 'once' || billFreq === 'annual' || _isWk) ? 'none' : 'block';
+  var fdWrap = document.getElementById('bf-firstdate-wrap');
+  if (fdWrap) fdWrap.style.display = _isWk ? 'block' : 'none';
   var showMonth = billFreq === 'annual' || billFreq === 'once' || billFreq === 'quarterly';
   document.getElementById('bf-month-wrap').style.display = showMonth ? 'block' : 'none';
   document.getElementById('bf-year-wrap').style.display  = billFreq === 'once' ? 'block' : 'none';
   // Show/hide day field
-  document.getElementById('bf-day').closest('div').style.display = billFreq === 'biweekly' ? 'none' : 'block';
+  document.getElementById('bf-day').closest('div').style.display = _isWk ? 'none' : 'block';
 }
 
 function selectBillType(t) {
@@ -3730,6 +3774,37 @@ function getScheduledCCInCycle(fromDate, toDate) {
   return Math.round(total * 100) / 100;
 }
 
+// ── CC PAYMENT FORECAST — single rule for projection, month-end and details ──
+// v3.10.0. Precedence:
+//   1. override (cc_override_{y}_{m}) — the complete number.
+//   2. closed cycle (ended before today) with logged charges — actual spend.
+//   3. open or future cycle — the larger of
+//        actual so far + scheduled CC bills still to post, and
+//        the estimate ($3,500 discretionary + all scheduled CC bills).
+//      So one early charge can no longer collapse a cycle's forecast to just
+//      that charge; the forecast only drops below the estimate once the
+//      statement closes.
+function forecastCCPayment(ccYear, ccMonth, cycleFrom, cycleTo) {
+  var overrideKey = 'cc_override_' + ccYear + '_' + ccMonth;
+  var override = record && record.ccOverrides && record.ccOverrides[overrideKey];
+  var scheduledAll = getScheduledCCInCycle(cycleFrom, cycleTo);
+  var estimate = 3500 + scheduledAll;
+  if (override) return { amt: parseFloat(override), mode: 'override', estimate: estimate };
+  var hasEntries = hasCCEntries(cycleFrom, cycleTo);
+  var startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  var closed = cycleTo < startOfToday;
+  if (closed && hasEntries) {
+    return { amt: getCCSpend(cycleFrom, cycleTo, { includeScheduled: true }), mode: 'actual', estimate: estimate };
+  }
+  if (!hasEntries) return { amt: estimate, mode: 'forecast', estimate: estimate };
+  var soFar = getCCSpend(cycleFrom, cycleTo, { includeScheduled: true }); // entries + scheduled posted by today
+  var scheduledPosted = soFar - getCCSpend(cycleFrom, cycleTo, { includeScheduled: false });
+  var stillToPost = Math.round((scheduledAll - scheduledPosted) * 100) / 100;
+  var running = Math.round((soFar + stillToPost) * 100) / 100;
+  return { amt: Math.max(running, estimate), mode: 'inprogress', estimate: estimate,
+           soFar: soFar, stillToPost: stillToPost, usingEstimate: estimate > running };
+}
+
 // Returns true if there are any logged CC entries in the date range
 function hasCCEntries(fromDate, toDate) {
   var qKeys = [getQuarterKeyForDate(fromDate), getQuarterKeyForDate(toDate)];
@@ -3896,18 +3971,8 @@ function buildProjection() {
         _pevCycleFrom = new Date(_ppy2, _ppm2, CC_CYCLE_DAY);
         _pevCycleTo = new Date(_ppy1, _ppm1, CC_CYCLE_DAY - 1, 23, 59, 59);
       }
-      // Same precedence as the main CC amount calc: an override is authoritative
-      // and wins over logged/estimated; else logged spending; else 3500 + scheduled.
-      var _pevOKey = 'cc_override_' + pev.ccYear + '_' + pev.ccMonth;
-      var _pevOverride = record && record.ccOverrides && record.ccOverrides[_pevOKey];
-      var _pevHasEntries = hasCCEntries(_pevCycleFrom, _pevCycleTo);
-      if (_pevOverride) {
-        pevAmt = parseFloat(_pevOverride);
-      } else if (_pevHasEntries) {
-        pevAmt = getCCSpend(_pevCycleFrom, _pevCycleTo, { includeScheduled: true });
-      } else {
-        pevAmt = 3500 + getScheduledCCInCycle(_pevCycleFrom, _pevCycleTo);
-      }
+      // Same rule as the main loop and the details sheet.
+      pevAmt = forecastCCPayment(pev.ccYear, pev.ccMonth, _pevCycleFrom, _pevCycleTo).amt;
     }
     if (pev.type === 'in') projectedEndOfMonth += pevAmt;
     else if (isFundCovered(pev)) { /* fund-covered: does not drain checking */ }
@@ -3948,19 +4013,8 @@ function buildProjection() {
           _cycleFrom = new Date(_py2, _pm2, CC_CYCLE_DAY);
           _cycleTo = new Date(_py1, _pm1, CC_CYCLE_DAY - 1, 23, 59, 59);
         }
-        var _hasEntries = hasCCEntries(_cycleFrom, _cycleTo);
-        if (override) {
-          // A manual override is authoritative — it wins over logged/estimated,
-          // so a closed statement can be pinned to its real Capital One total.
-          amt = parseFloat(override);
-        } else if (_hasEntries) {
-          // Real logged spending exists — it already includes scheduled bills. Use as-is.
-          amt = getCCSpend(_cycleFrom, _cycleTo, { includeScheduled: true });
-        } else {
-          // Future cycle: discretionary placeholder (3500) PLUS scheduled CC
-          // bills in the cycle, so bills are never hidden.
-          amt = 3500 + getScheduledCCInCycle(_cycleFrom, _cycleTo);
-        }
+        // Shared rule — see forecastCCPayment().
+        amt = forecastCCPayment(ccYear, ccMonth, _cycleFrom, _cycleTo).amt;
         ev.ccYear = ccYear;
         ev.ccMonth = ccMonth;
         // Note: don't mutate ev.amt — use local amt only
@@ -4036,7 +4090,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.9.0';
+var APP_VERSION = 'v3.10.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
