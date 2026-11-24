@@ -660,7 +660,7 @@ textarea { resize: none; }
     <span><span class="pace-big" id="pace-spent">$0</span> <span class="pace-of" id="pace-target">of $3,500</span></span>
     <span class="pace-of" id="pace-day"></span>
   </div>
-  <div class="pace-track"><div class="pace-fill" id="pace-fill"></div><div class="pace-tick" id="pace-tick"><span id="pace-tick-label"></span></div></div>
+  <div class="pace-track" id="pace-track"><div class="pace-fill" id="pace-fill-e" style="background:var(--grass);border-radius:7px 0 0 7px"></div><div class="pace-fill" id="pace-fill-n" style="background:var(--sun);border-radius:0 7px 7px 0"></div><div class="pace-tick" id="pace-tick"><span id="pace-tick-label"></span></div></div>
   <div class="pace-sentence" id="pace-sentence"></div>
   <div style="font-size:13px;color:var(--text-3)" id="pace-committed"></div>
   <!-- hidden elements still needed for JS -->
@@ -2362,15 +2362,34 @@ function renderPacing() {
   document.getElementById('pace-spent').textContent = fmt(spent);
   document.getElementById('pace-target').textContent = 'of ' + fmt(PACE_TARGET);
   document.getElementById('pace-day').textContent = 'day ' + day + ' of ' + days;
-  var fill = document.getElementById('pace-fill');
-  fill.style.width = Math.max(0, Math.min(100, spent / PACE_TARGET * 100)) + '%';
-  fill.style.background = colors[status];
-  document.getElementById('pace-tick').style.left = (frac * 100) + '%';
+  // Essential (green) then non-essential (amber), as shares of the $3,500.
+  // Past the target the bar is scaled to the total and outlined in red.
+  var totE = 0, totN = 0;
+  getMonthEntries(y, m).forEach(function(e) {
+    if (new Date(e.ts).getDate() > day) return;
+    var a = _paceEveryday(e); if (!a) return;
+    if (e.type === 'essential') totE += a; else totN += a;
+  });
+  var scale = Math.max(PACE_TARGET, spent);
+  var fe = document.getElementById('pace-fill-e'), fn = document.getElementById('pace-fill-n');
+  fe.style.width = Math.max(0, totE / scale * 100) + '%';
+  fn.style.left = Math.max(0, totE / scale * 100) + '%';
+  fn.style.width = Math.max(0, totN / scale * 100) + '%';
+  fe.style.borderRadius = totN > 0 ? '7px 0 0 7px' : '7px';
+  fn.style.borderRadius = totE > 0 ? '0 7px 7px 0' : '7px';
+  var trk = document.getElementById('pace-track');
+  trk.style.borderColor = status === 'over' ? 'var(--red)' : '';
+  trk.style.boxShadow = status === 'over' ? '0 0 0 1px var(--red)' : '';
+  var scaledFrac = PACE_TARGET * frac / scale;
+  // Keep the Essential / Non-essential labels on the same basis as the bar
+  document.getElementById('lbl-e').textContent = fmt(totE);
+  document.getElementById('lbl-n').textContent = fmt(totN);
+  document.getElementById('pace-tick').style.left = (scaledFrac * 100) + '%';
   var tl = document.getElementById('pace-tick-label');
   tl.textContent = 'today\u2019s pace ' + fmt(paceNow);
-  tl.style.left = frac > 0.8 ? 'auto' : frac < 0.2 ? '0' : '50%';
-  tl.style.right = frac > 0.8 ? '0' : 'auto';
-  tl.style.transform = (frac > 0.8 || frac < 0.2) ? 'none' : 'translateX(-50%)';
+  tl.style.left = scaledFrac > 0.8 ? 'auto' : scaledFrac < 0.2 ? '0' : '50%';
+  tl.style.right = scaledFrac > 0.8 ? '0' : 'auto';
+  tl.style.transform = (scaledFrac > 0.8 || scaledFrac < 0.2) ? 'none' : 'translateX(-50%)';
 
   var daysLeft = days - day + 1; // including today
   var left = PACE_TARGET - spent;
@@ -2430,7 +2449,9 @@ function renderPacing() {
     var div = document.createElement('div');
     div.className = 'pace-cat';
     div.onclick = function() { showCategoryRegister(r.name); };
-    div.innerHTML = '<div class="pace-cat-row"><span>' + r.name + ' <span class="pace-pill ' + r.status + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + labels[r.status].replace('Ahead of pace', 'Ahead') + '</span></span>' +
+    var diff = r.spent - r.budget;
+    var tag = diff > 0 ? fmt(diff) + ' over' : fmt(-diff) + ' left';
+    div.innerHTML = '<div class="pace-cat-row"><span>' + r.name + ' <span class="pace-pill ' + r.status + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + tag + '</span></span>' +
       '<span class="pace-cat-amt">' + fmt(r.spent) + ' / ' + fmt(r.budget) + '</span></div>' +
       '<div class="pace-track"><div class="pace-fill" style="width:' + Math.min(100, r.spent / r.budget * 100) + '%;background:' + colors[r.status] + '"></div><div class="pace-tick" style="left:' + (frac * 100) + '%"></div></div>';
     box.appendChild(div);
