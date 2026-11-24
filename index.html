@@ -900,6 +900,10 @@ textarea { resize: none; }
             </select>
           </div>
         </div>
+        <div>
+          <label class="label">Report category</label>
+          <select id="bf-cat" style="font-family:inherit;font-size:17px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);width:100%"></select>
+        </div>
         <div id="bf-firstdate-wrap" style="display:none">
           <label class="label">First payment date</label>
           <input id="bf-first-date" type="date" style="font-size:17px;font-family:inherit;width:100%" />
@@ -1130,6 +1134,7 @@ textarea { resize: none; }
   <button id="hist-view-m" class="pill" onclick="setHistoryView('month')">Month</button>
   <button id="hist-view-cc" class="pill" onclick="setHistoryView('cccycle')">CC Cycle</button>
   <button id="hist-view-pl" class="pill" onclick="setHistoryView('pl')">P&amp;L</button>
+  <button id="hist-view-rep" class="pill" onclick="setHistoryView('reports')">Reports</button>
 </div>
 <div id="hist-cat-filters" style="display:none;justify-content:center;gap:8px;margin-bottom:14px">
   <button id="hist-cat-e" class="pill" onclick="toggleCatTypeFilter('essential')">Essential</button>
@@ -1475,7 +1480,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type' && historyView !== 'pl') { historyQOffset = 0; historyMonthOffset = 0; historyView = historyView || 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var plP = document.getElementById('hist-view-pl'); if (plP) plP.className = 'pill' + (historyView === 'pl' ? ' sel-e' : ''); if (historyView === 'pl') { renderPLView(); } else { historyNav(0); } }
+  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type' && historyView !== 'pl' && historyView !== 'reports') { historyQOffset = 0; historyMonthOffset = 0; historyView = historyView || 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var plP = document.getElementById('hist-view-pl'); if (plP) plP.className = 'pill' + (historyView === 'pl' ? ' sel-e' : ''); var rpP = document.getElementById('hist-view-rep'); if (rpP) rpP.className = 'pill' + (historyView === 'reports' ? ' sel-e' : ''); if (historyView === 'pl') { _restoreHistoryChrome(); renderPLView(); } else if (historyView === 'reports') { renderReportsView(); } else { _restoreHistoryChrome(); historyNav(0); } }
   if (id === 'screen-budget') { renderBudgetScreen(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -2679,8 +2684,11 @@ function setHistoryView(view) {
   document.getElementById('hist-view-m').className = 'pill' + (view === 'month' ? ' sel-e' : '');
   var ccPill = document.getElementById('hist-view-cc'); if (ccPill) ccPill.className = 'pill' + (view === 'cccycle' ? ' sel-n' : '');
   var plPill = document.getElementById('hist-view-pl'); if (plPill) plPill.className = 'pill' + (view === 'pl' ? ' sel-e' : '');
-  var hs = document.getElementById('history-search'); if (hs) hs.value = '';
+  var repPill = document.getElementById('hist-view-rep'); if (repPill) repPill.className = 'pill' + (view === 'reports' ? ' sel-e' : '');
+  var hs = document.getElementById('history-search'); if (hs) { hs.value = ''; hs.style.display = ''; }
+  _restoreHistoryChrome();
   if (view === 'pl') { renderPLView(); return; }
+  if (view === 'reports') { renderReportsView(); return; }
   historyNav(0);
 }
 
@@ -2828,6 +2836,165 @@ function showPLDrilldown(items, title) {
 
 // ── P&L VIEW ─────────────────────────────────────────────────────────────────
 var plMonthOffset = 0;
+
+// ── REPORTS (v3.16.0) ───────────────────────────────────────────────────────
+// Income vs expenses by month or quarter, with what was kept and where it went.
+// Income: paychecks + logged income (not money moved back from the funds).
+// Expenses: card spending (incl. fund-covered purchases), card bills, checking
+// bills. Not expenses: sinking-fund transfers, card payments and allowances
+// (allowances count as transfers, shown on their own line).
+var REPORT_BILL_CATS = ['Home & utilities','Car','Phone & internet','Insurance','Loans & tuition','Taxes','Health & fitness','Pets','Medical','Digital Subscriptions','House Subscriptions','Other cards','Allowances','Card payment','Other'];
+function guessBillCategory(name) {
+  var n = String(name || '').toLowerCase();
+  for (var i = 0; i < BUDGET_CATEGORIES.length; i++) if (BUDGET_CATEGORIES[i].name.toLowerCase() === n) return BUDGET_CATEGORIES[i].name;
+  if (/allowance/.test(n)) return 'Allowances';
+  if (/car down pmt|cc payment|card payment/.test(n)) return 'Card payment';
+  if (/mortgage|city of blaine|solar|centerpoint|ecoshield|walter|furnace|connexus|recycling/.test(n)) return 'Home & utilities';
+  if (/camry|toyota|prius|\bvw\b|lease|car loan/.test(n)) return 'Car';
+  if (/t-mobile|tmobile|comcast|verizon/.test(n)) return 'Phone & internet';
+  if (/insurance|progressive/.test(n)) return 'Insurance';
+  if (/student loan|tuition|hamline/.test(n)) return 'Loans & tuition';
+  if (/tax/.test(n)) return 'Taxes';
+  if (/ymca|bouldering|bodywork|\bcim\b|calm|gym/.test(n)) return 'Health & fitness';
+  if (/\bvet\b|vet care|groom/.test(n)) return 'Pets';
+  if (/eye|clinic|fairview|dental|medical/.test(n)) return 'Medical';
+  if (/amex|apple card|chase|card pmt/.test(n)) return 'Other cards';
+  if (/pest|lawn|blueland/.test(n)) return 'House Subscriptions';
+  return 'Digital Subscriptions';
+}
+function _fillBillCatSelect(current, name) {
+  var sel = document.getElementById('bf-cat'); if (!sel) return;
+  var guess = name ? guessBillCategory(name) : '';
+  var html = '<option value="">' + (guess ? 'Automatic (' + guess + ')' : 'Automatic') + '</option>';
+  REPORT_BILL_CATS.forEach(function(c) { html += '<option value="' + c + '"' + (c === current ? ' selected' : '') + '>' + c + '</option>'; });
+  sel.innerHTML = html;
+}
+function reportFigures(from, to) {
+  var r = { inc: 0, exp: 0, toFunds: 0, fromFunds: 0, allowances: 0, cats: {} };
+  var addExp = function(c, a) { r.cats[c] = (r.cats[c] || 0) + a; r.exp += a; };
+  var dismissed = (record && record.dismissedEvents) || {}, overrides = (record && record.billOverrides) || {};
+  getAllBills().forEach(function(b) {
+    if (!(b.amt > 0)) return;
+    var monthEnd = new Date(to.getFullYear(), to.getMonth() + 1, 0, 23, 59, 59);
+    getBillOccurrencesInRange(b, from, monthEnd).forEach(function(d) {
+      if (b.freq === 'monthly' && b.eom) d = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      if (d < from || d > to) return;
+      var ov = overrides['bill_override_' + b.id + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate()];
+      if (ov === 'skip') return;
+      if (dismissed[d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + '-' + b.name.replace(/\s/g, '_')]) return;
+      var a = (ov !== undefined && ov !== null && !isNaN(parseFloat(ov))) ? parseFloat(ov) : b.amt;
+      if (b.type === 'in') { if (b.isFundTransfer) r.fromFunds += a; else r.inc += a; return; }
+      if (b.type === 'save') { r.toFunds += a; return; }
+      if (b.type !== 'out' || b.isFundTransfer) return;
+      var c = b.cat || guessBillCategory(b.name);
+      if (c === 'Card payment') return;
+      if (c === 'Allowances') { r.allowances += a; return; }
+      addExp(c, a);
+    });
+  });
+  var qk = {}; for (var d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d.setMonth(d.getMonth() + 1)) qk[getQuarterKeyForDate(d)] = true;
+  Object.keys(qk).forEach(function(k) {
+    loadEntries(k).forEach(function(e) {
+      var ed = new Date(e.ts); if (ed < from || ed > to) return;
+      if (e.payMethod === 'income') { r.inc += e.amt; return; }
+      if (e.payMethod === 'checking') return; // checking expenses are counted through their one-time bill
+      addExp(e.cat || 'Other', e.amt);
+    });
+  });
+  return r;
+}
+var reportMode = 'm', reportSel = null;
+function _reportPeriods() {
+  var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  var start = new Date(2026, 3, 1); // Hearth began in April 2026
+  var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var out = [];
+  if (reportMode === 'm') {
+    for (var d = new Date(start); d <= today; d.setMonth(d.getMonth() + 1)) {
+      var f = new Date(d.getFullYear(), d.getMonth(), 1), t = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+      var cur = t > today; if (cur) t = today;
+      out.push({ label: mn[f.getMonth()], title: mn[f.getMonth()] + ' ' + f.getFullYear() + (cur ? ' (to date)' : ''), range: mn[f.getMonth()] + ' 1 – ' + t.getDate(), from: f, to: t, cur: cur, y: f.getFullYear(), m: f.getMonth() });
+    }
+    out = out.slice(-9);
+  } else {
+    for (var q = new Date(start); q <= today; q.setMonth(q.getMonth() + 3)) {
+      var qs = new Date(q.getFullYear(), Math.floor(q.getMonth() / 3) * 3, 1), qe = new Date(qs.getFullYear(), qs.getMonth() + 3, 0, 23, 59, 59);
+      var qcur = qe > today; if (qcur) qe = today;
+      var qn = 'Q' + (Math.floor(qs.getMonth() / 3) + 1);
+      out.push({ label: qn, title: qn + ' ' + qs.getFullYear() + (qcur ? ' (to date)' : ''), range: mn[qs.getMonth()] + ' 1 – ' + mn[qe.getMonth()] + ' ' + qe.getDate(), from: qs, to: qe, cur: qcur });
+    }
+    out = out.slice(-6);
+  }
+  out.forEach(function(p) { p.fig = reportFigures(p.from, p.to); });
+  return out;
+}
+function _restoreHistoryChrome() {
+  var nav = document.querySelector('.hist-nav'); if (nav) nav.style.display = '';
+  var hs = document.getElementById('history-search'); if (hs) hs.style.display = '';
+  var sum = document.getElementById('history-summary'); if (sum) sum.style.display = 'grid';
+  var list = document.getElementById('history-list'); if (list) list.className = 'card card-sun';
+  var prev = document.querySelector('.hist-nav [onclick*="historyNav(-1)"]'); if (prev) prev.onclick = function() { historyNav(-1); };
+  var next = document.querySelector('.hist-nav [onclick*="historyNav(1)"]'); if (next) next.onclick = function() { historyNav(1); };
+}
+function setReportMode(m) { reportMode = m; reportSel = null; renderReportsView(); }
+function renderReportsView() {
+  var nav = document.querySelector('.hist-nav'); if (nav) nav.style.display = 'none';
+  var hs = document.getElementById('history-search'); if (hs) hs.style.display = 'none';
+  var sumEl = document.getElementById('history-summary'); if (sumEl) { sumEl.style.display = 'none'; sumEl.innerHTML = ''; }
+  var cf = document.getElementById('hist-cat-filters'); if (cf) cf.style.display = 'none';
+  var db = document.getElementById('hist-drill-back'); if (db) db.style.display = 'none';
+  var cont = document.getElementById('history-list'); cont.className = '';
+  var P = _reportPeriods();
+  if (reportSel === null || reportSel >= P.length) reportSel = P.length - 1;
+  var fmt = function(n) { return (n < 0 ? '\u2212' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); };
+  var W = 340, H = 210, ml = 40, mr = 6, mid = 105, top = 12, bot = 24;
+  var max = Math.max.apply(null, P.map(function(p) { return Math.max(p.fig.inc, p.fig.exp, 1); })) * 1.05;
+  var sc = function(v) { return v / max * (mid - top); };
+  var bw = (W - ml - mr) / P.length, x = function(i) { return ml + i * bw + bw / 2; };
+  var bar = Math.min(26, bw * 0.62);
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img" aria-label="Income and expenses by period, with what was kept as a line">';
+  [max * 0.5, max].forEach(function(v) {
+    var k = '$' + Math.round(v / 1000) + 'k';
+    svg += '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + (mid - sc(v)) + '" y2="' + (mid - sc(v)) + '" stroke="var(--border)" stroke-width="0.6"/><text x="' + (ml - 4) + '" y="' + (mid - sc(v) + 4) + '" text-anchor="end" style="font-size:11px;fill:var(--text-3)">' + k + '</text>';
+    svg += '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + (mid + sc(v)) + '" y2="' + (mid + sc(v)) + '" stroke="var(--border)" stroke-width="0.6"/><text x="' + (ml - 4) + '" y="' + (mid + sc(v) + 4) + '" text-anchor="end" style="font-size:11px;fill:var(--text-3)">\u2212' + k + '</text>';
+  });
+  svg += '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + mid + '" y2="' + mid + '" stroke="var(--border-dark)" stroke-width="1"/>';
+  P.forEach(function(p, i) {
+    var on = i === reportSel, op = on ? 1 : 0.55;
+    svg += '<g style="cursor:pointer" onclick="reportSel=' + i + ';renderReportsView()"><rect x="' + (x(i) - bw / 2) + '" y="' + top + '" width="' + bw + '" height="' + (H - top - bot) + '" fill="transparent"/>';
+    svg += '<rect x="' + (x(i) - bar / 2) + '" y="' + (mid - sc(p.fig.inc)) + '" width="' + bar + '" height="' + Math.max(1, sc(p.fig.inc) - 1) + '" rx="4" fill="var(--grass)" opacity="' + op + '"/>';
+    svg += '<rect x="' + (x(i) - bar / 2) + '" y="' + (mid + 1) + '" width="' + bar + '" height="' + Math.max(1, sc(p.fig.exp) - 1) + '" rx="4" fill="var(--coral)" opacity="' + op + '"/>';
+    svg += '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="middle" style="font-size:11px;fill:' + (on ? 'var(--text);font-weight:700' : 'var(--text-3)') + '">' + p.label + '</text></g>';
+  });
+  var line = ''; P.forEach(function(p, i) { line += (i ? 'L' : 'M') + x(i) + ' ' + (mid - sc(p.fig.inc - p.fig.exp)); });
+  svg += '<path d="' + line + '" fill="none" stroke="var(--text)" stroke-width="2" pointer-events="none"/>';
+  P.forEach(function(p, i) { svg += '<circle cx="' + x(i) + '" cy="' + (mid - sc(p.fig.inc - p.fig.exp)) + '" r="' + (i === reportSel ? 4.5 : 3) + '" fill="var(--text)" stroke="var(--surface)" stroke-width="2" pointer-events="none"/>'; });
+  svg += '</svg>';
+
+  var p = P[reportSel], f = p.fig, kept = f.inc - f.exp;
+  var dot = function(c) { return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + c + ';margin-right:8px"></span>'; };
+  var row = function(label, val, color) { return '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--border);font-size:16px"><span>' + label + '</span><b style="font-size:18px;font-variant-numeric:tabular-nums;color:' + color + '">' + val + '</b></div>'; };
+  var html = '<div style="display:flex;gap:8px;margin-bottom:12px"><button class="pill' + (reportMode === 'm' ? ' sel-e' : '') + '" style="padding:10px 16px" onclick="setReportMode(\'m\')">Months</button><button class="pill' + (reportMode === 'q' ? ' sel-e' : '') + '" style="padding:10px 16px" onclick="setReportMode(\'q\')">Quarters</button></div>';
+  html += '<div class="card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:8px"><div class="section-head" style="margin:0">Money in and out</div>' + svg;
+  html += '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--text-3)"><span>' + dot('var(--grass)') + 'Income</span><span>' + dot('var(--coral)') + 'Expenses</span><span>' + dot('var(--text)') + 'Kept</span></div></div>';
+  html += '<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="section-head" style="margin:0">' + p.title + '</span><span style="font-size:13px;color:var(--text-3)">' + p.range + '</span></div>';
+  html += row(dot('var(--grass)') + 'Income', fmt(f.inc), 'var(--grass-dim)');
+  html += row(dot('var(--coral)') + 'Expenses', fmt(f.exp), 'var(--coral)');
+  html += row(dot('var(--text)') + 'Kept', fmt(kept), kept < 0 ? 'var(--red)' : 'var(--text)');
+  html += '<div style="font-size:13px;color:var(--text-3);margin-top:8px;line-height:1.45">' + (p.cur ? 'Still to come this ' + (reportMode === 'm' ? 'month' : 'quarter') + ': the rest of the paychecks and bills. ' : '') +
+    'Transfers, not counted above: into sinking funds ' + fmt(f.toFunds) + ' · drawn from funds ' + fmt(f.fromFunds) + ' · allowances ' + fmt(f.allowances) + '.</div>';
+  if (reportMode === 'm') html += '<button class="pace-more" style="margin-top:8px" onclick="plMonthOffset=' + ((p.y - new Date().getFullYear()) * 12 + p.m - new Date().getMonth()) + ';setHistoryView(\'pl\');plMonthOffset=' + ((p.y - new Date().getFullYear()) * 12 + p.m - new Date().getMonth()) + ';renderPLView()">See this month\u2019s P&amp;L \u203a</button>';
+  html += '</div>';
+  var ents = Object.keys(f.cats).map(function(k) { return [k, f.cats[k]]; }).filter(function(e) { return e[1] > 0.5; }).sort(function(a, b) { return b[1] - a[1]; });
+  var mx = ents.length ? ents[0][1] : 1;
+  html += '<div class="card"><div class="section-head" style="margin:0 0 10px">Where it went</div><div style="display:flex;flex-direction:column;gap:7px">';
+  ents.forEach(function(e) {
+    html += '<div style="position:relative;padding:8px 10px;border-radius:8px;display:flex;justify-content:space-between;gap:8px;font-size:15px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;width:' + (e[1] / mx * 100) + '%;background:var(--coral-bg);border-radius:8px"></i><span style="position:relative">' + e[0] + '</span><span style="position:relative;font-variant-numeric:tabular-nums;white-space:nowrap">' + fmt(e[1]) + ' (' + (f.exp ? (e[1] / f.exp * 100).toFixed(1) : '0') + '%)</span></div>';
+  });
+  if (!ents.length) html += '<div style="font-size:14px;color:var(--text-3)">Nothing yet.</div>';
+  html += '</div></div>';
+  cont.innerHTML = html;
+}
 
 function renderPLView() {
   var fmt = function(n) { return '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); };
@@ -3644,6 +3811,7 @@ function showAddBill() {
   document.getElementById('bf-amt').value = '';
   document.getElementById('bf-day').value = '';
   document.getElementById('bf-first-date').value = '';
+  _fillBillCatSelect('');
   document.getElementById('bf-err').style.display = 'none';
   document.getElementById('bill-form-title').textContent = 'Add bill';
   updateFreqUI();
@@ -3679,6 +3847,7 @@ function editBill(id) {
   document.getElementById('bf-amt').value = b.amt;
   document.getElementById('bf-day').value = b.day || '';
   document.getElementById('bf-first-date').value = b.startDate || '';
+  _fillBillCatSelect(b.cat || '', b.name);
   if (b.month !== undefined) document.getElementById('bf-month').value = b.month;
   if (b.year !== undefined) document.getElementById('bf-year').value = b.year;
   // Populate starting from
@@ -3743,6 +3912,8 @@ async function saveBill() {
   // Drop fields that belong to a different frequency (re-set below where they apply)
   delete bill.month; delete bill.year; delete bill.startMonth; delete bill.startYear;
   delete bill.endMonth; delete bill.endYear; delete bill.startDate;
+  var _catSel = document.getElementById('bf-cat');
+  if (_catSel && _catSel.value) bill.cat = _catSel.value; else delete bill.cat;
   if (isWeeklyish) {
     var _fp = firstDate.split('-');
     var _fd = new Date(+_fp[0], +_fp[1] - 1, +_fp[2]);
@@ -4465,7 +4636,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.15.0';
+var APP_VERSION = 'v3.16.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
