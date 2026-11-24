@@ -1892,6 +1892,33 @@ function getMonthActuals(yr, mo) {
   return result;
 }
 
+function _budgetMonthFigures(now) {
+  var y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
+  var days = new Date(y, m + 1, 0).getDate();
+  var bills = _paceBillsByDay(y, m);
+  var r = { cardActual: 0, cardBudget: PACE_TARGET, checkingPlanned: 0, checkingActual: 0, savingsPlanned: 0, savingsActual: 0 };
+  getMonthEntries(y, m).forEach(function(e) { if (new Date(e.ts).getDate() <= day) r.cardActual += _paceEveryday(e); });
+  bills.forEach(function(list, i) {
+    list.forEach(function(b) {
+      if (b.cc) { r.cardBudget += b.amt; if (i + 1 <= day) r.cardActual += b.amt; }
+      else { r.checkingPlanned += b.amt; if (i + 1 <= day) r.checkingActual += b.amt; }
+    });
+  });
+  var from = new Date(y, m, 1), to = new Date(y, m, days, 23, 59, 59);
+  var dismissed = (record && record.dismissedEvents) || {}, overrides = (record && record.billOverrides) || {};
+  getAllBills().forEach(function(b) {
+    if (b.type !== 'save' || !(b.amt > 0)) return;
+    getBillOccurrencesInRange(b, from, to).forEach(function(d) {
+      if (overrides['bill_override_' + b.id + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate()] === 'skip') return;
+      if (dismissed[d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + '-' + b.name.replace(/\s/g, '_')]) return;
+      r.savingsPlanned += b.amt; if (d.getDate() <= day) r.savingsActual += b.amt;
+    });
+  });
+  var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  r.label = mn[m] + ' 1\u2013' + day;
+  return r;
+}
+
 function renderBudgetScreen() {
   var cont = document.getElementById('budget-screen-content');
   if (!cont) return;
@@ -1978,7 +2005,14 @@ function renderBudgetScreen() {
   });
 
   // Calculate actual expenses (CC + checking bills paid + savings transferred)
-  var ccActual = getCCAppTotal();
+  // v3.15.0 — one basis for the whole tab: the calendar month, as the dashboard
+  // uses. Card = everyday card spending + scheduled card bills (the billing-cycle
+  // total stays on the Balance tab). Bills and savings honour skipped events.
+  var _bm = _budgetMonthFigures(now);
+  var ccActual = _bm.cardActual;
+  ccBudget = _bm.cardBudget;
+  checkingBills = _bm.checkingPlanned; checkingBillsActual = _bm.checkingActual;
+  savingsTotal = _bm.savingsPlanned; savingsActual = _bm.savingsActual;
   var totalActualExpenses = ccActual + checkingBillsActual + savingsActual;
   var totalProjectedExpenses = ccBudget + checkingBills + savingsTotal;
   var expOver = totalActualExpenses > totalProjectedExpenses;
@@ -2042,8 +2076,8 @@ function renderBudgetScreen() {
   html += '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;margin-top:10px">';
   // CC — drills into CC cycle register
   var ccOver = ccActual > ccBudget;
-  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="showCCCycleRegister()">';
-  html += '<span style="font-size:14px;color:var(--sky)">💳 CC spending ›</span>';
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer" onclick="historyView=\'month\';showScreen(\'screen-history\')">';
+  html += '<span style="font-size:14px;color:var(--sky)">💳 Card spending ›</span>';
   html += '<span style="font-size:14px;font-weight:600;color:' + (ccOver ? 'var(--red)' : 'var(--text-2)') + '">' + fmt(ccActual) + ' / ' + fmt(ccBudget) + '</span>';
   html += '</div>';
   // Checking bills — drills into Balance timeline
@@ -2057,6 +2091,7 @@ function renderBudgetScreen() {
   html += '<span style="font-size:14px;font-weight:600;color:var(--text-2)">' + fmt(savingsActual) + ' / ' + fmt(savingsTotal) + '</span>';
   html += '</div>';
   html += '</div>';
+  html += '<div style="font-size:12px;color:var(--text-3);margin-top:8px">' + _bm.label + ' so far. Card spending covers this month\u2019s charges and card bills; the statement total for your billing cycle is on the Balance tab.</div>';
 
   html += '</div>';
 
@@ -4430,7 +4465,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.14.0';
+var APP_VERSION = 'v3.15.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
