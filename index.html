@@ -175,6 +175,13 @@ textarea { resize: none; }
 .divider { height: 1.5px; background: var(--border); margin: 17px 0; border-radius: 2px; }
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--grass); color: #fff; padding: 17px 24px; font-family: 'Zilla Slab', Georgia, serif; font-size: 17px; font-weight: 600; border-radius: var(--radius-pill); border: 1.5px solid var(--grass-dim); box-shadow: 0 3px 0 var(--grass-dim); transition: transform 0.3s cubic-bezier(.4,0,.2,1); pointer-events: none; white-space: nowrap; z-index: 9998; }
 #toast.show { transform: translateX(-50%) translateY(0); }
+.updbar { position: fixed; left: 50%; bottom: calc(max(env(safe-area-inset-bottom), 16px) + 84px); transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 10px; width: calc(100% - 32px); max-width: 460px; box-sizing: border-box; padding: 10px 10px 10px 18px; background: var(--surface); color: var(--text); border: 1.5px solid var(--coral); border-radius: var(--radius-pill); box-shadow: 0 3px 0 var(--coral); font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; z-index: 9997; transition: transform 0.3s cubic-bezier(.4,0,.2,1), opacity 0.3s; }
+.updbar.on { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
+.updbar span { flex: 1; min-width: 0; }
+.updbar button { font-family: inherit; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: var(--radius-pill); }
+.updbar .upd-go { padding: 8px 16px; background: var(--coral); color: #fff; border: 1.5px solid var(--coral); }
+.updbar .upd-x { padding: 6px 10px; background: none; border: none; color: var(--text-3); font-size: 22px; line-height: 1; }
+@media (min-width: 769px) { .updbar { bottom: 24px; } }
 .setup-hint { font-size: 17px; color: var(--text-3); margin-top: 4px; font-style: italic; }
 
 
@@ -1168,6 +1175,7 @@ textarea { resize: none; }
     <button class="btn btn-ghost btn-full" style="padding:11px" onclick="retryPendingSyncs()">Retry failed syncs</button>
 <div class="divider"></div>
 <button class="btn btn-red btn-full" style="padding:13px" onclick="doLock()">Lock / sign out</button>
+<button type="button" onclick="updNow()" style="background:none;border:none;cursor:pointer;font-family:inherit;font-size:14px;color:var(--text-3);padding:4px;text-decoration:underline dotted">Hearth <span id="settings-version"></span> · check for update</button>
 </div>
 </div>
 </div>
@@ -4090,7 +4098,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.10.0';
+var APP_VERSION = 'v3.11.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -5457,6 +5465,60 @@ initIPadLayout();
 
 document.getElementById('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
 var _vEl = document.getElementById('app-version'); if (_vEl) _vEl.textContent = APP_VERSION;
+var _svEl = document.getElementById('settings-version'); if (_svEl) _svEl.textContent = APP_VERSION;
+
+// ── UPDATE PROMPT ───────────────────────────────────────────────────────────
+// version.txt on the site holds the live version. If it's newer than this copy,
+// offer a Reload — Home Screen apps often wake an old copy instead of starting
+// fresh. Keep version.txt in step with APP_VERSION on every push.
+var UPD = { at: 0, ver: null, shut: null };
+function _verNum(s) { return (String(s || '').match(/(\d+)\.(\d+)\.(\d+)/) || []).slice(1).map(Number); }
+function _verNewer(a, b) {
+  var x = _verNum(a), y = _verNum(b);
+  if (x.length < 3 || y.length < 3) return false;
+  for (var i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
+  return false;
+}
+async function _siteVersion() {
+  var r = await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' });
+  if (!r.ok) return null;
+  var m = (await r.text()).match(/\d+\.\d+\.\d+/);
+  return m ? 'v' + m[0] : null;
+}
+async function updCheck(force) {
+  if (!navigator.onLine || (!force && Date.now() - UPD.at < 5 * 60000)) return;
+  UPD.at = Date.now();
+  try {
+    var v = await _siteVersion();
+    if (v && _verNewer(v, APP_VERSION) && UPD.shut !== v) { UPD.ver = v; updShow(); }
+  } catch (e) {}
+}
+function updShow() {
+  var el = document.getElementById('updBar');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'updBar'; el.className = 'updbar'; el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+    el.addEventListener('click', function(e) {
+      var b = e.target.closest('[data-upd]'); if (!b) return;
+      if (b.dataset.upd === 'go') {
+        b.textContent = 'Reloading…';
+        location.replace(location.pathname + '?v=' + encodeURIComponent(UPD.ver) + location.hash);
+      } else { UPD.shut = UPD.ver; el.classList.remove('on'); }
+    });
+  }
+  el.innerHTML = '<span><b>Update ready</b> · ' + UPD.ver + '</span><button type="button" class="upd-go" data-upd="go">Reload</button><button type="button" class="upd-x" data-upd="x" aria-label="Later">×</button>';
+  requestAnimationFrame(function() { el.classList.add('on'); });
+}
+async function updNow() {
+  toast('Checking for updates…');
+  try {
+    var v = await _siteVersion();
+    if (v && _verNewer(v, APP_VERSION)) { UPD.ver = v; UPD.shut = null; updShow(); }
+    else toast(v ? 'You’re up to date (' + APP_VERSION + ')' : 'Can’t reach the site right now');
+  } catch (e) { toast('Can’t reach the site right now'); }
+}
+setTimeout(function() { updCheck(true); }, 4000);
+document.addEventListener('visibilitychange', function() { if (!document.hidden) updCheck(); });
 checkRememberMe();
 </script>
 </body>
