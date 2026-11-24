@@ -1,0 +1,64 @@
+# Hearth — project notes
+
+Hearth is a family budget web app, a single file (`index.html`, vanilla JS/HTML/CSS) served by
+GitHub Pages at **hearth.stillwater.place** (CNAME → `bcgordon.github.io`). Data lives in
+Supabase (project **Home Finance**, table `households`, one JSON `data` record per household).
+Parchment and dark themes, Zilla Slab, 16px base text.
+
+This repo is **public**. Never commit household data, codes, balances, income figures or keys
+beyond the publishable Supabase key already in `index.html`.
+
+## Next version
+**4.0.0.** Current live version is v3.16.0. Bump to 4.0.0 on the next app change.
+
+## Standing rules
+1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
+   Mock with Hearth's real data where possible (a working prototype on the side branch is fine).
+2. **Ship = merge to `main`.** Pages builds from `main`. Work on the session's side branch, then
+   fast-forward `main` on "build it and ship it". No PRs needed for Hearth unless BC asks.
+3. **Bump the version on every app push, in two places that must match:** `APP_VERSION` in
+   `index.html` and `version.txt`. The app compares them to show "Update ready · Reload".
+4. **Syntax-check before shipping:** extract the inline `<script>` and run `new Function(code)`.
+5. **After pushing, confirm the deploy:** a Pages run for the new commit finished successfully,
+   and the live `version.txt` and `APP_VERSION` show the new version. If no build fires,
+   a trivial re-commit forces one. If HTTPS breaks (GitHub cert), re-save the custom domain in
+   Settings → Pages.
+6. **Castle of cards.** Projection, CC-cycle and register code is fragile: change it phase by phase,
+   compare the forecast before/after on a copy of the real data, and report what moved.
+7. **Supabase:** Claude can read it directly (connector). Reads are fine; **writes to the record
+   need BC's OK first**, and should be narrow (one entry/key), guarded, and verified after.
+8. Test changes in Playwright against a copy of the record with Supabase writes blocked
+   (`page.route` aborting non-GET requests).
+
+## Data model (`record`)
+- `entries` keyed by quarter (`2026_Q4`): `{id, ts, amt, cat, type, payMethod, note, pending?,
+  fundCoverage?, fundBillId?}`. `payMethod`: `cc`, `checking`, `income`, `credit` (negative amt).
+- `bills`: custom scheduled bills; defaults are `DEFAULT_BILLS` in code minus `deletedBills`.
+  Fields: `freq` (monthly/weekly/biweekly/quarterly/annual/once), `type` (in/out/save),
+  `paidBy`, `day`, `startDate` (weekly/biweekly), `startMonth/Year`, `endMonth/Year`,
+  `isFundTransfer`, `eom`, `cat` (report category, optional; guessed from the name if absent).
+- Per-occurrence stores (easy to confuse): `billOverrides` (`bill_override_{id}_{y}_{m}_{d}` →
+  amount or `'skip'`), `ccOverrides` (`cc_override_{y}_{m}`, a complete payment amount),
+  `fundCovers` (`fund_cover_{id}_{y}_{m}_{d}`), `dismissedEvents` (`{y}-{m}-{d}-{Name_With_Underscores}`,
+  month 0-indexed: the "skip" on upcoming events). `billPending`.
+- `config`: `ccCycleStart/End`, `budget`, `names`. `budgets`: quarterly category overrides.
+
+## How the numbers are defined (keep these consistent)
+- **Everyday spending** = card entries (cc + credits), not fund-covered, not checking/income.
+  Target **$3,500/month** (`PACE_TARGET`), the same figure the forecast uses.
+- **Dashboard pacing** and **Budget tab**: calendar month. Card bills are separate from the $3,500.
+  Category budgets sum below $3,500 on purpose; the gap is the **cushion** row.
+- **Balance tab → credit card card check**: billing cycle (`CC_CYCLE_START/END`). Leave it on the cycle.
+- **CC payment forecast** (`forecastCCPayment`): override wins → closed cycle uses actual →
+  open/future cycle uses max(actual so far + bills still to post, $3,500 + scheduled card bills).
+- **Reports** (`reportFigures`): income = paychecks + logged income (not fund draws);
+  expenses = card spending incl. fund-covered + card bills + checking bills; **not** expenses:
+  sinking-fund transfers, card payments, **allowances** (BC's call: transfers). Taxes stay in.
+- Bills respect `billOverrides` skips/amounts and `dismissedEvents` everywhere new code sums them
+  (see `_paceBillsByDay`). Monthly `eom` bills fall on the last day of the month.
+
+## Known open items
+- Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
+- Some older views (P&L, quarter tracker) count slightly differently from the dashboard
+  (e.g. checking entries); align them when touched.
+- Data hygiene: occasional hand-logged entries duplicating scheduled card bills.
