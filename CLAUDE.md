@@ -8,8 +8,8 @@ Parchment and dark themes, Zilla Slab, 16px base text.
 This repo is **public**. Never commit household data, codes, balances, income figures or keys
 beyond the publishable Supabase key already in `index.html`.
 
-## Next version
-**4.0.0.** Current live version is v3.16.0. Bump to 4.0.0 on the next app change.
+## Version
+Live: **v4.0.0** (Nov 24, 2026: watch list). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -62,3 +62,5 @@ beyond the publishable Supabase key already in `index.html`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
   (e.g. checking entries); align them when touched.
 - Data hygiene: occasional hand-logged entries duplicating scheduled card bills.
+- Watch list (`getWatchItems`) groups by the first word of the note; `record.watchDone[key]` = ts
+  hides a merchant until it charges again.
