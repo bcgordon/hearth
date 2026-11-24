@@ -200,6 +200,9 @@ textarea { resize: none; }
 .pace-modes { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-pill); overflow: hidden; }
 .pace-modes button { font-family: inherit; font-size: 12px; padding: 4px 10px; white-space: nowrap; background: none; border: none; color: var(--text-3); cursor: pointer; }
 .pace-modes button.on { background: var(--sky); color: #fff; font-weight: 600; }
+.pace-cushion { border-top: 1.5px dashed var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.pace-cushion .pace-track { height: 8px; margin-top: 0; }
+.pace-cushion-math { font-size: 13px; color: var(--text-3); line-height: 1.45; }
 .pace-more { background: none; border: none; padding: 4px 0; font-family: inherit; font-size: 14px; color: var(--sky); cursor: pointer; text-align: left; text-decoration: underline dotted; }
 .updbar { position: fixed; left: 50%; bottom: calc(max(env(safe-area-inset-bottom), 16px) + 84px); transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 10px; width: calc(100% - 32px); max-width: 460px; box-sizing: border-box; padding: 10px 10px 10px 18px; background: var(--surface); color: var(--text); border: 1.5px solid var(--coral); border-radius: var(--radius-pill); box-shadow: 0 3px 0 var(--coral); font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; z-index: 9997; transition: transform 0.3s cubic-bezier(.4,0,.2,1), opacity 0.3s; }
 .updbar.on { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
@@ -715,6 +718,7 @@ textarea { resize: none; }
   <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="section-head" style="margin:0">Categories</span><span style="font-size:12px;color:var(--text-3)">tap one for its entries</span></div>
   <div class="pace-cats" id="pace-cats"></div>
   <button class="pace-more" id="pace-more" onclick="togglePaceCats()"></button>
+  <div class="pace-cushion" id="pace-cushion"></div>
 </div>
 
 <!-- Quarter tracker (replaces monthly cards) -->
@@ -2431,7 +2435,13 @@ function renderPacing() {
   renderPaceChart(actual, lastS, days, mn[m].slice(0, 3), mn[lm].slice(0, 3), expected, { bills: billsNow, spend: spendNow, withBills: withBills, y: y, m: m });
 
   // ── categories ──
-  var monthly = getCategorySpend().monthly;
+  var monthly = {};
+  getMonthEntries(y, m).forEach(function(e) {
+    if (new Date(e.ts).getDate() > day) return;
+    var a = _paceEveryday(e); if (!a) return;
+    var c = e.cat || 'Other';
+    monthly[c] = (monthly[c] || 0) + a;
+  });
   var rows = [];
   BUDGET_CATEGORIES.forEach(function(cat) {
     if (!cat.budget) return;
@@ -2456,6 +2466,31 @@ function renderPacing() {
       '<div class="pace-track"><div class="pace-fill" style="width:' + Math.min(100, r.spent / r.budget * 100) + '%;background:' + colors[r.status] + '"></div><div class="pace-tick" style="left:' + (frac * 100) + '%"></div></div>';
     box.appendChild(div);
   });
+  // ── cushion: the part of $3,500 no category budget claims ──
+  var budgetSum = 0, catNet = 0, unbudgeted = 0, unbNames = [];
+  var budgeted = {};
+  rows.forEach(function(r) { budgetSum += r.budget; catNet += r.spent - r.budget; budgeted[r.name] = true; });
+  Object.keys(monthly).forEach(function(c) {
+    if (budgeted[c] || !monthly[c]) return;
+    unbudgeted += monthly[c]; unbNames.push(c + ' ' + fmt(monthly[c]));
+  });
+  var cushion = PACE_TARGET - budgetSum;
+  var used = catNet + unbudgeted;
+  var cLeft = cushion - used;
+  var cStatus = cLeft < 0 ? 'over' : (used > cushion * frac * 1.05 && used > 0) ? 'ahead' : 'ok';
+  var cBox = document.getElementById('pace-cushion');
+  if (cushion > 0) {
+    var cScale = Math.max(cushion, used);
+    var parts = [];
+    if (Math.round(catNet) !== 0) parts.push('categories ' + fmt(Math.abs(catNet)) + (catNet > 0 ? ' over budget' : ' under budget'));
+    if (unbudgeted > 0) parts.push(unbNames.join(', ') + ' (no budget)');
+    var math = (parts.length ? 'Used by ' + parts.join(' + ') + '.' : 'Nothing used yet.') + ' Matches the top bar.';
+    cBox.innerHTML = '<div class="pace-cat-row"><span>Cushion <span class="pace-pill ' + cStatus + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + (cLeft < 0 ? fmt(-cLeft) + ' over' : fmt(cLeft) + ' left') + '</span></span>' +
+      '<span class="pace-cat-amt">' + fmt(Math.max(0, used)) + ' / ' + fmt(cushion) + '</span></div>' +
+      '<div class="pace-track"' + (cLeft < 0 ? ' style="border-color:var(--red);box-shadow:0 0 0 1px var(--red)"' : '') + '><div class="pace-fill" style="width:' + Math.max(0, Math.min(100, used / cScale * 100)) + '%;background:' + colors[cStatus] + '"></div><div class="pace-tick" style="left:' + (cushion * frac / cScale * 100) + '%"></div></div>' +
+      '<div class="pace-cushion-math">' + math + '</div>';
+    cBox.style.display = '';
+  } else { cBox.style.display = 'none'; }
   var more = document.getElementById('pace-more');
   var hidden = rows.length - 6;
   more.style.display = hidden > 0 ? '' : 'none';
@@ -4395,7 +4430,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.13.0';
+var APP_VERSION = 'v3.14.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
