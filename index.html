@@ -745,11 +745,15 @@ textarea { resize: none; }
 </div>
 <div>
 <label class="label" style="color:var(--text-3)">Date</label>
-<input id="add-date" type="date" style="font-size:17px;font-family:inherit;" />
+<input id="add-date" type="date" style="font-size:17px;font-family:inherit;" onchange="applyPendingDefault()" />
 </div>
 <div>
 <label class="label" style="color:var(--text-3)">Note <span style="font-size:20px;text-transform:none;letter-spacing:0;font-style:italic;font-weight:400">(optional)</span></label>
 <input id="add-note" type="text" placeholder="e.g. weekly shop..." />
+</div>
+<div id="add-pending-wrap">
+<button id="pill-pend" class="pill" onclick="toggleAddPending()">⏳ Pending</button>
+<span style="font-size:13px;color:var(--text-3);margin-left:8px">not yet posted to Capital One</span>
 </div>
 <p id="add-err" class="err"></p>
 <button class="btn btn-coral btn-full" style="padding:15px;border-radius:var(--radius-sm);font-size:17px" onclick="submitEntry()">Save expense</button>
@@ -1410,6 +1414,7 @@ async function showScreen(id) {
     var td = new Date(); var mm = String(td.getMonth()+1).padStart(2,'0'); var dd2 = String(td.getDate()).padStart(2,'0');
     var dateEl = document.getElementById('add-date'); if (dateEl) dateEl.value = td.getFullYear() + '-' + mm + '-' + dd2;
     if (!addPayMethod) selectPayMethod('cc');
+    addPendingTouched = false; applyPendingDefault();
     var saveBtn = document.querySelector('#screen-add .btn-coral'); if (saveBtn) saveBtn.textContent = 'Save expense';
   }
   if (id === 'screen-balance') { await refreshBalance(); }
@@ -1576,6 +1581,35 @@ function selectPayMethod(m) {
   // Hide essential/non-essential for income and credit — not relevant
   var typeRow = document.getElementById('pill-e').closest('div').parentElement;
   if (typeRow) typeRow.style.display = (m === 'income' || m === 'credit') ? 'none' : '';
+  applyPendingDefault();
+}
+
+// ── PENDING TOGGLE (Add expense) ─────────────────────────────────────────────
+// Credit card only. Defaults on when the date is within the last 3 days
+// (Capital One's pending window); off for older catch-up entries. A manual tap
+// wins until the form is reset.
+var addPending = false;
+var addPendingTouched = false;
+function renderAddPending() {
+  var wrap = document.getElementById('add-pending-wrap');
+  var pill = document.getElementById('pill-pend');
+  if (!wrap || !pill) return;
+  wrap.style.display = addPayMethod === 'cc' ? '' : 'none';
+  pill.className = 'pill' + (addPending ? ' sel-n' : '');
+}
+function applyPendingDefault() {
+  if (!addPendingTouched) {
+    var dateVal = (document.getElementById('add-date') || {}).value;
+    var d = dateVal ? new Date(dateVal + 'T12:00:00') : new Date();
+    var today = new Date(); today.setHours(12, 0, 0, 0);
+    var daysAgo = Math.round((today - d) / 86400000);
+    addPending = daysAgo >= 0 && daysAgo <= 3;
+  }
+  renderAddPending();
+}
+function toggleAddPending() {
+  addPending = !addPending; addPendingTouched = true;
+  renderAddPending();
 }
 
 function selectUser(u) {
@@ -1702,7 +1736,9 @@ async function submitEntry() {
   const entryAmt = Math.round(amt * 100) / 100;
   // CC credits are stored as negative amounts to reduce tracked total
   const finalAmt = addPayMethod === 'credit' ? -entryAmt : entryAmt;
-  entries.push({ id: Date.now(), amt: finalAmt, type: addType, payMethod: addPayMethod, note, cat: finalCategory, ts: entryTs });
+  var newEntry = { id: Date.now(), amt: finalAmt, type: addType, payMethod: addPayMethod, note, cat: finalCategory, ts: entryTs };
+  if (addPayMethod === 'cc' && addPending) newEntry.pending = true;
+  entries.push(newEntry);
   await saveEntries(qKey, entries);
 
   // If paid by checking, create a one-time checking outflow in the projection
@@ -1745,7 +1781,7 @@ async function submitEntry() {
   callSheetsSync(entries[entries.length - 1]);
 
   document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = ''; var dateEl2 = document.getElementById('add-date'); if (dateEl2) { var td2 = new Date(); var mm2 = String(td2.getMonth()+1).padStart(2,'0'); var dd3 = String(td2.getDate()).padStart(2,'0'); dateEl2.value = td2.getFullYear() + '-' + mm2 + '-' + dd3; }
-  addType = null; addPayMethod = null; addCategory = null;
+  addType = null; addPayMethod = null; addCategory = null; addPending = false; addPendingTouched = false;
   document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
   var typeRowEl = document.getElementById('pill-e').closest('div').parentElement; if (typeRowEl) typeRowEl.style.display = '';
   document.getElementById('pill-cc').className = 'pill'; document.getElementById('pill-chk').className = 'pill'; var pi2 = document.getElementById('pill-inc'); if (pi2) pi2.className = 'pill';
@@ -2206,12 +2242,31 @@ function renderEntriesList(entries, containerId, allowDelete, qKey) {
     var pmLabel = e.payMethod === 'checking' ? '🏦 Checking' : e.payMethod === 'income' ? '↓ Income' : '💳 CC';
     meta.innerHTML = '<div class="entry-who">' + pmLabel + (e.note ? ' · ' + e.note : '') + ' · ' + (d.getMonth()+1) + '/' + d.getDate() + catBadge + '</div>';
     left.appendChild(top); left.appendChild(meta); row.appendChild(left);
+    if (allowDelete && e.payMethod === 'cc') {
+      const pb = document.createElement('button');
+      pb.textContent = e.pending ? '⏳ pending' : 'pending?';
+      pb.style.cssText = 'font-size:13px;padding:4px 8px;min-height:28px;align-self:center;white-space:nowrap;cursor:pointer;font-family:inherit;border-radius:4px;' +
+        (e.pending ? 'background:var(--sun-bg);border:1px solid var(--sun);color:var(--sun-dim)' : 'background:var(--surface2);border:1px solid var(--border);color:var(--text-3)');
+      pb.onclick = () => toggleEntryPending(e.id, qKey);
+      row.appendChild(pb);
+    }
     if (allowDelete) {
       const del = document.createElement('button'); del.className = 'del-btn'; del.innerHTML = '&#10005;';
       del.onclick = () => deleteEntry(e.id, qKey); row.appendChild(del);
     }
     cont.appendChild(row);
   });
+}
+
+async function toggleEntryPending(id, qKey) {
+  const fresh = await cloudGet(); if (fresh) record = fresh;
+  const entries = loadEntries(qKey);
+  const e = entries.find(x => x.id === id);
+  if (!e) { toast('Could not find entry'); return; }
+  if (e.pending) delete e.pending; else e.pending = true;
+  await saveEntries(qKey, entries);
+  refreshMain(); updateCCBalanceCard();
+  toast(e.pending ? '⏳ Marked as pending' : 'Marked as posted');
 }
 
 async function deleteEntry(id, qKey) {
@@ -3981,7 +4036,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v3.8.0';
+var APP_VERSION = 'v3.9.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
