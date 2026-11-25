@@ -16,7 +16,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.6.3** (Nov 25, 2026: household figures moved out of the code into the record). Bump patch/minor from here unless BC names a version.
+Live: **v4.6.4** (Nov 25, 2026: bigger text + Text size setting, pinned sidebar, Version history). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -113,6 +113,11 @@ Live: **v4.6.3** (Nov 25, 2026: household figures moved out of the code into the
 - v4.6.3: no household figures in the code. Bills, paychecks, fund targets, the everyday target and the
   May 2026 payment live in the record; new code must read them from there, never hard-code amounts.
   (Older commits in git history still contain the old figures.)
+- v4.6.4: **Version history** (Settings › Account; `VERSION_HISTORY` array, newest first, plain words, no
+  figures). **Add a line for every release.** **Text size** (Settings; `hft_text` std/lg/xl → CSS `--tz`
+  1/1.1/1.2 applied as `zoom` on `.screen` and the sidebar's children; default Larger). The iPad/desktop
+  sidebar is `position: fixed` (sticky never worked: `#app` has `overflow-x:hidden`); `#ipad-content`
+  gets `margin-left: 300px` while the sidebar shows. `Runaway Anchor` is a bill category.
 - The Camry loan is serviced by Royal Credit Union; due on the 3rd from Dec 2026 (the old bill ends Oct 2026).
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
