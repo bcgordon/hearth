@@ -663,6 +663,27 @@ input, textarea, select { font-family: var(--font) !important; }
 :root[data-text="std"] { --tz: 1; }
 :root[data-text="xl"] { --tz: 1.2; }
 .screen, #ipad-sidebar > * { zoom: var(--tz); }
+
+/* v4.6.6: the Calm button. Deep Teal, the fireplace large, the flames flicker softly. */
+.calm-open { font-family: var(--font); font-size: 15px; display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; }
+.calm-open .hearth-mark { width: 22px; height: 22px; }
+#calm { position: fixed; inset: 0; z-index: 9000; background: #1f4339; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .9s ease; }
+#calm.on { opacity: 1; pointer-events: auto; }
+.calm-fire { position: relative; width: min(84vw, 62vh, 560px); aspect-ratio: 1; }
+.calm-base { position: absolute; inset: 0; width: 100%; height: 100%; }
+.calm-halo { position: absolute; left: 10%; right: 10%; top: 30%; bottom: 0; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,190,110,.22), rgba(140,240,200,.10) 60%, transparent); filter: blur(18px); animation: calmHalo 6s ease-in-out infinite; }
+.calm-glow { position: absolute; left: 28%; width: 44%; top: 42%; height: 34%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,214,150,.55), rgba(150,255,210,.25) 55%, transparent); mix-blend-mode: screen; animation: calmGlow 2.6s ease-in-out infinite alternate; }
+.calm-flame { position: absolute; left: 33.6%; top: 44.8%; width: 32.5%; height: 29.06%; transform-origin: 50% 100%; animation: calmFlick 1.9s ease-in-out infinite alternate, calmSway 4.3s ease-in-out infinite alternate; filter: drop-shadow(0 0 10px rgba(160,255,215,.45)); }
+.calm-breath { position: relative; height: 1.6em; margin-top: 4vh; font-family: var(--font); font-size: 18px; letter-spacing: .2em; color: #b8f0df; }
+.calm-breath span { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; opacity: 0; animation: calmBreath 10s ease-in-out infinite; }
+.calm-breath span + span { animation-delay: 5s; }
+.calm-done { position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); font-family: var(--font); font-size: 17px; padding: 13px 22px; border-radius: 10px; border: none; cursor: pointer; background: linear-gradient(#fbf5e8, #efe4cc); color: #1f3f2f; box-shadow: 0 0 0 2px #c9b98f, 0 4px 0 2px #8f7f58; }
+@keyframes calmFlick { 0% { transform: scale(1, 1) skewX(0deg); opacity: .95; } 30% { transform: scale(.985, 1.035) skewX(.8deg); opacity: 1; } 55% { transform: scale(1.01, .975) skewX(-.6deg); opacity: .9; } 80% { transform: scale(.99, 1.05) skewX(.4deg); opacity: 1; } 100% { transform: scale(1.005, .985) skewX(-.9deg); opacity: .93; } }
+@keyframes calmSway { 0% { translate: -1% 0; } 100% { translate: 1% 0; } }
+@keyframes calmGlow { 0% { opacity: .55; transform: scale(.96); } 50% { opacity: .85; } 100% { opacity: .65; transform: scale(1.04); } }
+@keyframes calmHalo { 0%, 100% { opacity: .7; transform: scale(.97); } 50% { opacity: 1; transform: scale(1.03); } }
+@keyframes calmBreath { 0% { opacity: 0; } 15%, 35% { opacity: .85; } 50%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .calm-flame { animation: calmGlow 4s ease-in-out infinite alternate; } .calm-halo { animation: none; } }
 /* v4.6.4: version history */
 .ver { padding: 12px 0; border-bottom: 1px dashed var(--border); }
 .ver:last-child { border-bottom: none; }
@@ -741,12 +762,23 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
     <button class="nav-btn sb-minor" id="nav-bills" onclick="ipadNav('screen-bills')">Bills &amp; income</button>
     <button class="nav-btn sb-minor" id="nav-subs" onclick="subsBackTo='screen-main';ipadNav('screen-subs')">Subscriptions</button>
     <button class="nav-btn sb-minor" id="nav-settings" onclick="ipadNav('screen-settings')">Settings</button>
+    <button class="nav-btn sb-minor" onclick="openCalm()">Calm</button>
   </div>
   <div class="sb-glance" id="sb-glance"></div>
   <div style="display:none"><span id="sb-budget"></span><span id="sb-spent"></span><span id="sb-remaining"></span><button id="nav-add"></button></div>
 </div>
 <!-- Bottom Nav (iPhone) -->
 <button id="sb-show" onclick="setSidebarHidden(false)" title="Show sidebar" aria-label="Show sidebar">&#187;</button>
+<div id="calm" aria-hidden="true">
+  <div class="calm-fire">
+    <div class="calm-halo"></div>
+    <img class="calm-base" src="calm-hearth.png" alt="">
+    <div class="calm-glow"></div>
+    <img class="calm-flame" src="calm-flame.png" alt="">
+  </div>
+  <div class="calm-breath"><span>breathe in</span><span>breathe out</span></div>
+  <button class="calm-done" onclick="closeCalm()">I&rsquo;m calm now</button>
+</div>
 <div id="demo-bar"><span><b>DEMO</b> &middot; made-up numbers</span><button onclick="exitDemo()">Exit demo</button></div>
 <nav class="bottom-nav" id="bottom-nav" style="display:none">
   <button class="bottom-nav-btn active" id="bn-main" onclick="bottomNav('screen-main')">
@@ -836,6 +868,7 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
 </div>
 <button id="dash-add" class="btn btn-coral btn-full" style="padding:17px;margin:2px 0 14px;font-size:18px" onclick="showScreen('screen-add')">+ Add expense</button>
 <div id="quote-of-day" style="padding:10px 16px 2px;font-size:14px;color:var(--text-3);font-style:italic;text-align:center;line-height:1.5"></div>
+<div style="text-align:center;margin:6px 0 12px"><button class="calm-open" onclick="openCalm()"><img src="hearth-mark.png?v=443" alt="" class="hearth-mark"> Calm</button></div>
 <!-- This week (v4.1.0) -->
 <div class="card card-sky" id="wk-card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:10px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -2263,9 +2296,23 @@ function applyTextSize() {
 }
 function setTextSize(t) { try { localStorage.setItem('hft_text', t); } catch (e) {} applyTextSize(); }
 applyTextSize();
+
+// ── CALM (v4.6.6) ─────────────────────────────────────────────────────────
+function openCalm() {
+  var c = document.getElementById('calm'); if (!c) return;
+  c.setAttribute('aria-hidden', 'false'); c.classList.add('on');
+  try { document.body.style.overflow = 'hidden'; } catch (e) {}
+}
+function closeCalm() {
+  var c = document.getElementById('calm'); if (!c) return;
+  c.classList.remove('on'); c.setAttribute('aria-hidden', 'true');
+  try { document.body.style.overflow = ''; } catch (e) {}
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeCalm(); });
 // ═══ v4.6.4: VERSION HISTORY (Settings › Version history) ══════════════════
 // Newest first. Plain words, no household figures (this file is public).
 var VERSION_HISTORY = [
+  ['v4.6.6', 'Nov 25, 2026', ['The Calm button: the fireplace, full screen, flickering softly. Tap \u201cI\u2019m calm now\u201d when you\u2019re ready.']],
   ['v4.6.5', 'Nov 25, 2026', ['Card bills (Netflix, Spotify and the rest) show on their dates in the Balance calendar, marked 💳. They\u2019re already inside the card payment on the 19th, so they don\u2019t change the balance.']],
   ['v4.6.4', 'Nov 25, 2026', ['Bigger text, with a Text size choice in Settings (Standard, Larger, Largest).', 'The iPad and desktop sidebar stays in place when you scroll.', 'Version history in Settings.', 'Bills can use the Runaway Anchor category.']],
   ['v4.6.3', 'Nov 25, 2026', ['Your bills, paychecks and savings targets now live only in your private household record, not in the app’s code.', '“Create a household” removed from the lock screen.']],
@@ -5815,7 +5862,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.6.5';
+var APP_VERSION = 'v4.6.6';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
