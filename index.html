@@ -648,6 +648,21 @@ input, textarea, select { font-family: var(--font) !important; }
   #ipad-sidebar { position: sticky; }
 }
 
+
+/* v4.6.2: hide the iPad sidebar; demo mode */
+.sb-hide { margin-left: 6px; background: none; border: 1px solid var(--band-dim); color: var(--band-ink); border-radius: 4px; font-size: 16px; line-height: 1; padding: 3px 7px; cursor: pointer; font-family: var(--font); }
+#sb-show { display: none; }
+@media (min-width: 768px) {
+  body.sb-hidden #ipad-sidebar { display: none !important; }
+  body.sb-hidden #sb-show { display: block; position: fixed; left: 0; top: 50%; transform: translateY(-50%); z-index: 1001; background: var(--band); color: var(--band-ink); border: none; border-radius: 0 8px 8px 0; padding: 18px 7px; font-size: 18px; cursor: pointer; box-shadow: 2px 0 0 var(--chrome, #b7bec3); }
+  body.sb-hidden #app { max-width: none; }
+  body.sb-hidden #dash-add { display: block !important; }
+}
+#demo-bar { display: none; }
+body.demo #demo-bar { display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 1002; justify-content: center; align-items: center; gap: 14px; padding: 6px 12px; padding-top: max(6px, env(safe-area-inset-top)); background: var(--sun, #e0b040); color: #1d1d1d; font-family: var(--font); font-size: 14px; }
+body.demo #demo-bar button { font-family: var(--font); font-size: 13px; background: #fff8e6; border: 1px solid #1d1d1d; border-radius: 5px; padding: 3px 10px; cursor: pointer; color: #1d1d1d; }
+body.demo { padding-top: 36px; }
+body.demo #ipad-sidebar { height: calc(100vh - 36px); }
 /* v4.6.0: merchant memory, subscriptions, calendar, goals */
 .merchant-sugs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .merchant-sugs:empty { display: none; }
@@ -688,7 +703,7 @@ input, textarea, select { font-family: var(--font) !important; }
 <div id="app" style="width:100%;max-width:100%;overflow-x:hidden;box-sizing:border-box">
 <!-- iPad Sidebar (hidden on mobile via CSS) -->
 <div id="ipad-sidebar" style="display:none">
-  <div class="sidebar-logo"><img src="hearth-mark.png?v=443" alt="" class="hearth-mark hearth-mark-lg"> Hearth <span id="ipad-quarter-badge"></span></div>
+  <div class="sidebar-logo"><img src="hearth-mark.png?v=443" alt="" class="hearth-mark hearth-mark-lg"> Hearth <span id="ipad-quarter-badge"></span><button class="sb-hide" onclick="setSidebarHidden(true)" title="Hide sidebar" aria-label="Hide sidebar">&#171;</button></div>
   <button class="btn btn-coral btn-full sb-add" onclick="ipadNav('screen-add')">+ Add expense</button>
   <div class="sb-nav">
     <button class="nav-btn active" id="nav-main" onclick="ipadNav('screen-main')">Dashboard</button>
@@ -705,6 +720,8 @@ input, textarea, select { font-family: var(--font) !important; }
   <div style="display:none"><span id="sb-budget"></span><span id="sb-spent"></span><span id="sb-remaining"></span><button id="nav-add"></button></div>
 </div>
 <!-- Bottom Nav (iPhone) -->
+<button id="sb-show" onclick="setSidebarHidden(false)" title="Show sidebar" aria-label="Show sidebar">&#187;</button>
+<div id="demo-bar"><span><b>DEMO</b> &middot; made-up numbers</span><button onclick="exitDemo()">Exit demo</button></div>
 <nav class="bottom-nav" id="bottom-nav" style="display:none">
   <button class="bottom-nav-btn active" id="bn-main" onclick="bottomNav('screen-main')">
     <span class="bn-icon"><img src="hearth-mark.png?v=443" alt="" class="hearth-mark"></span>
@@ -750,6 +767,7 @@ input, textarea, select { font-family: var(--font) !important; }
   <input type="checkbox" id="remember-me" style="width:18px;height:18px;cursor:pointer"> Remember me on this device
 </label>
 <button class="btn btn-ghost btn-full" style="margin-top:4px" onclick="showScreen('screen-setup')">First time? Create a household</button>
+<button class="btn btn-ghost btn-full" onclick="enterDemo()">See a demo</button>
 </div>
 </div>
 </div>
@@ -1347,6 +1365,10 @@ input, textarea, select { font-family: var(--font) !important; }
   <div class="set-item" style="cursor:default"><span>Statement closes on<small id="set-cycle-now"></small></span><span class="val">24th</span></div>
   <div class="set-item" style="cursor:default"><span>Autopay on<small id="set-autopay-next"></small></span><span class="val">19th</span></div>
 </div>
+<div class="set-sec-label">Show someone</div>
+<div class="set-list">
+  <button class="set-item" onclick="enterDemo()"><span>Demo mode<small>Hearth with a made-up household. Your numbers stay hidden and nothing is saved.</small></span><span class="val">&rsaquo;</span></button>
+</div>
 <div class="set-sec-label">Appearance</div>
 <div class="set-list"><div class="set-seg" id="set-mode"><button data-m="light" onclick="setAppearance('light')">Light</button><button data-m="dark" onclick="setAppearance('dark')">Dark</button><button data-m="auto" onclick="setAppearance('auto')">Match phone</button></div></div>
 <div class="set-sec-label">Data</div>
@@ -1470,6 +1492,7 @@ function buildCategoryGrid(spendMap) {
   const monthly = sm.monthly || sm; // backwards compat
   const quarterly = sm.quarterly || sm;
   BUDGET_CATEGORIES.forEach(cat => {
+    if (demoMode && cat.budget === null && cat.name !== 'Other') return; // demo: no business category
     const btn = document.createElement('button');
     btn.className = 'cat-pill-btn';
     btn.id = 'cat-btn-' + cat.name.replace(/[^a-zA-Z0-9]/g, '_');
@@ -1600,6 +1623,7 @@ const SB_HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Auth
 function codeKey() { return btoa(unescape(encodeURIComponent(householdCode))).replace(/[^a-zA-Z0-9]/g,'').slice(0,40); }
 
 async function cloudGet() {
+  if (demoMode) return demoRecord;
   try {
     const r = await fetch(`${SB_URL}/rest/v1/households?code=eq.${encodeURIComponent(codeKey())}&select=data`, { headers: SB_HEADERS });
     if (!r.ok) return null;
@@ -1609,6 +1633,7 @@ async function cloudGet() {
 }
 
 async function cloudSet(data) {
+  if (demoMode) { demoRecord = data; return true; } // demo: kept in memory only, never sent
   try {
     const r = await fetch(`${SB_URL}/rest/v1/households`, {
       method: 'POST',
@@ -1736,7 +1761,7 @@ async function doSetup() {
 async function enterApp() {
   // Migrate any localStorage dismissed events to Supabase on first login
   var localDismissed = JSON.parse(localStorage.getItem('dismissed_events') || '{}');
-  if (Object.keys(localDismissed).length > 0 && record) {
+  if (Object.keys(localDismissed).length > 0 && record && !demoMode) {
     if (!record.dismissedEvents) record.dismissedEvents = {};
     Object.assign(record.dismissedEvents, localDismissed);
     await cloudSet(record);
@@ -1873,6 +1898,7 @@ function savePendingSyncs(syncs) {
 }
 
 async function callSheetsSync(entry) {
+  if (demoMode) return true; // demo entries never reach the sheet
   try {
     const res = await fetch(SUPABASE_FUNCTIONS_URL, {
       method: 'POST',
@@ -2209,6 +2235,115 @@ async function saveBudgetSheet(removeOne) {
 }
 
 
+
+// ═══ v4.6.2 ═══════════════════════════════════════════════════════════════
+// ── HIDE THE iPAD SIDEBAR ──────────────────────────────────────────────────
+function setSidebarHidden(on) {
+  document.body.classList.toggle('sb-hidden', !!on);
+  try { localStorage.setItem('hft_sb_hidden', on ? '1' : '0'); } catch (e) {}
+}
+try { if (localStorage.getItem('hft_sb_hidden') === '1') { if (document.body) document.body.classList.add('sb-hidden'); else document.addEventListener('DOMContentLoaded', function() { document.body.classList.add('sb-hidden'); }); } } catch (e) {}
+
+// ── DEMO MODE ──────────────────────────────────────────────────────────────
+// A made-up household ("Alex & Sam") built fresh from today's date. While it's
+// on, cloudGet/cloudSet only touch demoRecord in memory: nothing reaches
+// Supabase, and the real record is put back on Exit.
+var demoMode = false, demoRecord = null, _demoSaved = null;
+function _demoRand(seed) { return function() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+function buildDemoRecord() {
+  var r = _demoRand(20261125), now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var entries = {}, id = 1;
+  var add = function(d, amt, cat, type, note, pay, pending) {
+    var k = getQuarterKeyForDate(d); (entries[k] = entries[k] || []).push({ id: 'demo' + (id++), ts: d.getTime() + 12 * 3600000, amt: Math.round(amt * 100) / 100, cat: cat, type: type, payMethod: pay || 'cc', note: note, pending: !!pending });
+  };
+  var pick = function(a) { return a[Math.floor(r() * a.length)]; };
+  var start = new Date(today); start.setMonth(start.getMonth() - 5); start.setDate(1);
+  for (var d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+    var day = new Date(d), dow = day.getDay(), recent = (today - day) / 86400000 <= 2;
+    if (dow === 6) add(day, 140 + r() * 60, 'Groceries', 'essential', pick(['Green Market', 'Green Market (weekly)']), 'cc', recent);
+    if (r() < 0.12) add(day, 18 + r() * 45, 'Groceries', 'essential', pick(['Corner Grocer', 'Green Market (extra)']), 'cc', recent);
+    if (r() < 0.22) add(day, 22 + r() * 48, 'Meals', 'essential', pick(['Taco Garden (2)', 'Noodle House (3)', 'Pizza Barn', 'Lakeside Deli', 'Pho 99 (2)']), 'cc', recent);
+    if (r() < 0.25) add(day, 5 + r() * 9, 'Coffee & treats', 'nonessential', pick(['Bluebird Coffee', 'Bluebird Coffee (2)', 'Sweet Spot Bakery', 'Frosty Cone']), 'cc', recent);
+    if (r() < 0.09) add(day, 25 + r() * 110, 'Shopping', 'nonessential', pick(['Online Mart', 'Home Goods Co', 'Bookstop', 'Online Mart (filters)', 'Hardware Hut']), 'cc', recent);
+    if (r() < 0.05) add(day, 18 + r() * 30, 'Wine & spirits', 'nonessential', pick(['Cellar Wine Shop', 'Hop & Vine']), 'cc', recent);
+    if (r() < 0.08) add(day, 32 + r() * 22, 'Gas & transit', 'essential', pick(['QuickFuel', 'QuickFuel (wagon)', 'City Parking']), 'cc', recent);
+    if (r() < 0.04) add(day, 20 + r() * 60, 'Entertainment', 'nonessential', pick(['Starlight Cinema (2)', 'Mini Golf Park', 'Game Shop']), 'cc', recent);
+    if (r() < 0.03) add(day, 25 + r() * 70, 'Pets', 'essential', pick(['Paws Pet Supply', 'Happy Tails Groomer']), 'cc', recent);
+    if (r() < 0.02) add(day, 30 + r() * 60, 'Medical', 'essential', pick(['Main St Pharmacy', 'Family Clinic copay']), 'cc', recent);
+    if (r() < 0.03) add(day, 15 + r() * 50, 'Personal & gifts', 'nonessential', pick(['Gift for Jordan', 'Card Shop', 'Haircut']), 'cc', recent);
+    if (day.getDate() === 7) add(day, 12.99, 'Digital Subscriptions', 'nonessential', 'StreamBox', 'cc');
+    if (day.getDate() === 14) add(day, day.getMonth() >= today.getMonth() - 1 ? 16.99 : 14.99, 'Digital Subscriptions', 'nonessential', 'Audiobook Club', 'cc');
+    if (day.getDate() === 20 && day.getMonth() % 2 === 0) add(day, 38 + r() * 8, 'House Subscriptions', 'nonessential', 'Eco Soap Refills', 'cc');
+  }
+  var y = today.getFullYear(), m0 = today.getMonth() - 6, sy = new Date(y, m0, 1);
+  var fri = new Date(sy); while (fri.getDay() !== 5) fri.setDate(fri.getDate() + 1);
+  var ds = function(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  var B = function(o) { o.startMonth = o.startMonth !== undefined ? o.startMonth : sy.getMonth(); o.startYear = o.startYear || sy.getFullYear(); return o; };
+  var bills = [
+    B({ id: 'demo_pay_a', name: 'Alex paycheck', amt: 2480, freq: 'biweekly', startDate: ds(fri), type: 'in' }),
+    B({ id: 'demo_pay_s1', name: 'Sam paycheck (15th)', amt: 1960, day: 15, freq: 'monthly', type: 'in' }),
+    B({ id: 'demo_pay_s2', name: 'Sam paycheck (last day)', amt: 1960, day: 1, freq: 'monthly', type: 'in', eom: true }),
+    B({ id: 'demo_mort', name: 'Mortgage', amt: 1890, day: 1, freq: 'monthly', type: 'out', paidBy: 'checking', cat: 'Home & utilities' }),
+    B({ id: 'demo_elec', name: 'Electric', amt: 135, day: 12, freq: 'monthly', type: 'out', paidBy: 'checking', cat: 'Home & utilities' }),
+    B({ id: 'demo_heat', name: 'Gas & heat', amt: 85, day: 20, freq: 'monthly', type: 'out', paidBy: 'checking', cat: 'Home & utilities' }),
+    B({ id: 'demo_car', name: 'Car loan', amt: 389, day: 8, freq: 'monthly', type: 'out', paidBy: 'checking', cat: 'Car' }),
+    B({ id: 'demo_sl', name: 'Student loan', amt: 240, day: 14, freq: 'monthly', type: 'out', paidBy: 'checking', cat: 'Loans & tuition' }),
+    B({ id: 'demo_ins', name: 'Car insurance', amt: 128, day: 22, freq: 'monthly', type: 'out', paidBy: 'checking', cat: 'Insurance' }),
+    B({ id: 'demo_phone', name: 'Phone plan', amt: 95, day: 22, freq: 'monthly', type: 'out', paidBy: 'cc', cat: 'Phone & internet' }),
+    B({ id: 'demo_net', name: 'Internet', amt: 70, day: 5, freq: 'monthly', type: 'out', paidBy: 'cc', cat: 'Phone & internet' }),
+    B({ id: 'demo_music', name: 'Music streaming', amt: 11.99, day: 3, freq: 'monthly', type: 'out', paidBy: 'cc', cat: 'Digital Subscriptions' }),
+    B({ id: 'demo_cloud', name: 'Cloud storage', amt: 2.99, day: 9, freq: 'monthly', type: 'out', paidBy: 'cc', cat: 'Digital Subscriptions' }),
+    B({ id: 'demo_gym', name: 'Gym', amt: 45, day: 2, freq: 'monthly', type: 'out', paidBy: 'cc', cat: 'Health & fitness' }),
+    B({ id: 'demo_allow', name: 'Allowances', amt: 100, freq: 'weekly', startDate: ds(fri), type: 'out', paidBy: 'checking', cat: 'Allowances' }),
+    B({ id: 'hc_sf_emerg', name: 'Emergency fund', amt: 400, day: 16, freq: 'monthly', type: 'save' }),
+    B({ id: 'hc_sf_travel', name: 'Travel fund', amt: 150, day: 17, freq: 'monthly', type: 'save' }),
+    B({ id: 'hc_sf_home', name: 'Home/auto/insurance', amt: 100, day: 17, freq: 'monthly', type: 'save' })
+  ];
+  var nm = new Date(y, today.getMonth() + 1, 1);
+  var monthBudgets = {}; monthBudgets[nm.getFullYear() + '-' + String(nm.getMonth() + 1).padStart(2, '0')] = { 'Personal & gifts': 350 };
+  return {
+    demo: true,
+    config: { names: ['Alex', 'Sam'], budget: 3000, everydayTarget: 3000, created: start.getTime() },
+    entries: entries, bills: bills, deletedBills: DEFAULT_BILLS.map(function(b) { return b.id; }),
+    budgets: { 'Groceries': 2400, 'Meals': 1500, 'Coffee & treats': 300, 'Wine & spirits': 150, 'Shopping': 900, 'Medical': 300, 'Pets': 300, 'Entertainment': 300, 'Gas & transit': 450, 'Personal & gifts': 240, 'House Subscriptions': 150, 'Digital Subscriptions': 150 },
+    monthBudgets: monthBudgets,
+    balance: { amt: 6240, updated: Date.now() },
+    funds: { hc_sf_emerg: { bal: 7400, updated: Date.now() }, hc_sf_travel: { bal: 1150, updated: Date.now() }, hc_sf_home: { bal: 820, updated: Date.now() }, hc_sf_big: { bal: 0, updated: Date.now() }, hc_sf_med: { bal: 0, updated: Date.now() } },
+    goals: [
+      { id: 'g_emerg', name: 'Emergency fund', kind: 'save', target: 15000, current: 7400, monthly: 400 },
+      { id: 'g_car', name: 'Car paid off', kind: 'payoff', target: 0, start: 18500, current: 11240, monthly: 389 },
+      { id: 'g_student', name: 'Student loan paid off', kind: 'payoff', target: 0, start: 24000, current: 16800, monthly: 240 }
+    ],
+    dismissedEvents: {}, billOverrides: {}, ccOverrides: {}, fundCovers: {}, watchDone: {}
+  };
+}
+async function enterDemo() {
+  if (demoMode) return;
+  _demoSaved = { record: record, config: config, code: householdCode };
+  demoRecord = buildDemoRecord();
+  demoMode = true;
+  record = demoRecord; config = record.config;
+  if (!householdCode) householdCode = '__demo__';
+  document.body.classList.add('demo');
+  _mMem = null;
+  await enterApp();
+  if (isIPad()) ipadNav('screen-main');
+  toast('Demo mode: made-up household');
+}
+async function exitDemo() {
+  if (!demoMode) return;
+  demoMode = false; demoRecord = null;
+  document.body.classList.remove('demo');
+  _mMem = null;
+  var s = _demoSaved || {}; _demoSaved = null;
+  householdCode = s.code === '__demo__' ? '' : (s.code || '');
+  if (!householdCode || !s.record) { record = null; config = null; householdCode = ''; var bn = document.getElementById('bottom-nav'); if (bn) bn.style.display = 'none'; var sb = document.getElementById('ipad-sidebar'); if (sb) sb.style.display = 'none'; showScreen('screen-lock'); return; }
+  var fresh = await cloudGet();
+  record = fresh || s.record; config = record.config;
+  await enterApp();
+  if (isIPad()) ipadNav('screen-main');
+  toast('Back to your household');
+}
 // ═══ v4.6.0 ═══════════════════════════════════════════════════════════════
 // ── 1. MERCHANT MEMORY ─────────────────────────────────────────────────────
 // Every past entry teaches Hearth what a merchant usually is: typing
