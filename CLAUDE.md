@@ -16,7 +16,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.6.1** (Nov 25, 2026: merchant suggestions fold vendor spellings together). Bump patch/minor from here unless BC names a version.
+Live: **v4.6.2** (Nov 25, 2026: hide the iPad sidebar, demo mode, one-month budgets on the Add tiles). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -103,6 +103,13 @@ Live: **v4.6.1** (Nov 25, 2026: merchant suggestions fold vendor spellings toget
 - v4.6.1: merchant suggestions are grouped by vendor (`merchantGroups`): case/punctuation/"&" ignored,
   a name that starts another absorbs it, one-letter typos join, and `record.merchantAliases`
   (`{variant: name}`) joins the rest by hand. Entries' notes are never rewritten.
+- v4.6.2: **hide the iPad sidebar** (« in the logo row, » tab to reopen; `body.sb-hidden`, `hft_sb_hidden`).
+  **Demo mode** (`enterDemo`/`exitDemo`, Settings › Show someone, and "See a demo" on the lock screen):
+  `buildDemoRecord()` makes a made-up household from today's date; while `demoMode` is on, `cloudGet`/`cloudSet`
+  only touch `demoRecord` in memory and `callSheetsSync` does nothing. Any new code that writes anywhere
+  must respect `demoMode` too. Add tiles and the dashboard's budget labels now count `monthBudgets`.
+- Open: `DEFAULT_BILLS` in this public repo still holds the household's real bills and paychecks; move them
+  into the record and out of the code (offered to BC Nov 25).
 - The Camry loan is serviced by Royal Credit Union; due on the 3rd from Dec 2026 (the old bill ends Oct 2026).
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
