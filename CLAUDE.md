@@ -16,7 +16,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.5.0** (Nov 25, 2026: iPad sidebar with At a glance). Bump patch/minor from here unless BC names a version.
+Live: **v4.6.0** (Nov 25, 2026: merchant memory, Subscriptions, Balance calendar, Goals). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -94,8 +94,12 @@ Live: **v4.5.0** (Nov 25, 2026: iPad sidebar with At a glance). Bump patch/minor
 ## Known open items
 - Next (v4.4.x) to do: Settings day pickers (statement close / autopay) are display-only — wire them
   carefully (cycle code); tidy older screens (Balance, Funds, Bills).
-- Ideas queued from Monarch / Rocket Money: remember merchants on entry, subscriptions page with
-  price-change flags, upcoming bills calendar, goals (Emergency fund, student loan), safe to spend.
+- v4.6.0 (from Monarch / Rocket Money): **merchant memory** on Add (`merchantMemory`, the latest entry
+  per note fills category/type/pay); **Subscriptions** screen (`renderSubscriptions`: scheduled bills in
+  the two subscription categories + logged merchants charged 2+ times lately; price flags; hides
+  merchants marked Done on the watch list); **calendar** on Balance (`renderCalendar`, from
+  `buildProjection`); **Goals** on Budget (`record.goals`, `{id,name,kind:save|payoff,target,start,current,monthly}`;
+  the Emergency goal always reads the fund balance). Still queued: safe to spend.
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
   (e.g. checking entries); align them when touched.
