@@ -9,7 +9,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.1.0** (Nov 25, 2026: weekly catch-up targets, one-month budgets). Bump patch/minor from here unless BC names a version.
+Live: **v4.2.0** (Nov 25, 2026: History = Register / Card cycle / Reports; CC cycle 25th–24th everywhere). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -54,7 +54,12 @@ Live: **v4.1.0** (Nov 25, 2026: weekly catch-up targets, one-month budgets). Bum
   category except Groceries, Gas & transit and subscriptions.
 - **Dashboard pacing** and **Budget tab**: calendar month. Card bills are separate from the $3,500.
   Category budgets sum below $3,500 on purpose; the gap is the **cushion** row.
-- **Balance tab → credit card card check**: billing cycle (`CC_CYCLE_START/END`). Leave it on the cycle.
+- **Card cycle**: Capital One's cycle is the **25th–24th**, paid on the 19th. `CC_CYCLE_DAY = 25`;
+  `refreshCCCycle()` rolls it automatically (no manual dates in Settings any more). The Balance tab
+  card check, the History → Card cycle view and the forecast all use it.
+- **History**: Register (calendar month, newest first, filters, pending toggles, Mark all posted,
+  search across all months), Card cycle (each cycle vs the statement amount in `ccOverrides`),
+  Reports (P&L folded in as tap-to-expand Income/Expenses). Quarter/Month/CC Cycle/P&L views retired.
 - **CC payment forecast** (`forecastCCPayment`): override wins → closed cycle uses actual →
   open/future cycle uses max(actual so far + bills still to post, $3,500 + scheduled card bills).
 - **Reports** (`reportFigures`): income = paychecks + logged income (not fund draws);

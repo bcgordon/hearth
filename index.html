@@ -224,6 +224,12 @@ textarea { resize: none; }
 .wks-tile .d { font-size: 11px; color: var(--text-3); }
 .wks-tile .t { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .wks-tile .s { font-size: 11px; font-weight: 600; }
+.reg-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; }
+.reg-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.reg-sub { font-size: 12px; color: var(--text-3); }
+.reg-amt { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.reg-pchip { font-family: inherit; font-size: 12px; padding: 3px 8px; min-height: 26px; border-radius: 4px; cursor: pointer; white-space: nowrap; background: var(--surface2); border: 1px solid var(--border); color: var(--text-3); }
+.reg-pchip.on { background: var(--sun-bg); border-color: var(--sun); color: var(--sun-dim); }
 .pace-more { background: none; border: none; padding: 4px 0; font-family: inherit; font-size: 14px; color: var(--sky); cursor: pointer; text-align: left; text-decoration: underline dotted; }
 .updbar { position: fixed; left: 50%; bottom: calc(max(env(safe-area-inset-bottom), 16px) + 84px); transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 10px; width: calc(100% - 32px); max-width: 460px; box-sizing: border-box; padding: 10px 10px 10px 18px; background: var(--surface); color: var(--text); border: 1.5px solid var(--coral); border-radius: var(--radius-pill); box-shadow: 0 3px 0 var(--coral); font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; z-index: 9997; transition: transform 0.3s cubic-bezier(.4,0,.2,1), opacity 0.3s; }
 .updbar.on { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
@@ -1176,15 +1182,14 @@ textarea { resize: none; }
 <div id="screen-history" class="screen">
 <div class="back-row">
 <button class="back-btn" id="hist-back-btn" onclick="historyBack()">&#8592;</button>
-<span style="font-size:17px;font-weight:600;color:var(--sky)">Register</span>
+<span style="font-size:17px;font-weight:600;color:var(--sky)">History</span>
 </div>
 <div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
   <button id="hist-drill-back" onclick="historyBack()" style="display:none;background:none;border:1.5px solid var(--border);border-radius:20px;padding:6px 14px;font-size:15px;cursor:pointer;color:var(--text-3)">&#8592; Back</button>
-  <button id="hist-view-q" class="pill sel-e" onclick="setHistoryView('quarter')">Quarter</button>
-  <button id="hist-view-m" class="pill" onclick="setHistoryView('month')">Month</button>
-  <button id="hist-view-cc" class="pill" onclick="setHistoryView('cccycle')">CC Cycle</button>
-  <button id="hist-view-pl" class="pill" onclick="setHistoryView('pl')">P&amp;L</button>
+  <button id="hist-view-reg" class="pill sel-e" onclick="setHistoryView('register')">Register</button>
+  <button id="hist-view-cyc" class="pill" onclick="setHistoryView('cycles')">Card cycle</button>
   <button id="hist-view-rep" class="pill" onclick="setHistoryView('reports')">Reports</button>
+  <span style="display:none"><button id="hist-view-q"></button><button id="hist-view-m"></button><button id="hist-view-cc"></button><button id="hist-view-pl"></button></span>
 </div>
 <div id="hist-cat-filters" style="display:none;justify-content:center;gap:8px;margin-bottom:14px">
   <button id="hist-cat-e" class="pill" onclick="toggleCatTypeFilter('essential')">Essential</button>
@@ -1232,17 +1237,7 @@ textarea { resize: none; }
 <div class="divider" style="margin:0"></div>
 <div>
 <label class="label">CC Billing Cycle</label>
-<div style="display:flex;gap:10px;align-items:center">
-  <div style="flex:1">
-    <div style="font-size:12px;color:var(--text-3);margin-bottom:4px">Start date</div>
-    <input id="set-cc-cycle-start" type="date" style="width:100%;font-family:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)" />
-  </div>
-  <div style="font-size:16px;color:var(--text-3);padding-top:18px">→</div>
-  <div style="flex:1">
-    <div style="font-size:12px;color:var(--text-3);margin-bottom:4px">End date</div>
-    <input id="set-cc-cycle-end" type="date" style="width:100%;font-family:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)" />
-  </div>
-</div>
+<div style="font-size:15px;color:var(--text-2)">Capital One cycle: the 25th through the 24th. Hearth moves to the next cycle automatically.</div>
 </div>
 <div class="divider" style="margin:0"></div>
 <div>
@@ -1530,7 +1525,7 @@ async function showScreen(id) {
   if (id === 'screen-balance') { await refreshBalance(); }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
-  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type' && historyView !== 'pl' && historyView !== 'reports') { historyQOffset = 0; historyMonthOffset = 0; historyView = historyView || 'quarter'; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var plP = document.getElementById('hist-view-pl'); if (plP) plP.className = 'pill' + (historyView === 'pl' ? ' sel-e' : ''); var rpP = document.getElementById('hist-view-rep'); if (rpP) rpP.className = 'pill' + (historyView === 'reports' ? ' sel-e' : ''); if (historyView === 'pl') { _restoreHistoryChrome(); renderPLView(); } else if (historyView === 'reports') { renderReportsView(); } else { _restoreHistoryChrome(); historyNav(0); } }
+  if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type' && historyView !== 'pl' && historyView !== 'reports' && historyView !== 'register' && historyView !== 'cycles') { historyQOffset = 0; historyMonthOffset = 0; historyView = 'register'; regMonthOffset = 0; regFilter = 'all'; regSearch = ''; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var plP = document.getElementById('hist-view-pl'); if (plP) plP.className = 'pill' + (historyView === 'pl' ? ' sel-e' : ''); var rpP = document.getElementById('hist-view-rep'); if (rpP) rpP.className = 'pill' + (historyView === 'reports' ? ' sel-e' : ''); _histPills(historyView); if (historyView === 'pl') { _restoreHistoryChrome(); renderPLView(); } else if (historyView === 'reports') { renderReportsView(); } else if (historyView === 'register') { renderRegister(); } else if (historyView === 'cycles') { renderCycles(); } else { _restoreHistoryChrome(); historyNav(0); } }
   if (id === 'screen-budget') { renderBudgetScreen(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
@@ -1539,8 +1534,6 @@ async function showScreen(id) {
     document.getElementById('set-names').value = (config.names || []).join('\n');
     // Populate CC cycle dates
     var _toDateInput = function(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
-    document.getElementById('set-cc-cycle-start').value = config.ccCycleStart || _toDateInput(CC_CYCLE_START);
-    document.getElementById('set-cc-cycle-end').value = config.ccCycleEnd || _toDateInput(CC_CYCLE_END);
     document.getElementById('dark-mode-toggle').checked = document.body.classList.contains('dark');
     const saved = localStorage.getItem('hft_theme') || '';
     document.querySelectorAll('.theme-swatch').forEach(s => s.classList.toggle('active', s.dataset.theme === saved));
@@ -1648,18 +1641,8 @@ async function enterApp() {
     });
     if (_migrated) cloudSet(record);
   }
-  // Load CC cycle dates from config (manual override takes precedence)
-  if (record && record.config) {
-    if (record.config.ccCycleStart && record.config.ccCycleEnd) {
-      var _cp = function(s) { var p = s.split('-'); return new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])); };
-      CC_CYCLE_START = _cp(record.config.ccCycleStart);
-      CC_CYCLE_END = _cp(record.config.ccCycleEnd); CC_CYCLE_END.setHours(23,59,59,999);
-    } else {
-      // Default transition cycle Apr 12 - May 25 2026
-      CC_CYCLE_START = new Date(2026, 3, 12);
-      CC_CYCLE_END = new Date(2026, 4, 25, 23, 59, 59);
-    }
-  }
+  // CC cycle rolls automatically: the 25th through the 24th (v4.2.0)
+  refreshCCCycle();
   updateBalHero(); // set balActualBalance before any projection runs
   buildCategoryGrid(getCategorySpend());
   refreshMain();
@@ -2902,6 +2885,7 @@ document.addEventListener('visibilitychange', async function() {
     var fresh = await cloudGet();
     if (!fresh || !record) return;
     record = fresh; config = record.config || config;
+    refreshCCCycle();
     refreshMain();
     try { updateCCBalanceCard(); } catch (e) {}
     if (document.getElementById('screen-balance').classList.contains('active')) await refreshBalance();
@@ -2978,10 +2962,13 @@ function setHistoryView(view) {
   var ccPill = document.getElementById('hist-view-cc'); if (ccPill) ccPill.className = 'pill' + (view === 'cccycle' ? ' sel-n' : '');
   var plPill = document.getElementById('hist-view-pl'); if (plPill) plPill.className = 'pill' + (view === 'pl' ? ' sel-e' : '');
   var repPill = document.getElementById('hist-view-rep'); if (repPill) repPill.className = 'pill' + (view === 'reports' ? ' sel-e' : '');
+  _histPills(view);
   var hs = document.getElementById('history-search'); if (hs) { hs.value = ''; hs.style.display = ''; }
   _restoreHistoryChrome();
   if (view === 'pl') { renderPLView(); return; }
   if (view === 'reports') { renderReportsView(); return; }
+  if (view === 'register') { regMonthOffset = 0; regFilter = 'all'; regSearch = ''; renderRegister(); return; }
+  if (view === 'cycles') { renderCycles(); return; }
   historyNav(0);
 }
 
@@ -3163,7 +3150,7 @@ function _fillBillCatSelect(current, name) {
   sel.innerHTML = html;
 }
 function reportFigures(from, to) {
-  var r = { inc: 0, exp: 0, toFunds: 0, fromFunds: 0, allowances: 0, cats: {} };
+  var r = { inc: 0, exp: 0, toFunds: 0, fromFunds: 0, allowances: 0, cats: {}, incItems: [], billItems: {} };
   var addExp = function(c, a) { r.cats[c] = (r.cats[c] || 0) + a; r.exp += a; };
   var dismissed = (record && record.dismissedEvents) || {}, overrides = (record && record.billOverrides) || {};
   getAllBills().forEach(function(b) {
@@ -3176,27 +3163,28 @@ function reportFigures(from, to) {
       if (ov === 'skip') return;
       if (dismissed[d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + '-' + b.name.replace(/\s/g, '_')]) return;
       var a = (ov !== undefined && ov !== null && !isNaN(parseFloat(ov))) ? parseFloat(ov) : b.amt;
-      if (b.type === 'in') { if (b.isFundTransfer) r.fromFunds += a; else r.inc += a; return; }
+      if (b.type === 'in') { if (b.isFundTransfer) r.fromFunds += a; else { r.inc += a; r.incItems.push({ name: b.name, amt: a, date: d }); } return; }
       if (b.type === 'save') { r.toFunds += a; return; }
       if (b.type !== 'out' || b.isFundTransfer) return;
       var c = b.cat || guessBillCategory(b.name);
       if (c === 'Card payment') return;
       if (c === 'Allowances') { r.allowances += a; return; }
       addExp(c, a);
+      r.billItems[b.name] = (r.billItems[b.name] || 0) + a;
     });
   });
   var qk = {}; for (var d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d.setMonth(d.getMonth() + 1)) qk[getQuarterKeyForDate(d)] = true;
   Object.keys(qk).forEach(function(k) {
     loadEntries(k).forEach(function(e) {
       var ed = new Date(e.ts); if (ed < from || ed > to) return;
-      if (e.payMethod === 'income') { r.inc += e.amt; return; }
+      if (e.payMethod === 'income') { r.inc += e.amt; r.incItems.push({ name: e.note || 'Income', amt: e.amt, date: ed }); return; }
       if (e.payMethod === 'checking') return; // checking expenses are counted through their one-time bill
       addExp(e.cat || 'Other', e.amt);
     });
   });
   return r;
 }
-var reportMode = 'm', reportSel = null;
+var reportMode = 'm', reportSel = null, reportOpen = '';
 function _reportPeriods() {
   var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
   var start = new Date(2026, 3, 1); // Hearth began in April 2026
@@ -3229,7 +3217,195 @@ function _restoreHistoryChrome() {
   var prev = document.querySelector('.hist-nav [onclick*="historyNav(-1)"]'); if (prev) prev.onclick = function() { historyNav(-1); };
   var next = document.querySelector('.hist-nav [onclick*="historyNav(1)"]'); if (next) next.onclick = function() { historyNav(1); };
 }
-function setReportMode(m) { reportMode = m; reportSel = null; renderReportsView(); }
+function setReportMode(m) { reportMode = m; reportSel = null; reportOpen = ''; renderReportsView(); }
+// ── HISTORY: REGISTER + CARD CYCLE (v4.2.0) ─────────────────────────────────
+var regMonthOffset = 0, regFilter = 'all', regSearch = '';
+function _histPills(view) {
+  [['hist-view-reg', 'register'], ['hist-view-cyc', 'cycles'], ['hist-view-rep', 'reports']].forEach(function(p) {
+    var el = document.getElementById(p[0]); if (el) el.className = 'pill' + (view === p[1] ? ' sel-e' : '');
+  });
+}
+function _histChromeFor(label) {
+  var nav = document.querySelector('.hist-nav'); if (nav) nav.style.display = label ? '' : 'none';
+  if (label) document.getElementById('history-label').textContent = label;
+  var hs = document.getElementById('history-search'); if (hs) hs.style.display = 'none';
+  var sumEl = document.getElementById('history-summary'); if (sumEl) { sumEl.style.display = 'none'; sumEl.innerHTML = ''; }
+  var cf = document.getElementById('hist-cat-filters'); if (cf) cf.style.display = 'none';
+  var db = document.getElementById('hist-drill-back'); if (db) db.style.display = 'none';
+  var prev = document.querySelector('.hist-nav [onclick*="historyNav(-1)"]'); if (prev) prev.onclick = function() { historyNav(-1); };
+  var next = document.querySelector('.hist-nav [onclick*="historyNav(1)"]'); if (next) next.onclick = function() { historyNav(1); };
+}
+function _isCardEntry(e) { return e.payMethod !== 'checking' && e.payMethod !== 'income'; }
+function _regRows(y, m) {
+  var days = new Date(y, m + 1, 0).getDate(), from = new Date(y, m, 1), to = new Date(y, m, days, 23, 59, 59);
+  var rows = [], dismissed = (record && record.dismissedEvents) || {}, bp = (record && record.billPending) || {};
+  getMonthEntries(y, m).forEach(function(e) {
+    var kind = e.payMethod === 'checking' ? 'checking' : e.payMethod === 'income' ? 'income' : 'card';
+    rows.push({ date: new Date(e.ts), kind: kind, name: e.note || e.cat || 'Entry', sub: e.cat || '', amt: e.amt, pending: !!e.pending, fund: !!e.fundCoverage, entryId: e.id, qKey: getQuarterKeyForDate(new Date(e.ts)) });
+  });
+  _paceBillsByDay(y, m).forEach(function(list, i) {
+    var d = new Date(y, m, i + 1);
+    list.forEach(function(b) {
+      var bill = getAllBills().find(function(x) { return x.name === b.name && (x.paidBy === 'cc') === b.cc; });
+      var id = bill ? bill.id : null;
+      if (id && String(id).indexOf('chk_') === 0) return; // shown as its checking entry
+      rows.push({ date: d, kind: b.cc ? 'cardbill' : 'bill', name: b.name, sub: b.cc ? 'Card bill' : 'Checking bill', amt: b.amt, billId: id, pending: !!(id && bp['bill_pending_' + id + '_' + y + '_' + m + '_' + (i + 1)]) });
+    });
+  });
+  getAllBills().forEach(function(b) {
+    if (!(b.amt > 0) || (b.type !== 'in' && b.type !== 'save') || b.isFundTransfer) return;
+    getBillOccurrencesInRange(b, from, to).forEach(function(d) {
+      if (b.freq === 'monthly' && b.eom) d = new Date(y, m, days);
+      if (dismissed[d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + '-' + b.name.replace(/\s/g, '_')]) return;
+      rows.push({ date: d, kind: b.type === 'in' ? 'income' : 'transfer', name: b.name, sub: b.type === 'in' ? 'Paycheck' : 'To savings', amt: b.amt });
+    });
+  });
+  getScheduledEvents().forEach(function(ev) {
+    if (ev.type !== 'cc' || ev.date < from || ev.date > to) return;
+    var amt = ev.fixedAmt ? ev.amt : forecastCCPayment(ev.ccYear, ev.ccMonth, ev.ccCycleFrom, ev.ccCycleTo).amt;
+    rows.push({ date: ev.date, kind: 'ccpay', name: 'Credit card payment', sub: 'From checking', amt: amt });
+  });
+  return rows;
+}
+function renderRegister() {
+  var now = new Date(), base = new Date(now.getFullYear(), now.getMonth() + regMonthOffset, 1);
+  var y = base.getFullYear(), m = base.getMonth();
+  var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  _histChromeFor(regSearch ? null : mn[m] + ' ' + y);
+  var cont = document.getElementById('history-list'); cont.className = '';
+  var money = function(n) { return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  var rows;
+  if (regSearch) {
+    var q = regSearch.toLowerCase(); rows = [];
+    Object.keys(record.entries || {}).forEach(function(k) { (record.entries[k] || []).forEach(function(e) {
+      if (((e.note || '') + ' ' + (e.cat || '')).toLowerCase().indexOf(q) === -1) return;
+      rows.push({ date: new Date(e.ts), kind: e.payMethod === 'checking' ? 'checking' : e.payMethod === 'income' ? 'income' : 'card', name: e.note || e.cat || 'Entry', sub: e.cat || '', amt: e.amt, pending: !!e.pending, fund: !!e.fundCoverage, entryId: e.id, qKey: k });
+    }); });
+  } else rows = _regRows(y, m);
+  var past = rows.filter(function(r) { return r.date <= today; }), fut = rows.filter(function(r) { return r.date > today; });
+  var pend = past.filter(function(r) { return r.pending; });
+  var pendTotal = pend.reduce(function(t, r) { return t + r.amt; }, 0);
+  var keep = function(r) {
+    if (regFilter === 'pending') return r.pending;
+    if (regFilter === 'card') return r.kind === 'card' || r.kind === 'cardbill';
+    if (regFilter === 'checking') return r.kind === 'checking' || r.kind === 'bill' || r.kind === 'ccpay' || r.kind === 'transfer';
+    if (regFilter === 'bills') return r.kind === 'bill' || r.kind === 'cardbill';
+    return true;
+  };
+  var list = past.filter(keep).sort(function(a, b) { return b.date - a.date || (b.entryId || 0) - (a.entryId || 0); });
+  var html = '<input id="reg-search" type="search" placeholder="Search all months\u2026" value="' + regSearch.replace(/"/g, '&quot;') + '" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:inherit;margin-bottom:10px">';
+  var chips = [['all', 'All'], ['pending', 'Pending (' + pend.length + ')' + (pend.length ? ' \u00b7 ' + money(pendTotal) : '')], ['card', 'Card'], ['checking', 'Checking'], ['bills', 'Bills']];
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + chips.map(function(c) { return '<button class="pill' + (regFilter === c[0] ? ' sel-u' : '') + '" style="padding:8px 12px;font-size:14px' + (c[0] === 'pending' && pend.length ? ';border-color:var(--sun)' : '') + '" onclick="regFilter=\'' + c[0] + '\';renderRegister()">' + c[1] + '</button>'; }).join('') + '</div>';
+  if (!regSearch) {
+    var every = past.reduce(function(t, r) { return t + (r.kind === 'card' && !r.fund ? r.amt : 0); }, 0);
+    var nEntries = past.filter(function(r) { return r.entryId; }).length;
+    var lastDay = Math.min(today.getDate(), new Date(y, m + 1, 0).getDate());
+    var span = (y === now.getFullYear() && m === now.getMonth()) ? mn[m].slice(0, 3) + ' 1\u2013' + lastDay : mn[m];
+    html += '<div style="font-size:14px;color:var(--text-2);background:var(--surface2);border-radius:10px;padding:9px 12px;margin-bottom:10px;line-height:1.45">' + span + ' \u00b7 ' + nEntries + ' entries \u00b7 <b>$' + Math.round(every).toLocaleString('en-US') + '</b> everyday spending \u00b7 ' + pend.length + ' pending' + (pend.length ? ' (' + money(pendTotal) + ')' : '') + '</div>';
+  } else html += '<div style="font-size:14px;color:var(--text-2);margin-bottom:10px">' + list.length + ' matches for \u201c' + regSearch.replace(/</g, '&lt;') + '\u201d across all months \u00b7 ' + money(list.reduce(function(t, r) { return t + r.amt; }, 0)) + '</div>';
+  if (regFilter === 'pending' && pend.length) html += '<button class="btn btn-ghost" style="padding:9px 14px;margin-bottom:10px;border-color:var(--sun);color:var(--sun-dim)" onclick="regMarkAllPosted()">Mark all ' + pend.length + ' posted</button>';
+  html += '<div class="card" style="padding:12px 14px">';
+  if (!regSearch && fut.length && (regFilter === 'all' || regFilter === 'bills' || regFilter === 'checking')) {
+    var futShown = fut.filter(keep).sort(function(a, b) { return a.date - b.date; });
+    if (futShown.length) html += '<details style="margin-bottom:6px"><summary style="cursor:pointer;font-size:14px;color:var(--sky-dim);font-weight:600;padding:4px 0">Coming up this month (' + futShown.length + ')</summary>' + futShown.map(function(r) { return _regRowHtml(r, true); }).join('') + '</details>';
+  }
+  var lastKey = '';
+  list.forEach(function(r) {
+    var key = r.date.toDateString();
+    if (key !== lastKey) { lastKey = key; html += '<div style="font-size:12px;font-weight:600;color:var(--text-3);letter-spacing:.05em;text-transform:uppercase;padding:10px 0 4px;border-top:1px solid var(--border)">' + (key === now.toDateString() ? 'Today \u00b7 ' : '') + r.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + (regSearch ? ', ' + r.date.getFullYear() : '') + '</div>'; }
+    html += _regRowHtml(r, false);
+  });
+  if (!list.length) html += '<div style="font-size:15px;color:var(--text-3);padding:12px 0;font-style:italic">' + (regFilter === 'pending' ? 'Nothing pending. All caught up.' : 'Nothing here.') + '</div>';
+  html += '</div>';
+  cont.innerHTML = html;
+  var si = document.getElementById('reg-search');
+  if (si) {
+    si.addEventListener('input', function() { var v = si.value; clearTimeout(window._regT); window._regT = setTimeout(function() { regSearch = v.trim(); renderRegister(); var s2 = document.getElementById('reg-search'); if (s2) { s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); } }, 300); });
+  }
+}
+function _regRowHtml(r, upcoming) {
+  var money = function(n) { return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var col = r.kind === 'income' ? 'var(--grass-dim)' : r.kind === 'transfer' ? 'var(--sky-dim)' : (upcoming ? 'var(--text-3)' : 'var(--coral)');
+  var icon = (r.kind === 'card' || r.kind === 'cardbill') ? '\ud83d\udcb3 ' : (r.kind === 'checking' || r.kind === 'bill' || r.kind === 'ccpay') ? '\ud83c\udfe6 ' : '';
+  var sub = icon + r.sub + (r.fund ? ' \u00b7 fund-covered' : '') + (upcoming ? ' \u00b7 ' + (r.date.getMonth() + 1) + '/' + r.date.getDate() : '');
+  var chip = '';
+  if (!upcoming && r.kind === 'card' && r.entryId) chip = '<button onclick="event.stopPropagation();regTogglePending(' + r.entryId + ',\'' + r.qKey + '\')" class="reg-pchip ' + (r.pending ? 'on' : '') + '">' + (r.pending ? '\u23f3 pending' : 'pending?') + '</button>';
+  else if (!upcoming && r.kind === 'cardbill' && r.billId) chip = '<button onclick="event.stopPropagation();toggleBillPending(\'' + r.billId + '\',' + r.date.getFullYear() + ',' + r.date.getMonth() + ',' + r.date.getDate() + ')" class="reg-pchip ' + (r.pending ? 'on' : '') + '">' + (r.pending ? '\u23f3 pending' : 'pending?') + '</button>';
+  var click = r.entryId ? ' onclick="openEntryEdit(' + r.entryId + ',\'' + r.qKey + '\')" style="cursor:pointer"' : '';
+  return '<div class="reg-row"' + click + '><div style="min-width:0;flex:1"><div class="reg-name">' + String(r.name).replace(/</g, '&lt;') + '</div><div class="reg-sub">' + String(sub).replace(/</g, '&lt;') + '</div></div>' + chip + '<div class="reg-amt" style="color:' + col + '">' + (r.kind === 'income' ? '+' : '') + money(r.amt) + '</div></div>';
+}
+async function regTogglePending(id, qKey) { await toggleEntryPending(id, qKey); renderRegister(); }
+async function regMarkAllPosted() {
+  var now = new Date(), base = new Date(now.getFullYear(), now.getMonth() + regMonthOffset, 1);
+  var y = base.getFullYear(), m = base.getMonth();
+  if (!confirm('Mark every pending charge in ' + base.toLocaleDateString('en-US', { month: 'long' }) + ' as posted?')) return;
+  var fresh = await cloudGet(); if (fresh) record = fresh;
+  var n = 0, today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  var qk = getQuarterKeyForDate(base);
+  (record.entries[qk] || []).forEach(function(e) { var d = new Date(e.ts); if (d.getFullYear() === y && d.getMonth() === m && d <= today && e.pending) { delete e.pending; n++; } });
+  if (record.billPending) Object.keys(record.billPending).forEach(function(k) { var p = k.split('_'); if (+p[p.length - 3] === y && +p[p.length - 2] === m) { delete record.billPending[k]; n++; } });
+  await cloudSet(record);
+  regFilter = 'all';
+  refreshMain(); updateCCBalanceCard(); renderRegister();
+  toast(n + ' marked as posted');
+}
+function renderCycles() {
+  _histChromeFor(null);
+  var cont = document.getElementById('history-list'); cont.className = '';
+  var fmt = function(n) { return '$' + Math.round(Math.abs(n)).toLocaleString('en-US'); };
+  var mnS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var evs = getScheduledEvents().filter(function(ev) { return ev.type === 'cc' && !ev.fixedAmt && ev.ccCycleFrom && ev.ccCycleFrom <= today; });
+  // also include older cycles the scheduler no longer generates (it looks back 2 months)
+  var seen = {}; evs.forEach(function(ev) { seen[ev.ccCycleFrom.toDateString()] = true; });
+  var older = [];
+  for (var py = 2026, pm = 5; ; pm++) {
+    if (pm > 11) { pm = 0; py++; }
+    var pay = new Date(py, pm, 19); if (pay > new Date(today.getFullYear(), today.getMonth() + 3, 1)) break;
+    var F, T;
+    if (py === 2026 && pm === 5) { F = new Date(2026, 3, 12); T = new Date(2026, 4, 25, 23, 59, 59); }
+    else if (py === 2026 && pm === 6) { F = new Date(2026, 4, 26); T = new Date(2026, 5, 24, 23, 59, 59); }
+    else { F = new Date(py, pm - 2, 25); T = new Date(py, pm - 1, 24, 23, 59, 59); }
+    if (F > today || seen[F.toDateString()]) continue;
+    older.push({ date: pay, ccYear: py, ccMonth: pm, ccCycleFrom: F, ccCycleTo: T });
+  }
+  var all = evs.concat(older).sort(function(a, b) { return b.ccCycleFrom - a.ccCycleFrom; });
+  var html = '<div style="font-size:14px;color:var(--text-2);background:var(--surface2);border-radius:10px;padding:9px 12px;margin-bottom:10px;line-height:1.45">Each Capital One cycle (25th\u201324th) against what was billed. When a statement arrives, enter its amount; Hearth then uses it for that payment.</div><div class="card" style="padding:6px 14px">';
+  all.forEach(function(ev) {
+    var F = ev.ccCycleFrom, T = ev.ccCycleTo;
+    var logged = getCCSpend(F, T, { includeScheduled: false }), bills = getScheduledCCInCycle(F, T);
+    var pend = 0, pn = 0;
+    [getQuarterKeyForDate(F), getQuarterKeyForDate(T)].filter(function(k, i, a) { return a.indexOf(k) === i; }).forEach(function(k) { loadEntries(k).forEach(function(e) { var d = new Date(e.ts); if (d >= F && d <= T && e.pending && _isCardEntry(e)) { pend += e.amt; pn++; } }); });
+    var total = logged + bills, ov = record.ccOverrides && record.ccOverrides['cc_override_' + ev.ccYear + '_' + ev.ccMonth];
+    var fc = forecastCCPayment(ev.ccYear, ev.ccMonth, F, T);
+    var open = T >= today, pill;
+    if (open) pill = '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">In progress' + (pn ? ' \u00b7 ' + pn + ' pending' : '') + '</span>';
+    else if (!ov) pill = '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">Closed \u00b7 needs statement' + (pn ? ' \u00b7 ' + pn + ' pending' : '') + '</span>';
+    else { var diff = ov - total; pill = Math.abs(diff) <= 50 ? '<span class="pace-pill ok" style="font-size:11px;padding:2px 8px">Matched</span>' : '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">' + (diff > 0 ? fmt(diff) + ' not logged' : fmt(-diff) + ' less than logged') + '</span>'; }
+    html += '<div style="display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid var(--border)">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><span><b>' + mnS[F.getMonth()] + ' ' + F.getDate() + ' \u2013 ' + mnS[T.getMonth()] + ' ' + T.getDate() + '</b> <span style="font-size:12px;color:var(--text-3)">paid ' + mnS[ev.ccMonth] + ' 19</span></span>' + pill + '</div>';
+    var kv = function(k, v, b) { return '<span>' + (b ? '<b>' + k + '</b>' : k) + '</span><span style="text-align:right">' + (b ? '<b>' + v + '</b>' : v) + '</span>'; };
+    html += '<div style="display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:14px;color:var(--text-2);font-variant-numeric:tabular-nums">' + kv('Logged charges', fmt(logged)) + kv('Card bills', fmt(bills)) + (pn ? kv('Still pending', fmt(pend) + ' (' + pn + ')') : '') + kv('Hearth total', fmt(total), true) + (ov ? kv('Capital One statement', fmt(ov)) : kv('Payment forecast', fmt(fc.amt))) + '</div>';
+    if (!open) html += '<button class="reg-pchip" style="align-self:flex-start;font-size:13px;padding:5px 10px" onclick="cycleStatement(' + ev.ccYear + ',' + ev.ccMonth + ',' + (ov || Math.round(total)) + ')">' + (ov ? 'Change statement amount' : 'Enter statement amount') + '</button>';
+    html += '</div>';
+  });
+  html += '</div>';
+  cont.innerHTML = html;
+}
+function cycleStatement(y, m, cur) {
+  var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  showAmtModal('Statement for the ' + mn[m] + ' 19 payment', 'The new balance on your Capital One statement. Leave blank and tap Reset to go back to Hearth\u2019s total.', cur, async function(val) {
+    var fresh = await cloudGet(); if (fresh) record = fresh;
+    if (!record.ccOverrides) record.ccOverrides = {};
+    var k = 'cc_override_' + y + '_' + m;
+    if (val === '' || val === '0') { delete record.ccOverrides[k]; toast('Statement amount cleared'); }
+    else { var n = parseFloat(String(val).replace(/[$,]/g, '')); if (!isNaN(n) && n > 0) { record.ccOverrides[k] = n; toast('Statement amount saved'); } }
+    await cloudSet(record);
+    renderCycles();
+  });
+}
+
 function renderReportsView() {
   var nav = document.querySelector('.hist-nav'); if (nav) nav.style.display = 'none';
   var hs = document.getElementById('history-search'); if (hs) hs.style.display = 'none';
@@ -3254,7 +3430,7 @@ function renderReportsView() {
   svg += '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + mid + '" y2="' + mid + '" stroke="var(--border-dark)" stroke-width="1"/>';
   P.forEach(function(p, i) {
     var on = i === reportSel, op = on ? 1 : 0.55;
-    svg += '<g style="cursor:pointer" onclick="reportSel=' + i + ';renderReportsView()"><rect x="' + (x(i) - bw / 2) + '" y="' + top + '" width="' + bw + '" height="' + (H - top - bot) + '" fill="transparent"/>';
+    svg += '<g style="cursor:pointer" onclick="reportSel=' + i + ';reportOpen=\'\';renderReportsView()"><rect x="' + (x(i) - bw / 2) + '" y="' + top + '" width="' + bw + '" height="' + (H - top - bot) + '" fill="transparent"/>';
     svg += '<rect x="' + (x(i) - bar / 2) + '" y="' + (mid - sc(p.fig.inc)) + '" width="' + bar + '" height="' + Math.max(1, sc(p.fig.inc) - 1) + '" rx="4" fill="var(--grass)" opacity="' + op + '"/>';
     svg += '<rect x="' + (x(i) - bar / 2) + '" y="' + (mid + 1) + '" width="' + bar + '" height="' + Math.max(1, sc(p.fig.exp) - 1) + '" rx="4" fill="var(--coral)" opacity="' + op + '"/>';
     svg += '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="middle" style="font-size:11px;fill:' + (on ? 'var(--text);font-weight:700' : 'var(--text-3)') + '">' + p.label + '</text></g>';
@@ -3271,12 +3447,23 @@ function renderReportsView() {
   html += '<div class="card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:8px"><div class="section-head" style="margin:0">Money in and out</div>' + svg;
   html += '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--text-3)"><span>' + dot('var(--grass)') + 'Income</span><span>' + dot('var(--coral)') + 'Expenses</span><span>' + dot('var(--text)') + 'Kept</span></div></div>';
   html += '<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="section-head" style="margin:0">' + p.title + '</span><span style="font-size:13px;color:var(--text-3)">' + p.range + '</span></div>';
-  html += row(dot('var(--grass)') + 'Income', fmt(f.inc), 'var(--grass-dim)');
-  html += row(dot('var(--coral)') + 'Expenses', fmt(f.exp), 'var(--coral)');
+  var openRow = function(key, label, val, color) { return '<div onclick="reportOpen=reportOpen===\'' + key + '\'?\'\':\'' + key + '\';renderReportsView()" style="cursor:pointer">' + row(label + ' <span style="color:var(--text-3)">' + (reportOpen === key ? '\u25be' : '\u203a') + '</span>', val, color) + '</div>'; };
+  var itemList = function(items) { return '<div style="font-size:14px;color:var(--text-2);padding:4px 0 8px 18px;display:flex;flex-direction:column;gap:4px">' + items.map(function(it) { return '<div style="display:flex;justify-content:space-between;gap:10px"><span>' + it[0] + '</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap">' + fmt(it[1]) + '</span></div>'; }).join('') + '</div>'; };
+  html += openRow('inc', dot('var(--grass)') + 'Income', fmt(f.inc), 'var(--grass-dim)');
+  if (reportOpen === 'inc') html += itemList(f.incItems.slice().sort(function(a, b) { return a.date - b.date; }).map(function(it) { return [it.name + ' \u00b7 ' + (it.date.getMonth() + 1) + '/' + it.date.getDate(), it.amt]; }));
+  html += openRow('exp', dot('var(--coral)') + 'Expenses', fmt(f.exp), 'var(--coral)');
+  if (reportOpen === 'exp') {
+    var billNames = {}; Object.keys(f.billItems).forEach(function(k) { billNames[k] = true; });
+    var cardCats = {}; Object.keys(f.cats).forEach(function(k) { cardCats[k] = f.cats[k]; });
+    Object.keys(f.billItems).forEach(function(k) { var c = guessBillCategory(k); getAllBills().some(function(b) { if (b.name === k && b.cat) { c = b.cat; return true; } return false; }); if (cardCats[c] !== undefined) cardCats[c] -= f.billItems[k]; });
+    var exItems = Object.keys(f.billItems).map(function(k) { return [k + ' <span style="color:var(--text-3)">(bill)</span>', f.billItems[k]]; });
+    Object.keys(cardCats).forEach(function(k) { if (cardCats[k] > 0.5) exItems.push([k + ' <span style="color:var(--text-3)">(card)</span>', cardCats[k]]); });
+    exItems.sort(function(a, b) { return b[1] - a[1]; });
+    html += itemList(exItems);
+  }
   html += row(dot('var(--text)') + 'Kept', fmt(kept), kept < 0 ? 'var(--red)' : 'var(--text)');
   html += '<div style="font-size:13px;color:var(--text-3);margin-top:8px;line-height:1.45">' + (p.cur ? 'Still to come this ' + (reportMode === 'm' ? 'month' : 'quarter') + ': the rest of the paychecks and bills. ' : '') +
     'Transfers, not counted above: into sinking funds ' + fmt(f.toFunds) + ' · drawn from funds ' + fmt(f.fromFunds) + ' · allowances ' + fmt(f.allowances) + '.</div>';
-  if (reportMode === 'm') html += '<button class="pace-more" style="margin-top:8px" onclick="plMonthOffset=' + ((p.y - new Date().getFullYear()) * 12 + p.m - new Date().getMonth()) + ';setHistoryView(\'pl\');plMonthOffset=' + ((p.y - new Date().getFullYear()) * 12 + p.m - new Date().getMonth()) + ';renderPLView()">See this month\u2019s P&amp;L \u203a</button>';
   html += '</div>';
   var ents = Object.keys(f.cats).map(function(k) { return [k, f.cats[k]]; }).filter(function(e) { return e[1] > 0.5; }).sort(function(a, b) { return b[1] - a[1]; });
   var mx = ents.length ? ents[0][1] : 1;
@@ -3629,6 +3816,9 @@ async function eeSave() {
 }
 
 async function historyNav(dir) {
+  if (historyView === 'register') { if (dir) regMonthOffset += dir; const fr = await cloudGet(); if (fr) { record = fr; config = record.config; } renderRegister(); return; }
+  if (historyView === 'cycles') { const fr2 = await cloudGet(); if (fr2) { record = fr2; config = record.config; } renderCycles(); return; }
+  if (historyView === 'reports') { renderReportsView(); return; }
   if (dir !== undefined) {
     if (historyView === 'month') {
       historyMonthOffset += dir;
@@ -3936,16 +4126,6 @@ async function saveSettings() {
   const names = document.getElementById('set-names').value.split('\n').map(n => n.trim()).filter(Boolean).slice(0, 3);
   if (!budget || budget <= 0 || !names.length) return;
   config.budget = budget; config.names = names;
-  // Save CC cycle dates
-  var _parseDate = function(s) { var p = s.split('-'); return new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])); };
-  var ccStartVal = document.getElementById('set-cc-cycle-start').value;
-  var ccEndVal = document.getElementById('set-cc-cycle-end').value;
-  if (ccStartVal && ccEndVal) {
-    config.ccCycleStart = ccStartVal;
-    config.ccCycleEnd = ccEndVal;
-    CC_CYCLE_START = _parseDate(ccStartVal);
-    CC_CYCLE_END = _parseDate(ccEndVal); CC_CYCLE_END.setHours(23,59,59,999);
-  }
   if (!record) record = { config, entries: {} };
   record.config = config;
   await cloudSet(record);
@@ -4930,7 +5110,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.1.0';
+var APP_VERSION = 'v4.2.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -5036,7 +5216,7 @@ function renderQuoteOfDay() {
 // ── CC CYCLE CONFIG ─────────────────────────────────────────────────────────
 // The billing cycle runs from the 12th of one month to the 11th of the next.
 // Update CC_CYCLE_DAY if Capital One changes the billing date.
-var CC_CYCLE_DAY = 13; // cycle starts on the 13th — overridden by config.ccCycleDay on login
+var CC_CYCLE_DAY = 25; // Capital One cycle: the 25th through the 24th (v4.2.0: one definition everywhere)
 
 function getCCCycle() {
   var today = new Date();
@@ -5060,6 +5240,7 @@ function getCCCycle() {
 var _ccCycle = getCCCycle();
 var CC_CYCLE_START = _ccCycle.start;
 var CC_CYCLE_END   = _ccCycle.end;
+function refreshCCCycle() { var c = getCCCycle(); CC_CYCLE_START = c.start; CC_CYCLE_END = c.end; }
 
 function getCCAppTotal() {
   // Single source of truth: all CC spend in current billing cycle up to today
