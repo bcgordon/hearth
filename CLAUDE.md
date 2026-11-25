@@ -9,7 +9,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.2.1** (Nov 25, 2026: meeting a budget is amber "At budget"; red only when more than $1 over). Bump patch/minor from here unless BC names a version.
+Live: **v4.3.0** (Nov 25, 2026: Budget tab = monthly plan + everyday budgets; editable everyday target). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -48,7 +48,8 @@ Live: **v4.2.1** (Nov 25, 2026: meeting a budget is amber "At budget"; red only 
 
 ## How the numbers are defined (keep these consistent)
 - **Everyday spending** = card entries (cc + credits), not fund-covered, not checking/income.
-  Target **$3,500/month** (`PACE_TARGET`), the same figure the forecast uses.
+  Target **$3,500/month** by default (`PACE_TARGET`, editable on the Budget tab, stored in
+  `config.everydayTarget`, applied by `applyEverydayTarget()`); the forecast uses the same figure.
 - **Weekly** (`renderWeekly`): Monday–Sunday, **catch-up** targets: what's left of each month's
   target/category budget spread over its remaining days. Weekly limits for every budgeted
   category except Groceries, Gas & transit and subscriptions.
@@ -56,6 +57,10 @@ Live: **v4.2.1** (Nov 25, 2026: meeting a budget is amber "At budget"; red only 
   is amber ("At budget"); otherwise green, or amber when ahead of pace.
 - **Dashboard pacing** and **Budget tab**: calendar month. Card bills are separate from the $3,500.
   Category budgets sum below $3,500 on purpose; the gap is the **cushion** row.
+- **Budget tab**: monthly summary (calendar month), **Your monthly plan** (income − everyday target −
+  card bills − checking bills − savings = planned to keep; this month and the next two), and
+  **Everyday budgets** (budget, so far, 3-month average, flag when the average is >20% over;
+  edit sheet: From now on → `budgets` (quarterly ×3) or This month only → `monthBudgets`).
 - **Card cycle**: Capital One's cycle is the **25th–24th**, paid on the 19th. `CC_CYCLE_DAY = 25`;
   `refreshCCCycle()` rolls it automatically (no manual dates in Settings any more). The Balance tab
   card check, the History → Card cycle view and the forecast all use it.

@@ -1207,8 +1207,8 @@ textarea { resize: none; }
 <!-- BUDGET -->
 <div id="screen-budget" class="screen">
 <div class="back-row">
-<button class="back-btn" onclick="showScreen('screen-settings')">&#8592;</button>
-<span style="font-size:17px;font-weight:600;color:var(--sky)">Budget targets</span>
+<button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
+<span style="font-size:17px;font-weight:600;color:var(--sky)">Budget</span>
 </div>
 <div id="budget-screen-content" style="padding:0 17px"></div>
 </div>
@@ -1643,6 +1643,7 @@ async function enterApp() {
   }
   // CC cycle rolls automatically: the 25th through the 24th (v4.2.0)
   refreshCCCycle();
+  applyEverydayTarget();
   updateBalHero(); // set balActualBalance before any projection runs
   buildCategoryGrid(getCategorySpend());
   refreshMain();
@@ -1957,6 +1958,141 @@ function _budgetMonthFigures(now) {
   return r;
 }
 
+// ── BUDGET TAB: PLAN + EVERYDAY BUDGETS (v4.3.0) ────────────────────────────
+var budgetPlanOffset = 0; // 0 = this month, 1 = next, 2 = the month after
+var MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function _planFor(y, m) {
+  var days = new Date(y, m + 1, 0).getDate(), from = new Date(y, m, 1), to = new Date(y, m, days, 23, 59, 59);
+  var r = { inc: 0, target: monthTarget(y, m), card: 0, chk: 0, allow: 0, sav: 0 };
+  var dismissed = (record && record.dismissedEvents) || {}, overrides = (record && record.billOverrides) || {};
+  getAllBills().forEach(function(b) {
+    if (!(b.amt > 0) || b.isFundTransfer || (b.type !== 'in' && b.type !== 'save')) return;
+    getBillOccurrencesInRange(b, from, to).forEach(function(d) {
+      if (overrides['bill_override_' + b.id + '_' + d.getFullYear() + '_' + d.getMonth() + '_' + d.getDate()] === 'skip') return;
+      if (dismissed[d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + '-' + b.name.replace(/\s/g, '_')]) return;
+      if (b.type === 'in') r.inc += b.amt; else r.sav += b.amt;
+    });
+  });
+  _paceBillsByDay(y, m).forEach(function(list) { list.forEach(function(x) { if (x.cc) r.card += x.amt; else { r.chk += x.amt; if (/allowance/i.test(x.name)) r.allow += x.amt; } }); });
+  r.keep = r.inc - r.target - r.card - r.chk - r.sav;
+  return r;
+}
+function _planMonth() { var n = new Date(); var d = new Date(n.getFullYear(), n.getMonth() + budgetPlanOffset, 1); return { y: d.getFullYear(), m: d.getMonth() }; }
+function _bfmt(n) { return (n < 0 ? '−' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); }
+function _budgetPlanCard() {
+  var now = new Date(), pm = _planMonth(), p = _planFor(pm.y, pm.m);
+  var catSum = 0; BUDGET_CATEGORIES.forEach(function(c) { if (c.budget) catSum += getMonthCatBudget(c.name, pm.y, pm.m); });
+  var h = '<div class="card" style="margin-bottom:12px;padding:14px 17px;display:flex;flex-direction:column;gap:8px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="section-head" style="margin:0">Your monthly plan</span><span style="display:flex;gap:6px">';
+  for (var i = 0; i < 3; i++) { var d = new Date(now.getFullYear(), now.getMonth() + i, 1); h += '<button class="pill' + (budgetPlanOffset === i ? ' sel-u' : '') + '" style="padding:6px 12px;font-size:14px" onclick="budgetPlanOffset=' + i + ';renderBudgetScreen()">' + MONTHS_LONG[d.getMonth()].slice(0, 3) + '</button>'; }
+  h += '</span></div>';
+  var line = function(label, val, color, sub, bold) {
+    return '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums;font-size:' + (bold ? '17px;font-weight:700;border-top:1.5px solid var(--border);padding-top:6px' : '15px') + '"><span>' + label + (sub ? '<div style="font-size:12px;color:var(--text-3);font-weight:400">' + sub + '</div>' : '') + '</span><span style="color:' + (color || 'var(--text)') + '">' + val + '</span></div>';
+  };
+  h += line('Income', _bfmt(p.inc), 'var(--grass-dim)');
+  h += line('− Everyday spending', _bfmt(p.target), null, 'categories ' + _bfmt(catSum) + ' + cushion ' + _bfmt(p.target - catSum));
+  h += line('− Card bills', _bfmt(p.card));
+  h += line('− Checking bills', _bfmt(p.chk), null, p.allow ? 'includes allowances ' + _bfmt(p.allow) : '');
+  h += line('− Savings', _bfmt(p.sav));
+  h += line('Planned to keep', _bfmt(p.keep), p.keep < 0 ? 'var(--red)' : 'var(--grass-dim)', null, true);
+  h += '<div style="font-size:13px;color:var(--text-2);background:var(--surface2);border-radius:8px;padding:8px 10px;line-height:1.45">' + (p.keep < 0 ? 'This plan is <b>' + _bfmt(-p.keep) + ' short</b> before any overspending. The gap comes out of checking.' : '<b>' + _bfmt(p.keep) + '</b> left over if spending stays on plan.') + '</div>';
+  return h + '</div>';
+}
+function _catAvg3(name) {
+  var now = new Date(), tot = 0;
+  for (var k = 1; k <= 3; k++) { var d = new Date(now.getFullYear(), now.getMonth() - k, 1); getMonthEntries(d.getFullYear(), d.getMonth()).forEach(function(e) { if ((e.cat || 'Other') === name) tot += _paceEveryday(e); }); }
+  return tot / 3;
+}
+function _budgetCatsCard() {
+  var now = new Date(), pm = _planMonth(), cur = budgetPlanOffset === 0;
+  var frac = now.getDate() / new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  var spent = {};
+  if (cur) getMonthEntries(pm.y, pm.m).forEach(function(e) { var a = _paceEveryday(e); if (a) spent[e.cat || 'Other'] = (spent[e.cat || 'Other'] || 0) + a; });
+  var mo = (record && record.monthBudgets && record.monthBudgets[_monthKey(pm.y, pm.m)]) || {};
+  var colors = { ok: 'var(--grass)', ahead: 'var(--sun)', over: 'var(--red)' };
+  var mname = MONTHS_LONG[pm.m];
+  var h = '<div class="card" style="margin-bottom:12px;padding:14px 17px;display:flex;flex-direction:column;gap:6px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="section-head" style="margin:0">Everyday budgets · ' + mname + '</span><button class="pace-more" onclick="openBudgetSheet(\'\')">Target ' + _bfmt(monthTarget(pm.y, pm.m)) + ' · edit</button></div>';
+  h += '<div style="font-size:12px;color:var(--text-3)">Tap a category to change its budget. On each bar: dark tick = budget, light tick = 3-month average.</div>';
+  var catSum = 0, budgeted = {};
+  BUDGET_CATEGORIES.forEach(function(c) {
+    if (!c.budget) return;
+    budgeted[c.name] = true;
+    var b = getMonthCatBudget(c.name, pm.y, pm.m), sp = spent[c.name] || 0, av = _catAvg3(c.name);
+    catSum += b;
+    var st = _paceStatus(sp, b, frac), diff = sp - b;
+    var tag = !cur ? '' : (Math.abs(diff) < 1 ? 'At budget' : diff > 0 ? _bfmt(diff) + ' over' : _bfmt(-diff) + ' left');
+    var max = Math.max(b, sp, av, 1) * 1.05;
+    h += '<div data-cat="' + c.name + '" onclick="openBudgetSheet(this.dataset.cat)" style="display:flex;flex-direction:column;gap:4px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:16px"><span>' + c.name + (mo[c.name] !== undefined ? ' <span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">' + mname + ' only</span>' : '') + '</span>' + (tag ? '<span class="pace-pill ' + st + '" style="font-size:11px;padding:2px 8px">' + tag + '</span>' : '') + '</div>';
+    var cell = function(l, v) { return '<span>' + l + '<b style="display:block;font-size:15px;color:var(--text)">' + v + '</b></span>'; };
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;font-size:12px;color:var(--text-3);font-variant-numeric:tabular-nums">' + cell('Budget', _bfmt(b)) + cell(cur ? 'So far' : 'This month', cur ? _bfmt(sp) : '—') + cell('3-month avg', _bfmt(av)) + '</div>';
+    h += '<div class="pace-track" style="height:6px;margin-top:2px"><div class="pace-fill" style="width:' + Math.min(100, sp / max * 100) + '%;background:' + colors[st] + '"></div><div class="pace-tick" style="left:' + (av / max * 100) + '%;background:var(--border-dark)"></div><div class="pace-tick" style="left:' + (b / max * 100) + '%"></div></div>';
+    if (av > b * 1.2 && av - b >= 25) h += '<div style="font-size:12px;color:var(--sun-dim)">⚑ You usually spend ' + _bfmt(av) + '. Raise the budget, or plan the cut?</div>';
+    h += '</div>';
+  });
+  var target = monthTarget(pm.y, pm.m), unb = [];
+  if (cur) Object.keys(spent).forEach(function(k) { if (!budgeted[k] && spent[k]) unb.push(k + ' ' + _bfmt(spent[k])); });
+  h += '<div style="padding:9px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;font-size:16px"><span>Cushion</span><span style="color:var(--text-3)">' + _bfmt(target - catSum) + '</span></div><div style="font-size:12px;color:var(--text-3)">Covers spending with no budget' + (unb.length ? ': ' + unb.join(', ') + ' so far' : '') + '.</div></div>';
+  h += '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;padding-top:4px"><span>Everyday target</span><span>' + _bfmt(target) + '</span></div>';
+  return h + '</div>';
+}
+var _bsMode = 'all', _bsCat = '';
+function openBudgetSheet(cat) {
+  _bsCat = cat || '';
+  var pm = _planMonth(), mname = MONTHS_LONG[pm.m], isTarget = !_bsCat;
+  var cur = isTarget ? PACE_TARGET : getMonthCatBudget(_bsCat, pm.y, pm.m);
+  var mo = !isTarget && record.monthBudgets && record.monthBudgets[_monthKey(pm.y, pm.m)] && record.monthBudgets[_monthKey(pm.y, pm.m)][_bsCat] !== undefined;
+  var ov = document.createElement('div'); ov.id = 'budget-sheet';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center';
+  var h = '<div style="background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;padding:20px 20px max(24px, env(safe-area-inset-bottom));width:100%;max-width:500px;display:flex;flex-direction:column;gap:12px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:18px" id="bs-title"></b><button data-x style="font-size:22px;background:none;border:none;cursor:pointer;color:var(--text-3)">×</button></div>';
+  h += '<div style="font-size:14px;color:var(--text-2)">' + (isTarget ? 'All everyday card spending in a month. Weekly targets and the card payment forecast follow it.' : 'Monthly budget. Your 3-month average is ' + _bfmt(_catAvg3(_bsCat)) + '.') + '</div>';
+  h += '<input id="bs-val" type="number" inputmode="decimal" value="' + Math.round(cur) + '" style="font-family:inherit;font-size:20px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);width:100%;box-sizing:border-box">';
+  if (!isTarget) h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button class="pill" id="bs-all" onclick="_bsSet(\'all\')">From now on</button><button class="pill" id="bs-one" onclick="_bsSet(\'one\')">' + mname + ' only</button></div><div id="bs-eff" style="font-size:13px;color:var(--text-3)"></div>';
+  if (mo) h += '<button class="pace-more" onclick="saveBudgetSheet(true)">Remove the ' + mname + '-only amount</button>';
+  h += '<button class="btn btn-coral btn-full" style="padding:13px;border-radius:30px" onclick="saveBudgetSheet(false)">Save</button></div>';
+  ov.innerHTML = h;
+  ov.querySelector('#bs-title').textContent = isTarget ? 'Everyday target' : _bsCat;
+  ov.onclick = function(ev) { if (ev.target === ov || ev.target.hasAttribute('data-x')) ov.remove(); };
+  document.body.appendChild(ov);
+  if (!isTarget) _bsSet(mo ? 'one' : 'all');
+}
+function _bsSet(m) {
+  _bsMode = m; var pm = _planMonth();
+  var a = document.getElementById('bs-all'), o = document.getElementById('bs-one'); if (!a) return;
+  a.className = 'pill' + (m === 'all' ? ' sel-e' : ''); o.className = 'pill' + (m === 'one' ? ' sel-e' : '');
+  document.getElementById('bs-eff').textContent = m === 'all' ? 'Applies to every month from now on.' : 'Applies to ' + MONTHS_LONG[pm.m] + ' only, then goes back to the usual amount.';
+}
+async function saveBudgetSheet(removeOne) {
+  var cat = _bsCat;
+  var v = parseFloat(String((document.getElementById('bs-val') || {}).value || '').replace(/[$,]/g, ''));
+  if (!removeOne && (isNaN(v) || v < 0)) { toast('Enter an amount'); return; }
+  var fresh = await cloudGet(); if (fresh) { record = fresh; config = record.config || config; }
+  var pm = _planMonth(), key = _monthKey(pm.y, pm.m);
+  var dropOne = function() { if (record.monthBudgets && record.monthBudgets[key]) { delete record.monthBudgets[key][cat]; if (!Object.keys(record.monthBudgets[key]).length) delete record.monthBudgets[key]; } };
+  if (!cat) {
+    if (!record.config) record.config = config || {};
+    record.config.everydayTarget = Math.round(v); config = record.config; applyEverydayTarget();
+    toast('Everyday target set to $' + Math.round(v).toLocaleString('en-US'));
+  } else if (removeOne) {
+    dropOne(); toast(cat + ': back to the usual budget');
+  } else if (_bsMode === 'one') {
+    if (!record.monthBudgets) record.monthBudgets = {};
+    if (!record.monthBudgets[key]) record.monthBudgets[key] = {};
+    record.monthBudgets[key][cat] = Math.round(v);
+    toast(cat + ' set to $' + Math.round(v) + ' for ' + MONTHS_LONG[pm.m] + ' only');
+  } else {
+    if (!record.budgets) record.budgets = {};
+    record.budgets[cat] = Math.round(v) * 3;
+    dropOne();
+    toast(cat + ' budget set to $' + Math.round(v));
+  }
+  await cloudSet(record);
+  var sh = document.getElementById('budget-sheet'); if (sh) sh.remove();
+  renderBudgetScreen(); refreshMain();
+}
+
 function renderBudgetScreen() {
   var cont = document.getElementById('budget-screen-content');
   if (!cont) return;
@@ -2133,92 +2269,9 @@ function renderBudgetScreen() {
 
   html += '</div>';
 
-  html += '<div class="card" style="margin-bottom:12px;padding:14px 17px">';
-  // No column headers needed — each category is self-labelled
-
-  // Get current month spent per category
-  var mCatSpend = {};
-  qEntries.forEach(function(e) {
-    if (e.payMethod === 'income' || e.fundCoverage) return;
-    var d = new Date(e.ts);
-    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
-      var cat2 = e.cat || 'Other';
-      mCatSpend[cat2] = (mCatSpend[cat2] || 0) + e.amt;
-    }
-  });
-
-  BUDGET_CATEGORIES.forEach(function(cat) {
-    if (!cat.budget) return; // skip Other/Runaway Anchor
-    var qBudget = getCatBudget(cat.name, cat.budget);
-    var mBudget = Math.round(qBudget / 3);
-    var qSpent = catSpend[cat.name] || 0;
-    var mSpent = mCatSpend[cat.name] || 0;
-
-    // Monthly color
-    var mPct = mBudget > 0 ? mSpent / mBudget * 100 : 0;
-    var mPctCapped = Math.min(mPct, 100);
-    var spentColor = mSpent - mBudget >= 1 ? 'var(--red)' : mPct >= 75 ? 'var(--sun-dim)' : 'var(--grass-dim)';
-    var mBarColor = mSpent - mBudget >= 1 ? 'var(--red)' : mPct >= 75 ? 'var(--sun)' : 'var(--grass)';
-
-    // Quarterly color
-    var qPct = Math.min(qSpent / qBudget * 100, 100);
-    var qBarColor = qSpent > qBudget ? 'var(--red)' : qSpent > qBudget * 0.8 ? 'var(--sun)' : 'var(--sky)';
-
-    // Remaining
-    var mRem = mBudget - mSpent;
-    var remColor = mRem < 0 ? 'var(--red)' : mRem === 0 ? 'var(--sun-dim)' : 'var(--grass-dim)';
-    var remSign = mRem < 0 ? '-$' : '+$';
-
-    html += '<div style="margin-bottom:16px">';
-
-    // Category name
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:18px;font-weight:600;color:var(--text)">' + cat.name + '</span><button onclick="openBudgetEdit(\'' + cat.name + '\',' + qBudget + ')" style="font-size:13px;padding:3px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--text-3);cursor:pointer;font-family:inherit">Edit</button></div>';
-
-    // Monthly row — PRIMARY
-    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">';
-    html += '<span style="font-size:14px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">This month</span>';
-    html += '<div style="display:flex;gap:12px;align-items:baseline">';
-    html += '<span style="font-size:14px;color:var(--text-3)">' + fmt(mBudget) + ' budget</span>';
-    html += '<span style="font-size:17px;font-weight:700;color:' + spentColor + ';cursor:pointer;text-decoration:underline dotted" data-cat="' + cat.name + '" onclick="showCategoryRegister(this.dataset.cat)">' + fmt(mSpent) + ' spent</span>';
-    html += '<span style="font-size:16px;font-weight:700;color:' + remColor + '">' + remSign + Math.abs(Math.round(mRem)).toLocaleString('en-US') + '</span>';
-    html += '</div></div>';
-    // Monthly bar (thicker)
-    html += '<div style="height:6px;background:var(--border);border-radius:3px;margin-bottom:10px">';
-    html += '<div style="height:100%;width:' + mPctCapped.toFixed(1) + '%;background:' + mBarColor + ';border-radius:3px;transition:width 0.4s"></div>';
-    html += '</div>';
-
-    // Quarterly row — SECONDARY
-    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">';
-    html += '<span style="font-size:13px;color:var(--text-3)">Quarter</span>';
-    html += '<span style="font-size:14px;color:var(--text-3)">' + fmt(qSpent) + ' / ' + fmt(qBudget) + '</span>';
-    html += '</div>';
-    // Quarterly bar (thinner)
-    html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-bottom:4px">';
-    html += '<div style="height:100%;width:' + qPct.toFixed(1) + '%;background:' + qBarColor + ';border-radius:2px;transition:width 0.4s"></div>';
-    html += '</div></div>';
-  });
-
-  html += '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;display:flex;justify-content:space-between">';
-  html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Total</span>';
-  html += '<div style="display:flex;gap:16px">';
-  var totalMSpent = Object.values(mCatSpend).reduce(function(a,b){ return a+b; }, 0);
-  var totalRem = monthlyBudget - totalMSpent;
-  var totalRemColor = totalRem < 0 ? 'var(--red)' : totalRem === 0 ? 'var(--sun-dim)' : 'var(--grass-dim)';
-  var totalRemSign = totalRem < 0 ? '-$' : '+$';
-  html += '<div style="display:flex;justify-content:space-between;align-items:baseline">';
-  html += '<span style="font-size:16px;font-weight:600;color:var(--text)">Monthly total</span>';
-  html += '<div style="display:flex;gap:12px;align-items:baseline">';
-  html += '<span style="font-size:15px;color:var(--text-3)">' + fmt(monthlyBudget) + ' budget</span>';
-  html += '<span style="font-size:17px;font-weight:700;color:' + (totalMSpent > monthlyBudget ? 'var(--red)' : 'var(--grass-dim)') + '">' + fmt(totalMSpent) + ' spent</span>';
-  html += '<span style="font-size:16px;font-weight:700;color:' + totalRemColor + '">' + totalRemSign + Math.abs(Math.round(totalRem)).toLocaleString('en-US') + '</span>';
-  html += '</div></div>';
-  html += '</div>';
-
-
-
+  html += _budgetPlanCard() + _budgetCatsCard();
   cont.innerHTML = html;
 }
-
 function getMonthEntries(year, month) {
   var qKey = year + '_Q' + (Math.floor(month / 3) + 1);
   var entries = loadEntries(qKey);
@@ -2269,7 +2322,7 @@ function refreshMain() {
   fixedCCTotal = Math.round(fixedCCTotal);
 
   // Combined = discretionary + fixed CC bills
-  var ccCeiling = 3500;
+  var ccCeiling = PACE_TARGET;
   var combined = totMonth + fixedCCTotal;
   var rem = ccCeiling - combined;
 
@@ -2366,6 +2419,8 @@ function refreshMain() {
 // discretionary target — the same figure the forecast uses. Calendar month.
 // Scheduled card bills are shown separately as already committed.
 var PACE_TARGET = 3500;
+// v4.3.0: the everyday target is editable (record.config.everydayTarget); default $3,500.
+function applyEverydayTarget() { var t = config && parseFloat(config.everydayTarget); PACE_TARGET = (t && t > 0) ? t : 3500; }
 // One-month budget overrides (v4.1.0): record.monthBudgets['YYYY-MM'][category] = monthly amount.
 // A month's everyday target rises by however much its overrides exceed the usual budgets.
 function _monthKey(y, m) { return y + '-' + String(m + 1).padStart(2, '0'); }
@@ -2888,6 +2943,7 @@ document.addEventListener('visibilitychange', async function() {
     if (!fresh || !record) return;
     record = fresh; config = record.config || config;
     refreshCCCycle();
+    applyEverydayTarget();
     refreshMain();
     try { updateCCBalanceCard(); } catch (e) {}
     if (document.getElementById('screen-balance').classList.contains('active')) await refreshBalance();
@@ -3034,7 +3090,7 @@ function showCCBreakdown(ccYear, ccMonth, cycleFromStr, cycleToStr) {
       lines.push({ name: 'Rest of cycle (estimate)', amt: _gap, sub: 'keeps the forecast at $3,500 + bills until the statement closes' });
     }
   } else {
-    lines.push({ name: 'Discretionary spending (estimate)', amt: fc.estimate - getScheduledCCInCycle(cycleFrom, cycleTo), sub: fc.estimate - getScheduledCCInCycle(cycleFrom, cycleTo) > 3500 ? 'includes this month\u2019s one-time budget' : 'default placeholder' });
+    lines.push({ name: 'Discretionary spending (estimate)', amt: fc.estimate - getScheduledCCInCycle(cycleFrom, cycleTo), sub: fc.estimate - getScheduledCCInCycle(cycleFrom, cycleTo) > PACE_TARGET ? 'includes this month\u2019s one-time budget' : 'default placeholder' });
     pushScheduled('all');
   }
 
@@ -3914,7 +3970,7 @@ async function historyNav(dir) {
         var ccMonth = ev.date.getMonth();
         var ck = 'cc_override_' + ccYear + '_' + ccMonth;
         var co = record && record.ccOverrides && record.ccOverrides[ck] !== undefined ? record.ccOverrides[ck] : null;
-        amt = co ? parseFloat(co) : (getCCSpendForMonth(ccYear, ccMonth) || 3500);
+        amt = co ? parseFloat(co) : (getCCSpendForMonth(ccYear, ccMonth) || PACE_TARGET);
       }
     }
     rows.push({
@@ -4810,7 +4866,7 @@ function forecastCCPayment(ccYear, ccMonth, cycleFrom, cycleTo) {
   var override = record && record.ccOverrides && record.ccOverrides[overrideKey];
   var scheduledAll = getScheduledCCInCycle(cycleFrom, cycleTo);
   var extra = monthTargetExtra(cycleTo.getFullYear(), cycleTo.getMonth());
-  var estimate = 3500 + extra + scheduledAll;
+  var estimate = PACE_TARGET + extra + scheduledAll;
   if (override) return { amt: parseFloat(override), mode: 'override', estimate: estimate };
   var hasEntries = hasCCEntries(cycleFrom, cycleTo);
   var startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
@@ -5112,7 +5168,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.2.1';
+var APP_VERSION = 'v4.3.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -5257,7 +5313,7 @@ function updateCCBalanceCard() {
   var nextCCEvent = (balProjection || []).find(function(e) {
     return e.type === 'cc' && e.date >= today && e.amt > 0;
   });
-  var nextBill = nextCCEvent ? nextCCEvent.amt : 3500;
+  var nextBill = nextCCEvent ? nextCCEvent.amt : PACE_TARGET;
   var nextBillDate = nextCCEvent ? nextCCEvent.date : null;
   var fmt = function(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 
