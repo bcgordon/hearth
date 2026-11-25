@@ -2212,24 +2212,92 @@ async function saveBudgetSheet(removeOne) {
 // Every past entry teaches Hearth what a merchant usually is: typing
 // "Starbucks" offers Coffee & treats · Non-essential · Card, the latest choice.
 function _mKey(note) { return String(note || '').replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
-function merchantMemory() {
-  var map = {};
+// Variants of one vendor are folded together so the suggestions show it once:
+// case, punctuation and "&"/"and" don't matter ("Libro FM" = "libro.fm"), a name
+// that starts another one joins it ("Festival" + "Festival Foods", "Cub extra"),
+// one-letter typos join ("Stabucks", "Chik Fil A"), and record.merchantAliases
+// ({ variant: name }) joins the rest by hand ("DQ" = "Dairy Queen").
+function _mClean(note) { return String(note || '').replace(/\(.*?(\)|$)/g, '').replace(/\s+-\s.*$/, '').replace(/\s+/g, ' ').trim(); }
+function _mTokens(name) { return name.toLowerCase().replace(/&/g, ' and ').replace(/['’.\-]/g, '').replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean); }
+function _osa(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return 2;
+  var d = [], i, j;
+  for (i = 0; i <= a.length; i++) { d[i] = [i]; }
+  for (j = 0; j <= b.length; j++) d[0][j] = j;
+  for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++) {
+    var c = a[i - 1] === b[j - 1] ? 0 : 1;
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c);
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+  }
+  return d[a.length][b.length];
+}
+function merchantGroups() {
+  // 1. one node per spelling (case-insensitive)
+  var nodes = {};
   Object.keys((record && record.entries) || {}).forEach(function(k) { (record.entries[k] || []).forEach(function(e) {
-    var key = _mKey(e.note); if (!key || key.length < 2 || e.payMethod === 'income') return;
-    var m = map[key] || (map[key] = { key: key, name: String(e.note).replace(/\(.*?\)/g, '').trim(), count: 0, ts: 0 });
-    m.count++;
-    if (e.ts > m.ts) { m.ts = e.ts; m.cat = e.cat; m.type = e.type; m.pay = e.payMethod || 'cc'; m.name = String(e.note).replace(/\(.*?\)/g, '').trim(); }
+    if (e.payMethod === 'income') return;
+    var name = _mClean(e.note), toks = _mTokens(name); if (!toks.length || toks.join('').length < 2) return;
+    var id = toks.join(' '), n = nodes[id] || (nodes[id] = { id: id, toks: toks, compact: toks.join(''), names: {}, count: 0, cats: {}, ts: 0 });
+    n.count++; n.names[name] = (n.names[name] || 0) + 1;
+    if (e.cat) n.cats[e.cat] = (n.cats[e.cat] || 0) + 1;
+    if (e.ts > n.ts) { n.ts = e.ts; n.type = e.type; n.pay = e.payMethod || 'cc'; n.lastCat = e.cat; }
   }); });
+  // 2. join spellings of the same vendor
+  var ids = Object.keys(nodes), parent = {};
+  var find = function(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  var join = function(a, b) { a = find(a); b = find(b); if (a !== b) parent[b] = a; };
+  ids.forEach(function(id) { parent[id] = id; });
+  var byCompact = {};
+  ids.forEach(function(id) { var c = nodes[id].compact; if (byCompact[c]) join(byCompact[c], id); else byCompact[c] = id; });
+  ids.forEach(function(a) { var A = nodes[a]; ids.forEach(function(b) {
+    if (a >= b) return; var B = nodes[b];
+    var short = A.toks.length <= B.toks.length ? A : B, long = short === A ? B : A;
+    var cum = '', boundary = long.toks.some(function(t) { cum += t; return cum === short.compact; });
+    if (short.toks.length < long.toks.length && short.toks.every(function(t, i) { return long.toks[i] === t; }) && short.compact.length >= 3) { join(a, b); short.roots = (short.roots || 0) + 1; }
+    else if (short.compact.length >= 5 && short.compact !== long.compact && boundary) { join(a, b); short.roots = (short.roots || 0) + 1; }
+    else if (A.compact.length >= 6 && B.compact.length >= 6 && _osa(A.compact, B.compact) <= 1) join(a, b);
+  }); });
+  var aliases = (record && record.merchantAliases) || {};
+  Object.keys(aliases).forEach(function(v) {
+    var a = _mTokens(_mClean(v)).join(' '), b = _mTokens(_mClean(aliases[v])).join(' ');
+    if (nodes[a] && nodes[b]) join(b, a);
+  });
+  // 3. one group per vendor: the most-used capitalised spelling, the usual category
+  var groups = {}, map = {};
+  ids.forEach(function(id) {
+    var r = find(id), g = groups[r] || (groups[r] = { names: {}, count: 0, cats: {}, ts: 0, keys: [] }), n = nodes[id];
+    g.count += n.count; g.keys.push(id);
+    Object.keys(n.names).forEach(function(x) { g.names[x] = (g.names[x] || 0) + n.names[x]; });
+    Object.keys(n.cats).forEach(function(x) { g.cats[x] = (g.cats[x] || 0) + n.cats[x]; });
+    if (n.ts > g.ts) { g.ts = n.ts; g.type = n.type; g.pay = n.pay; g.lastCat = n.lastCat; }
+    map[id] = g;
+  });
+  // the vendor's name: the spelling other spellings start with ("Verizon" for
+  // "Verizon wifi"), then the most used; within a spelling, the capitalised one
+  ids.forEach(function(id) { var n = nodes[id]; n.best = Object.keys(n.names).sort(function(a, b) { return (/^[A-Z0-9]/.test(b) - /^[A-Z0-9]/.test(a)) || n.names[b] - n.names[a] || (b.match(/[A-Z]/g) || []).length - (a.match(/[A-Z]/g) || []).length; })[0]; });
+  Object.keys(groups).forEach(function(r) {
+    var g = groups[r];
+    var top = g.keys.map(function(id) { return nodes[id]; }).sort(function(a, b) { return ((b.roots || 0) - (a.roots || 0)) || b.count - a.count || (b.best.match(/[A-Z]/g) || []).length - (a.best.match(/[A-Z]/g) || []).length; })[0];
+    g.name = aliases[top.best] || top.best;
+    g.cat = Object.keys(g.cats).sort(function(a, b) { return (g.cats[b] - g.cats[a]) || ((b === g.lastCat) - (a === g.lastCat)); })[0] || g.lastCat;
+    g.key = _mTokens(g.name).join(' ');
+  });
   return map;
 }
+function merchantMemory() { return merchantGroups(); }
 var _mMem = null;
 function merchantSuggest() {
   var box = document.getElementById('merchant-sugs'); if (!box) return;
-  var q = _mKey(document.getElementById('add-note').value);
+  var q = _mTokens(_mClean(document.getElementById('add-note').value)).join(' ');
   if (q.length < 2) { box.innerHTML = ''; return; }
   if (!_mMem) _mMem = merchantMemory();
-  var list = Object.values(_mMem).filter(function(m) { return m.cat && (m.key.indexOf(q) === 0 || m.key.indexOf(' ' + q) >= 0); })
-    .sort(function(a, b) { return (b.key.indexOf(q) === 0) - (a.key.indexOf(q) === 0) || b.count - a.count; }).slice(0, 4);
+  var seen = [], list = [];
+  Object.keys(_mMem).forEach(function(k) {
+    var g = _mMem[k]; if (!g.cat || seen.indexOf(g) >= 0) return;
+    var hit = g.keys.some(function(x) { return x.indexOf(q) === 0 || x.indexOf(' ' + q) >= 0 || x.replace(/ /g, '').indexOf(q.replace(/ /g, '')) === 0; });
+    if (hit) { seen.push(g); g._starts = g.key.indexOf(q) === 0 || g.keys.some(function(x) { return x.indexOf(q) === 0; }); list.push(g); }
+  });
+  list = list.sort(function(a, b) { return (b._starts - a._starts) || b.count - a.count; }).slice(0, 4);
   box.innerHTML = list.map(function(m, i) { return '<button type="button" class="msug" data-i="' + i + '">' + m.name.replace(/</g, '&lt;') + '<small>' + m.cat + ' · ' + (m.pay === 'checking' ? 'Checking' : 'Card') + ' · ' + m.count + '×</small></button>'; }).join('');
   box.querySelectorAll('.msug').forEach(function(b) { b.onmousedown = function(ev) { ev.preventDefault(); merchantApply(list[+b.dataset.i], true); }; });
 }
@@ -2242,11 +2310,11 @@ function merchantApply(m, fromTap) {
     if (known) { addType = null; selectCategory(m.cat); }
   }
   if (m.type && (fromTap || !addType)) selectType(m.type);
-  document.getElementById('merchant-sugs').innerHTML = fromTap ? '<span style="font-size:13px;color:var(--grass-dim)">✓ Filled in from last time. Change anything below.</span>' : '';
+  document.getElementById('merchant-sugs').innerHTML = fromTap ? '<span style="font-size:13px;color:var(--grass-dim)">✓ Filled in from what you usually pick. Change anything below.</span>' : '';
 }
 function merchantAutoApply() {
   if (!_mMem) _mMem = merchantMemory();
-  var m = _mMem[_mKey((document.getElementById('add-note') || {}).value)];
+  var m = _mMem[_mTokens(_mClean((document.getElementById('add-note') || {}).value)).join(' ')];
   if (m && !addCategory) merchantApply(m, false);
 }
 
@@ -5554,7 +5622,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.6.0';
+var APP_VERSION = 'v4.6.1';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
