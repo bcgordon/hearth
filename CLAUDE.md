@@ -16,7 +16,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.4.3** (Nov 25, 2026: fireplace mark on the Dashboard tab and sidebar logo). Bump patch/minor from here unless BC names a version.
+Live: **v4.5.0** (Nov 25, 2026: iPad sidebar with At a glance). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -69,6 +69,10 @@ Live: **v4.4.3** (Nov 25, 2026: fireplace mark on the Dashboard tab and sidebar 
   card bills − checking bills − savings = planned to keep; this month and the next two), and
   **Everyday budgets** (budget, so far, 3-month average, flag when the average is >20% over;
   edit sheet: From now on → `budgets` (quarterly ×3) or This month only → `monthBudgets`).
+- **iPad sidebar** (`renderSidebarGlance`): + Add expense keycap, plain nav, and At a glance cards
+  (this week, this month, planned to keep, checking now + lowest ahead, card cycle + next payment,
+  statements vs Hearth, watch list), all from the same functions as the dashboard; each opens its screen.
+  iPad is for detailed review; iPhone for entries and quick checks.
 - **Card cycle**: Capital One's cycle is the **25th–24th**, paid on the 19th. `CC_CYCLE_DAY = 25`;
   `refreshCCCycle()` rolls it automatically (no manual dates in Settings any more). The Balance tab
   card check, the History → Card cycle view and the forecast all use it.
@@ -89,7 +93,9 @@ Live: **v4.4.3** (Nov 25, 2026: fireplace mark on the Dashboard tab and sidebar 
 
 ## Known open items
 - Next (v4.4.x) to do: Settings day pickers (statement close / autopay) are display-only — wire them
-  carefully (cycle code); tidy older screens (Balance, Funds, Bills) and the iPad sidebar.
+  carefully (cycle code); tidy older screens (Balance, Funds, Bills).
+- Ideas queued from Monarch / Rocket Money: remember merchants on entry, subscriptions page with
+  price-change flags, upcoming bills calendar, goals (Emergency fund, student loan), safe to spend.
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
   (e.g. checking entries); align them when touched.
