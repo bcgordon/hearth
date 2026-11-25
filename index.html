@@ -650,6 +650,19 @@ input, textarea, select { font-family: var(--font) !important; }
 
 
 
+
+/* v4.6.4: the iPad/desktop sidebar is pinned (it used to scroll away: #app clips overflow, which breaks sticky) */
+@media (min-width: 768px) {
+  #ipad-sidebar { position: fixed !important; top: 0; left: 0; bottom: 0; height: auto !important; z-index: 60; }
+  #ipad-sidebar[style*="flex"] ~ #ipad-content { margin-left: 300px; }
+  body.sb-hidden #ipad-sidebar ~ #ipad-content { margin-left: 0 !important; }
+  body.demo #ipad-sidebar { top: 36px; height: auto !important; }
+}
+/* v4.6.4: text size (Settings › Appearance): Standard 1, Larger 1.1 (default), Largest 1.2 */
+:root { --tz: 1.1; }
+:root[data-text="std"] { --tz: 1; }
+:root[data-text="xl"] { --tz: 1.2; }
+.screen, #ipad-sidebar > * { zoom: var(--tz); }
 /* v4.6.4: version history */
 .ver { padding: 12px 0; border-bottom: 1px dashed var(--border); }
 .ver:last-child { border-bottom: none; }
@@ -1367,6 +1380,8 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
 </div>
 <div class="set-sec-label">Appearance</div>
 <div class="set-list"><div class="set-seg" id="set-mode"><button data-m="light" onclick="setAppearance('light')">Light</button><button data-m="dark" onclick="setAppearance('dark')">Dark</button><button data-m="auto" onclick="setAppearance('auto')">Match phone</button></div></div>
+<div class="set-sec-label">Text size</div>
+<div class="set-list"><div class="set-seg" id="set-text"><button data-t="std" onclick="setTextSize('std')">Standard</button><button data-t="lg" onclick="setTextSize('lg')">Larger</button><button data-t="xl" onclick="setTextSize('xl')">Largest</button></div></div>
 <div class="set-sec-label">Data</div>
 <div class="set-list">
   <div class="set-item" style="cursor:default"><span>Google Sheet<small>Every entry is copied to your sheet</small></span><span id="sync-badge" class="val" style="display:none"></span></div>
@@ -2235,10 +2250,19 @@ async function saveBudgetSheet(removeOne) {
 
 
 
+
+// ── TEXT SIZE (v4.6.4): Standard / Larger (default) / Largest, per device ──
+function applyTextSize() {
+  var t = 'lg'; try { t = localStorage.getItem('hft_text') || 'lg'; } catch (e) {}
+  if (t === 'lg') document.documentElement.removeAttribute('data-text'); else document.documentElement.setAttribute('data-text', t);
+  document.querySelectorAll('#set-text button').forEach(function(b) { b.classList.toggle('on', b.dataset.t === t); });
+}
+function setTextSize(t) { try { localStorage.setItem('hft_text', t); } catch (e) {} applyTextSize(); }
+applyTextSize();
 // ═══ v4.6.4: VERSION HISTORY (Settings › Version history) ══════════════════
 // Newest first. Plain words, no household figures (this file is public).
 var VERSION_HISTORY = [
-  ['v4.6.4', 'Nov 25, 2026', ['Version history in Settings.', 'Bills can use the Runaway Anchor category.']],
+  ['v4.6.4', 'Nov 25, 2026', ['Bigger text, with a Text size choice in Settings (Standard, Larger, Largest).', 'The iPad and desktop sidebar stays in place when you scroll.', 'Version history in Settings.', 'Bills can use the Runaway Anchor category.']],
   ['v4.6.3', 'Nov 25, 2026', ['Your bills, paychecks and savings targets now live only in your private household record, not in the app’s code.', '“Create a household” removed from the lock screen.']],
   ['v4.6.2', 'Nov 25, 2026', ['Hide the iPad sidebar for a wider screen (« next to the logo, » to bring it back).', 'Demo mode: show Hearth with a made-up household. Nothing is saved.', 'One-month budgets (like December gifts) show on the Add expense tiles.']],
   ['v4.6.1', 'Nov 25, 2026', ['Merchant suggestions fold spellings of the same place together (Festival = Festival Foods).']],
