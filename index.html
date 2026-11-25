@@ -1391,7 +1391,7 @@ function buildCategoryGrid(spendMap) {
 
       // Monthly progress — primary
       const mPct = Math.min(mSpent / mBudget * 100, 100);
-      const mOver = mSpent >= mBudget;
+      const mOver = mSpent - mBudget >= 1;
       const mWarn = !mOver && mPct >= 75;
       const mColor = mOver ? 'var(--red)' : mWarn ? 'var(--sun-dim)' : 'var(--grass-dim)';
       const mBarColor = mOver ? 'var(--red)' : mWarn ? 'var(--sun)' : 'var(--grass)';
@@ -2157,8 +2157,8 @@ function renderBudgetScreen() {
     // Monthly color
     var mPct = mBudget > 0 ? mSpent / mBudget * 100 : 0;
     var mPctCapped = Math.min(mPct, 100);
-    var spentColor = mSpent >= mBudget ? 'var(--red)' : mPct >= 75 ? 'var(--sun-dim)' : 'var(--grass-dim)';
-    var mBarColor = mSpent >= mBudget ? 'var(--red)' : mPct >= 75 ? 'var(--sun)' : 'var(--grass)';
+    var spentColor = mSpent - mBudget >= 1 ? 'var(--red)' : mPct >= 75 ? 'var(--sun-dim)' : 'var(--grass-dim)';
+    var mBarColor = mSpent - mBudget >= 1 ? 'var(--red)' : mPct >= 75 ? 'var(--sun)' : 'var(--grass)';
 
     // Quarterly color
     var qPct = Math.min(qSpent / qBudget * 100, 100);
@@ -2439,7 +2439,9 @@ function _paceCumulative(year, month, uptoDay) {
   return out;
 }
 function _paceStatus(spent, budget, frac) {
-  if (spent > budget) return 'over';
+  // v4.2.1: red only when more than $1 past the budget; meeting it is amber ("At budget")
+  if (spent - budget >= 1) return 'over';
+  if (budget > 0 && spent >= budget - 1) return 'ahead';
   if (spent > budget * frac * 1.05 && spent > 0) return 'ahead';
   return 'ok';
 }
@@ -2558,7 +2560,7 @@ function renderPacing() {
     div.className = 'pace-cat';
     div.onclick = function() { showCategoryRegister(r.name); };
     var diff = r.spent - r.budget;
-    var tag = diff > 0 ? fmt(diff) + ' over' : fmt(-diff) + ' left';
+    var tag = Math.abs(diff) < 1 || (diff > 0 && diff < 1) ? 'At budget' : diff > 0 ? fmt(diff) + ' over' : fmt(-diff) + ' left';
     div.innerHTML = '<div class="pace-cat-row"><span>' + r.name + ' <span class="pace-pill ' + r.status + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + tag + '</span></span>' +
       '<span class="pace-cat-amt">' + fmt(r.spent) + ' / ' + fmt(r.budget) + '</span></div>' +
       '<div class="pace-track"><div class="pace-fill" style="width:' + Math.min(100, r.spent / r.budget * 100) + '%;background:' + colors[r.status] + '"></div><div class="pace-tick" style="left:' + (frac * 100) + '%"></div></div>';
@@ -2575,7 +2577,7 @@ function renderPacing() {
   var cushion = TARGET - budgetSum;
   var used = catNet + unbudgeted;
   var cLeft = cushion - used;
-  var cStatus = cLeft < 0 ? 'over' : (used > cushion * frac * 1.05 && used > 0) ? 'ahead' : 'ok';
+  var cStatus = _paceStatus(used, cushion, frac);
   var cBox = document.getElementById('pace-cushion');
   if (cushion > 0) {
     var cScale = Math.max(cushion, used);
@@ -2583,9 +2585,9 @@ function renderPacing() {
     if (Math.round(catNet) !== 0) parts.push('categories ' + fmt(Math.abs(catNet)) + (catNet > 0 ? ' over budget' : ' under budget'));
     if (unbudgeted > 0) parts.push(unbNames.join(', ') + ' (no budget)');
     var math = (parts.length ? 'Used by ' + parts.join(' + ') + '.' : 'Nothing used yet.') + ' Matches the top bar.';
-    cBox.innerHTML = '<div class="pace-cat-row"><span>Cushion <span class="pace-pill ' + cStatus + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + (cLeft < 0 ? fmt(-cLeft) + ' over' : fmt(cLeft) + ' left') + '</span></span>' +
+    cBox.innerHTML = '<div class="pace-cat-row"><span>Cushion <span class="pace-pill ' + cStatus + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + (Math.abs(cLeft) < 1 ? 'Used up' : cLeft < 0 ? fmt(-cLeft) + ' over' : fmt(cLeft) + ' left') + '</span></span>' +
       '<span class="pace-cat-amt">' + fmt(Math.max(0, used)) + ' / ' + fmt(cushion) + '</span></div>' +
-      '<div class="pace-track"' + (cLeft < 0 ? ' style="border-color:var(--red);box-shadow:0 0 0 1px var(--red)"' : '') + '><div class="pace-fill" style="width:' + Math.max(0, Math.min(100, used / cScale * 100)) + '%;background:' + colors[cStatus] + '"></div><div class="pace-tick" style="left:' + (cushion * frac / cScale * 100) + '%"></div></div>' +
+      '<div class="pace-track"' + (cLeft <= -1 ? ' style="border-color:var(--red);box-shadow:0 0 0 1px var(--red)"' : '') + '><div class="pace-fill" style="width:' + Math.max(0, Math.min(100, used / cScale * 100)) + '%;background:' + colors[cStatus] + '"></div><div class="pace-tick" style="left:' + (cushion * frac / cScale * 100) + '%"></div></div>' +
       '<div class="pace-cushion-math">' + math + '</div>';
     cBox.style.display = '';
   } else { cBox.style.display = 'none'; }
@@ -2782,7 +2784,7 @@ function renderWeekly() {
   var shown = wkShowAll ? rows : rows.slice(0, 4), box = document.getElementById('wk-cats');
   box.innerHTML = '';
   shown.forEach(function(r) {
-    var diff = r.spent - r.lim, tag = diff > 0.5 ? fmt(diff) + ' over' : fmt(-diff) + ' left';
+    var diff = r.spent - r.lim, tag = r.lim > 0 && Math.abs(diff) < 1 ? 'At limit' : diff >= 1 ? fmt(diff) + ' over' : fmt(Math.max(0, -diff)) + ' left';
     var div = document.createElement('div'); div.className = 'pace-cat';
     div.onclick = function() { showCategoryRegister(r.name); };
     div.innerHTML = '<div class="pace-cat-row"><span>' + r.name + ' <span class="pace-pill ' + r.status + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + tag + '</span></span><span class="pace-cat-amt">' + fmt(r.spent) + ' / ' + fmt(r.lim) + '</span></div>' +
@@ -5110,7 +5112,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.2.0';
+var APP_VERSION = 'v4.2.1';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
