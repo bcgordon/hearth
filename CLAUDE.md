@@ -8,14 +8,15 @@ sampled from a Hermes typewriter: #a0d8c8 / #b8f0df / #88c0b0), blue ink,
 Deep Teal (dark), American Typewriter (on every household device; Courier Prime fallback), a seafoam
 band with a chrome strip on each header, cream keycaps for main actions, flat thin-ruled surfaces.
 Only Light / Dark / Match phone (`hft_mode`). Icon: teal fireplace with mint flame and piggy bank
-(BC's artwork, full-bleed): `apple-touch-icon.png` (180), `hf-icon.png` (512), favicon inline. The skin is the `TYPEWRITER SKIN` block at the end of
+(BC's artwork, full-bleed): `apple-touch-icon.png` (180), `hf-icon.png` (512), favicon inline; `hearth-mark.png` = the fireplace cut out (transparent), used
+for the Dashboard tab and the sidebar logo. The skin is the `TYPEWRITER SKIN` block at the end of
 the `<style>`; colours are the existing tokens (`--coral` = red ink, `--sky` = seafoam ink, etc.).
 
 This repo is **public**. Never commit household data, codes, balances, income figures or keys
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.4.2** (Nov 25, 2026: new teal fireplace icon). Bump patch/minor from here unless BC names a version.
+Live: **v4.4.3** (Nov 25, 2026: fireplace mark on the Dashboard tab and sidebar logo). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
