@@ -551,7 +551,7 @@ textarea { resize: none; }
    strip, keycaps for the main actions, thin rules instead of heavy cards. */
 :root, body {
   --font: "American Typewriter", "ITC American Typewriter", "Courier Prime", "Courier New", monospace;
-  --bg: #f3ead6; --surface: #f8f1e1; --surface2: #efe4cc; --border: #d9ccb0; --border-dark: #b9a984;
+  --bg: #e4f2ec; --surface: #f8f1e1; --surface2: #efe7d3; --border: #c9d9cf; --border-dark: #9fbcae;
   --text: #1f3f8f; --text-2: #2f4a87; --text-3: #6f7a6a;
   --coral: #b3261e; --coral-dim: #8a1c16; --coral-bg: #f6e2d8;
   --sky: #2c6e5f; --sky-dim: #1f5246; --sky-bg: #dfe9e1;
@@ -559,9 +559,9 @@ textarea { resize: none; }
   --sun: #c08a1e; --sun-dim: #8f6410; --sun-bg: #f5e7c8;
   --rose: #a0305a; --rose-dim: #7a2244; --rose-bg: #f4e0e7; --red: #b3261e;
   --radius: 6px; --radius-sm: 4px; --radius-pill: 6px;
-  --band: #a4baa3; --band-ink: #1f2a26; --band-dim: #2e4a3f;
+  --band: #a6dcc9; --band-ink: #1f2a26; --band-dim: #2e5a4c;
   --chrome: linear-gradient(#f6f8f9, #b7bec3 38%, #eef1f2 52%, #8c949a 100%);
-  --key-bg: linear-gradient(180deg, #f6f0e0 0%, #ebe2cb 70%, #d9cfb5 100%); --key-ink: #1f2a26;
+  --key-bg: linear-gradient(180deg, #b8f0df 0%, #a0d8c8 62%, #88c0b0 100%); --key-ink: #1f2a26;
   --key-rim: #2b2b2b; --key-base: #1e1e1e;
 }
 body.dark {
@@ -573,6 +573,7 @@ body.dark {
   --sun: #f2c46b; --sun-dim: #f2c46b; --sun-bg: rgba(242,196,107,.12);
   --rose: #f2a0bd; --rose-dim: #f2a0bd; --rose-bg: rgba(242,160,189,.12); --red: #ff8f7a;
   --band: #2c5a4e; --band-ink: #f6efe0; --band-dim: #a9c4b8;
+  --key-bg: linear-gradient(180deg, #f6f0e0 0%, #ebe2cb 70%, #d9cfb5 100%);
   --key-rim: #0f1f1a; --key-base: #0b1612;
 }
 body, body.dark { background: var(--bg) !important; background-image: none !important; color: var(--text); font-family: var(--font); }
@@ -1536,7 +1537,7 @@ function applyDarkModePreference() {
   var dark = m === 'dark' || (m === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
   document.body.classList.toggle('dark', dark);
   document.querySelectorAll('#set-mode button').forEach(function(b) { b.classList.toggle('on', b.dataset.m === m); });
-  var tc = document.querySelector('meta[name="theme-color"]'); if (!tc) { tc = document.createElement('meta'); tc.name = 'theme-color'; document.head.appendChild(tc); } tc.content = dark ? '#2c5a4e' : '#a4baa3';
+  var tc = document.querySelector('meta[name="theme-color"]'); if (!tc) { tc = document.createElement('meta'); tc.name = 'theme-color'; document.head.appendChild(tc); } tc.content = dark ? '#2c5a4e' : '#a6dcc9';
 }
 function setAppearance(m) { try { localStorage.setItem('hft_mode', m); } catch (e) {} applyDarkModePreference(); }
 if (window.matchMedia) { try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyDarkModePreference); } catch (e) {} }
@@ -5321,7 +5322,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.4.0';
+var APP_VERSION = 'v4.4.1';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
