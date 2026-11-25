@@ -647,6 +647,28 @@ input, textarea, select { font-family: var(--font) !important; }
   .sb-g-s { font-size: 12px; color: var(--text-3); margin-top: 3px; line-height: 1.35; }
   #ipad-sidebar { position: sticky; }
 }
+
+/* v4.6.0: merchant memory, subscriptions, calendar, goals */
+.merchant-sugs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.merchant-sugs:empty { display: none; }
+.msug { font-family: var(--font); font-size: 14px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface2); color: var(--text); cursor: pointer; text-align: left; }
+.msug small { display: block; font-size: 11px; color: var(--text-3); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.cal-dow { font-size: 10px; letter-spacing: .1em; color: var(--text-3); text-align: center; padding-bottom: 2px; }
+.cal-day { min-height: 58px; border: 1px solid var(--border); border-radius: 4px; padding: 3px 4px; background: var(--surface); display: flex; flex-direction: column; gap: 1px; cursor: pointer; overflow: hidden; min-width: 0; font-family: var(--font); text-align: left; color: var(--text); }
+.cal-day.out { opacity: .35; }
+.cal-day.today { border-color: var(--sky); box-shadow: inset 0 0 0 1px var(--sky); }
+.cal-day.sel { background: var(--sky-bg); }
+.cal-d { font-size: 11px; color: var(--text-3); }
+.cal-in { font-size: 10px; color: var(--grass-dim); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-out { font-size: 10px; color: var(--coral); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-bal { margin-top: auto; height: 4px; border-radius: 2px; }
+.cal-list { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.cal-list div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--border); padding: 4px 0; }
+.goal { display: flex; flex-direction: column; gap: 5px; padding: 10px 0; border-bottom: 1px dashed var(--border); cursor: pointer; }
+.goal:last-child { border-bottom: none; }
+.sub-row { display: flex; flex-direction: column; gap: 3px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+.sub-row:last-child { border-bottom: none; }
 /* Settings sections */
 .hearth-mark { width: 30px; height: 30px; display: inline-block; vertical-align: middle; object-fit: contain; }
 .hearth-mark-lg { width: 40px; height: 40px; margin-right: 6px; }
@@ -676,6 +698,7 @@ input, textarea, select { font-family: var(--font) !important; }
     <div class="sidebar-divider"></div>
     <button class="nav-btn sb-minor" id="nav-funds" onclick="ipadNav('screen-funds')">Sinking funds</button>
     <button class="nav-btn sb-minor" id="nav-bills" onclick="ipadNav('screen-bills')">Bills &amp; income</button>
+    <button class="nav-btn sb-minor" id="nav-subs" onclick="subsBackTo='screen-main';ipadNav('screen-subs')">Subscriptions</button>
     <button class="nav-btn sb-minor" id="nav-settings" onclick="ipadNav('screen-settings')">Settings</button>
   </div>
   <div class="sb-glance" id="sb-glance"></div>
@@ -915,6 +938,11 @@ input, textarea, select { font-family: var(--font) !important; }
 <input id="add-amount" type="number" placeholder="0.00" step="0.01" min="0" oninput="clearAddErr()" />
 </div>
 <div>
+<label class="label" style="color:var(--coral)">Where <span style="font-size:14px;text-transform:none;letter-spacing:0;font-style:italic;font-weight:400;color:var(--text-3)">merchant or note</span></label>
+<input id="add-note" type="text" placeholder="e.g. Festival Foods" autocomplete="off" oninput="merchantSuggest()" onblur="setTimeout(merchantAutoApply,150)" />
+<div id="merchant-sugs" class="merchant-sugs"></div>
+</div>
+<div>
 <label class="label" style="color:var(--coral)">Budget category</label>
 <div id="category-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
 <div id="category-other-wrap" style="margin-top:8px;display:none">
@@ -940,10 +968,6 @@ input, textarea, select { font-family: var(--font) !important; }
 <div>
 <label class="label" style="color:var(--text-3)">Date</label>
 <input id="add-date" type="date" style="font-size:17px;font-family:inherit;" onchange="applyPendingDefault()" />
-</div>
-<div>
-<label class="label" style="color:var(--text-3)">Note <span style="font-size:20px;text-transform:none;letter-spacing:0;font-style:italic;font-weight:400">(optional)</span></label>
-<input id="add-note" type="text" placeholder="e.g. weekly shop..." />
 </div>
 <div id="add-pending-wrap">
 <button id="pill-pend" class="pill" onclick="toggleAddPending()">⏳ Pending</button>
@@ -1125,6 +1149,13 @@ input, textarea, select { font-family: var(--font) !important; }
 
 
 <!-- SINKING FUNDS -->
+<div id="screen-subs" class="screen">
+<div class="back-row">
+<button class="back-btn" onclick="showScreen(subsBackTo || 'screen-settings')">&#8592;</button>
+<span style="font-size:17px;font-weight:600;color:var(--sky)">Subscriptions</span>
+</div>
+<div id="subs-content"></div>
+</div>
 <div id="screen-funds" class="screen">
   <div class="back-row">
     <button class="back-btn" onclick="showScreen('screen-main')">&#8592;</button>
@@ -1160,6 +1191,7 @@ input, textarea, select { font-family: var(--font) !important; }
   </div>
 
   <div id="danger-alerts"></div>
+  <div class="card" id="cal-card" style="margin-bottom:14px"></div>
 
   <div class="card" style="margin-bottom:12px;border-color:var(--sky)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
@@ -1311,6 +1343,7 @@ input, textarea, select { font-family: var(--font) !important; }
 <div class="set-sec-label">Money</div>
 <div class="set-list">
   <button class="set-item" onclick="showScreen('screen-bills')"><span>Bills &amp; income<small>Mortgage, loans, subscriptions, paychecks</small></span><span class="val">&rsaquo;</span></button>
+  <button class="set-item" onclick="subsBackTo='screen-settings';showScreen('screen-subs')"><span>Subscriptions<small>Everything that renews, with price changes</small></span><span class="val">&rsaquo;</span></button>
   <div class="set-item" style="cursor:default"><span>Statement closes on<small id="set-cycle-now"></small></span><span class="val">24th</span></div>
   <div class="set-item" style="cursor:default"><span>Autopay on<small id="set-autopay-next"></small></span><span class="val">19th</span></div>
 </div>
@@ -1599,11 +1632,12 @@ async function showScreen(id) {
     addPendingTouched = false; applyPendingDefault();
     var saveBtn = document.querySelector('#screen-add .btn-coral'); if (saveBtn) saveBtn.textContent = 'Save expense';
   }
-  if (id === 'screen-balance') { await refreshBalance(); }
+  if (id === 'screen-balance') { await refreshBalance(); try { renderCalendar(); } catch (e) { console.error('cal', e); } }
   if (id === 'screen-funds') { await refreshFunds(); }
   if (id === 'screen-bills') { var bs = document.getElementById('bills-search'); if (bs) bs.value = ''; renderBillsList(); }
   if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type' && historyView !== 'pl' && historyView !== 'reports' && historyView !== 'register' && historyView !== 'cycles') { historyQOffset = 0; historyMonthOffset = 0; historyView = 'register'; regMonthOffset = 0; regFilter = 'all'; regSearch = ''; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var plP = document.getElementById('hist-view-pl'); if (plP) plP.className = 'pill' + (historyView === 'pl' ? ' sel-e' : ''); var rpP = document.getElementById('hist-view-rep'); if (rpP) rpP.className = 'pill' + (historyView === 'reports' ? ' sel-e' : ''); _histPills(historyView); if (historyView === 'pl') { _restoreHistoryChrome(); renderPLView(); } else if (historyView === 'reports') { renderReportsView(); } else if (historyView === 'register') { renderRegister(); } else if (historyView === 'cycles') { renderCycles(); } else { _restoreHistoryChrome(); historyNav(0); } }
   if (id === 'screen-budget') { renderBudgetScreen(); }
+  if (id === 'screen-subs') { renderSubscriptions(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
     
@@ -1962,7 +1996,7 @@ async function submitEntry() {
   callSheetsSync(entries[entries.length - 1]);
 
   document.getElementById('add-amount').value = ''; document.getElementById('add-note').value = ''; var dateEl2 = document.getElementById('add-date'); if (dateEl2) { var td2 = new Date(); var mm2 = String(td2.getMonth()+1).padStart(2,'0'); var dd3 = String(td2.getDate()).padStart(2,'0'); dateEl2.value = td2.getFullYear() + '-' + mm2 + '-' + dd3; }
-  addType = null; addPayMethod = null; addCategory = null; addPending = false; addPendingTouched = false;
+  addType = null; addPayMethod = null; addCategory = null; addPending = false; addPendingTouched = false; _mMem = null; var _ms = document.getElementById('merchant-sugs'); if (_ms) _ms.innerHTML = '';
   document.getElementById('pill-e').className = 'pill'; document.getElementById('pill-n').className = 'pill';
   var typeRowEl = document.getElementById('pill-e').closest('div').parentElement; if (typeRowEl) typeRowEl.style.display = '';
   document.getElementById('pill-cc').className = 'pill'; document.getElementById('pill-chk').className = 'pill'; var pi2 = document.getElementById('pill-inc'); if (pi2) pi2.className = 'pill';
@@ -2172,6 +2206,197 @@ async function saveBudgetSheet(removeOne) {
   renderBudgetScreen(); refreshMain();
 }
 
+
+// ═══ v4.6.0 ═══════════════════════════════════════════════════════════════
+// ── 1. MERCHANT MEMORY ─────────────────────────────────────────────────────
+// Every past entry teaches Hearth what a merchant usually is: typing
+// "Starbucks" offers Coffee & treats · Non-essential · Card, the latest choice.
+function _mKey(note) { return String(note || '').replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+function merchantMemory() {
+  var map = {};
+  Object.keys((record && record.entries) || {}).forEach(function(k) { (record.entries[k] || []).forEach(function(e) {
+    var key = _mKey(e.note); if (!key || key.length < 2 || e.payMethod === 'income') return;
+    var m = map[key] || (map[key] = { key: key, name: String(e.note).replace(/\(.*?\)/g, '').trim(), count: 0, ts: 0 });
+    m.count++;
+    if (e.ts > m.ts) { m.ts = e.ts; m.cat = e.cat; m.type = e.type; m.pay = e.payMethod || 'cc'; m.name = String(e.note).replace(/\(.*?\)/g, '').trim(); }
+  }); });
+  return map;
+}
+var _mMem = null;
+function merchantSuggest() {
+  var box = document.getElementById('merchant-sugs'); if (!box) return;
+  var q = _mKey(document.getElementById('add-note').value);
+  if (q.length < 2) { box.innerHTML = ''; return; }
+  if (!_mMem) _mMem = merchantMemory();
+  var list = Object.values(_mMem).filter(function(m) { return m.cat && (m.key.indexOf(q) === 0 || m.key.indexOf(' ' + q) >= 0); })
+    .sort(function(a, b) { return (b.key.indexOf(q) === 0) - (a.key.indexOf(q) === 0) || b.count - a.count; }).slice(0, 4);
+  box.innerHTML = list.map(function(m, i) { return '<button type="button" class="msug" data-i="' + i + '">' + m.name.replace(/</g, '&lt;') + '<small>' + m.cat + ' · ' + (m.pay === 'checking' ? 'Checking' : 'Card') + ' · ' + m.count + '×</small></button>'; }).join('');
+  box.querySelectorAll('.msug').forEach(function(b) { b.onmousedown = function(ev) { ev.preventDefault(); merchantApply(list[+b.dataset.i], true); }; });
+}
+function merchantApply(m, fromTap) {
+  if (!m) return;
+  var inp = document.getElementById('add-note'); if (fromTap) inp.value = m.name;
+  if (m.pay && m.pay !== 'income' && (fromTap || !addPayMethod || addPayMethod === 'cc')) selectPayMethod(m.pay === 'credit' ? 'cc' : m.pay);
+  if (m.cat && (fromTap || !addCategory)) {
+    var known = BUDGET_CATEGORIES.some(function(c) { return c.name === m.cat; });
+    if (known) { addType = null; selectCategory(m.cat); }
+  }
+  if (m.type && (fromTap || !addType)) selectType(m.type);
+  document.getElementById('merchant-sugs').innerHTML = fromTap ? '<span style="font-size:13px;color:var(--grass-dim)">✓ Filled in from last time. Change anything below.</span>' : '';
+}
+function merchantAutoApply() {
+  if (!_mMem) _mMem = merchantMemory();
+  var m = _mMem[_mKey((document.getElementById('add-note') || {}).value)];
+  if (m && !addCategory) merchantApply(m, false);
+}
+
+// ── 2. SUBSCRIPTIONS ───────────────────────────────────────────────────────
+var subsBackTo = 'screen-settings';
+var SUB_CATS = { 'Digital Subscriptions': true, 'House Subscriptions': true };
+function renderSubscriptions() {
+  var cont = document.getElementById('subs-content'); if (!cont || !record) return;
+  var money = function(n) { return '$' + n.toFixed(2); };
+  var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  var mnS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var now = new Date(), d90 = new Date(now.getTime() - 92 * 86400000), d150 = new Date(now.getTime() - 150 * 86400000);
+  var key = function(n) { return _watchKey(n); };
+  // logged charges per merchant
+  var logged = {};
+  Object.keys(record.entries || {}).forEach(function(k) { (record.entries[k] || []).forEach(function(e) {
+    if (!SUB_CATS[e.cat] || !e.note) return;
+    var kk = key(e.note); (logged[kk] = logged[kk] || []).push(e);
+  }); });
+  Object.keys(logged).forEach(function(k) { logged[k].sort(function(a, b) { return a.ts - b.ts; }); });
+  var watch = {}; try { getWatchItems().forEach(function(w) { watch[w.key] = w; }); } catch (e) {}
+  var rows = [], usedKeys = {};
+  // scheduled subscription bills, going forward (one ending this month is replaced by its successor)
+  var ym = now.getFullYear() * 12 + now.getMonth(), subBills = [];
+  getAllBills().forEach(function(b) {
+    if (b.type !== 'out' || !(b.amt > 0) || b.isFundTransfer || b.freq === 'once') return;
+    var c = b.cat || guessBillCategory(b.name); if (!SUB_CATS[c]) return;
+    if (b.endYear !== undefined && b.endMonth !== undefined && b.endYear * 12 + b.endMonth <= ym) return;
+    subBills.push({ b: b, c: c, k: _mKey(b.name) });
+  });
+  subBills.forEach(function(x) {
+    var b = x.b, per = b.freq === 'monthly' ? 1 : b.freq === 'annual' ? 1 / 12 : b.freq === 'quarterly' ? 1 / 3 : b.freq === 'weekly' ? 52 / 12 : b.freq === 'biweekly' ? 26 / 12 : 1;
+    // logged charges that are clearly this bill: same name, only one bill by that name, amount within 40%
+    var same = subBills.filter(function(o) { return o.k === x.k; }).length, hist = [];
+    if (same === 1) Object.keys(logged).forEach(function(kk) { logged[kk].forEach(function(e) { if (_mKey(e.note).indexOf(x.k) === 0 && Math.abs(e.amt - b.amt) <= b.amt * 0.4 && new Date(e.ts) >= d90) hist.push(e); }); });
+    hist.sort(function(a, z) { return a.ts - z.ts; });
+    usedKeys[key(b.name)] = true;
+    var starts = b.startYear !== undefined && b.startMonth !== undefined && b.startYear * 12 + b.startMonth > ym;
+    var last = hist[hist.length - 1];
+    rows.push({ name: b.name, monthly: b.amt * per, amt: b.amt, freq: b.freq, src: 'Scheduled ' + '$' + b.amt.toFixed(2) + (starts ? ' from ' + mnS[b.startMonth] : ''), last: last, prev: last && Math.abs(last.amt - b.amt) >= 1 && Math.abs(last.amt - b.amt) / b.amt > 0.05 ? { amt: b.amt } : null, swap: true, watch: watch[key(b.name)], cat: x.c });
+  });
+  // logged recurring merchants (2+ charges in 150 days, still charging in the last 90)
+  Object.keys(logged).forEach(function(kk) {
+    if (usedKeys[kk]) return;
+    var h = logged[kk].filter(function(e) { return new Date(e.ts) >= d150; });
+    if (h.length < 2) return;
+    var last = h[h.length - 1]; if (new Date(last.ts) < d90) return;
+    var recent = h.filter(function(e) { return new Date(e.ts) >= d90; });
+    var monthly = recent.reduce(function(t, e) { return t + e.amt; }, 0) / 3;
+    rows.push({ name: String(last.note).replace(/\(.*?\)/g, '').trim(), monthly: monthly, amt: last.amt, freq: 'logged', src: 'Logged ' + h.length + '×', last: last, prev: h[h.length - 2], watch: watch[kk], cat: last.cat });
+  });
+  rows.forEach(function(r) {
+    r.change = r.last && r.prev && Math.abs(r.last.amt - r.prev.amt) >= 1 && Math.abs(r.last.amt - r.prev.amt) / r.prev.amt > 0.05 ? [r.prev.amt, r.last.amt] : null;
+  });
+  rows.sort(function(a, b) { return (!!b.change - !!a.change) || b.monthly - a.monthly; });
+  var tot = rows.reduce(function(t, r) { return t + r.monthly; }, 0), nch = rows.filter(function(r) { return r.change; }).length;
+  var h = '<div class="card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:6px"><div class="section-head" style="margin:0">Everything that renews</div>';
+  h += '<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline"><span><span class="pace-big" style="font-size:30px">' + fmt(tot) + '</span> <span class="pace-of">a month</span></span><span class="pace-of">' + fmt(tot * 12) + ' a year · ' + rows.length + ' subscriptions</span></div>';
+  if (nch) h += '<div style="font-size:14px;color:var(--sun-dim)">⚑ ' + nch + ' changed price recently. They’re at the top.</div>';
+  h += '<div style="font-size:12px;color:var(--text-3)">Scheduled bills in your subscription categories, plus anything you’ve logged under Digital or House Subscriptions at least twice lately.</div></div>';
+  h += '<div class="card" style="padding:4px 16px">';
+  rows.forEach(function(r) {
+    var tag = r.change ? '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">Price ' + (r.change[1] > r.change[0] ? 'up' : 'down') + '</span>' : r.watch && (r.watch.status === 'charging' || r.watch.status === 'again') ? '<span class="pace-pill over" style="font-size:11px;padding:2px 8px">On watch list</span>' : '';
+    var lastTxt = r.last ? ' · Last ' + money(r.last.amt) + ' on ' + mnS[new Date(r.last.ts).getMonth()] + ' ' + new Date(r.last.ts).getDate() : '';
+    h += '<div class="sub-row"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span style="font-size:16px">' + String(r.name).replace(/</g, '&lt;') + ' ' + tag + '</span><span style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums">' + money(r.monthly) + '<span style="font-size:12px;font-weight:400;color:var(--text-3)">/mo</span></span></div>';
+    h += '<div style="font-size:12px;color:var(--text-3)">' + r.src + (r.freq === 'annual' ? ' · ' + money(r.amt) + ' a year' : '') + lastTxt + (r.change ? (r.swap ? ' · check the bill amount' : ' · was ' + money(r.change[0])) : '') + '</div></div>';
+  });
+  if (!rows.length) h += '<div style="padding:12px 0;color:var(--text-3)">No subscriptions found.</div>';
+  cont.innerHTML = h + '</div>';
+}
+
+// ── 3. CALENDAR (Balance tab) ──────────────────────────────────────────────
+var calOffset = 0, calSel = null;
+function _calK(n) { return n >= 1000 ? '$' + Math.round(n / 1000) + 'k' : '$' + Math.round(n); }
+function renderCalendar() {
+  var card = document.getElementById('cal-card'); if (!card || !record) return;
+  var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  var MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var base = new Date(now.getFullYear(), now.getMonth() + calOffset, 1), y = base.getFullYear(), m = base.getMonth();
+  var pr = []; try { pr = buildProjection(); } catch (e) {}
+  var byDay = {}, eod = {};
+  pr.forEach(function(ev) { var k = ev.date.toDateString(); (byDay[k] = byDay[k] || []).push(ev); eod[k] = ev.balance; });
+  // carry the end-of-day balance across quiet days
+  var running = null, start = new Date(Math.max(today, new Date(y, m, 1) - 0)), probe = new Date(today);
+  var balOn = function(d) { var t = new Date(today), b = null; while (t <= d) { var k = t.toDateString(); if (eod[k] !== undefined) b = eod[k]; t.setDate(t.getDate() + 1); } return b; };
+  var first = new Date(y, m, 1), lead = (first.getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
+  var h = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><span class="section-head" style="margin:0">Calendar</span><span style="display:flex;gap:6px;align-items:center"><button class="pill" style="padding:4px 10px !important" onclick="calOffset--;calSel=null;renderCalendar()"' + (calOffset <= 0 ? ' disabled style="opacity:.4"' : '') + '>‹</button><b style="font-size:15px;min-width:120px;text-align:center">' + MN[m] + ' ' + y + '</b><button class="pill" style="padding:4px 10px !important" onclick="calOffset++;calSel=null;renderCalendar()">›</button></span></div>';
+  h += '<div class="cal-grid">' + ['M','T','W','T','F','S','S'].map(function(d) { return '<div class="cal-dow">' + d + '</div>'; }).join('');
+  for (var i = 0; i < lead; i++) h += '<div></div>';
+  var running2 = null, t = new Date(today);
+  for (var d = 1; d <= days; d++) {
+    var dt = new Date(y, m, d), k = dt.toDateString(), evs = byDay[k] || [], past = dt < today;
+    var ins = evs.filter(function(e) { return e.type === 'in'; }).reduce(function(s, e) { return s + e.amt; }, 0);
+    var outs = evs.filter(function(e) { return e.type !== 'in' && !e.fundCovered; }).reduce(function(s, e) { return s + e.amt; }, 0);
+    var bal = past ? null : balOn(dt);
+    var col = bal === null ? 'transparent' : bal < 2000 ? 'var(--red)' : bal < 3000 ? 'var(--sun)' : 'var(--grass)';
+    h += '<button class="cal-day' + (past ? ' out' : '') + (k === today.toDateString() ? ' today' : '') + (calSel === k ? ' sel' : '') + '" onclick="calSel=\'' + k + '\';renderCalendar()"><span class="cal-d">' + d + '</span>' + (ins ? '<span class="cal-in">+' + _calK(ins) + '</span>' : '') + (outs ? '<span class="cal-out">−' + _calK(outs) + '</span>' : '') + '<span class="cal-bal" style="background:' + col + '"></span></button>';
+  }
+  h += '</div><div style="font-size:12px;color:var(--text-3);margin-top:6px">The bar under each day is that day’s ending balance: green $3k+, amber $2k–3k, red under $2k.</div>';
+  var selDate = calSel ? new Date(calSel) : (calOffset === 0 ? today : new Date(y, m, 1));
+  var sk = selDate.toDateString(), sev = byDay[sk] || [], sb = selDate < today ? null : balOn(selDate);
+  h += '<div class="cal-list"><div style="border:none"><b>' + selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) + '</b><span>' + (sb !== null ? 'ends at ' + fmt(sb) : '') + '</span></div>';
+  if (!sev.length) h += '<div style="color:var(--text-3);border:none">Nothing scheduled.</div>';
+  sev.forEach(function(e) { h += '<div><span>' + e.name + (e.fundCovered ? ' <small style="color:var(--text-3)">(fund-covered)</small>' : '') + '</span><span style="color:' + (e.type === 'in' ? 'var(--grass-dim)' : e.type === 'save' ? 'var(--sky)' : 'var(--coral)') + '">' + (e.type === 'in' ? '+' : '−') + fmt(e.amt) + '</span></div>'; });
+  card.innerHTML = h + '</div>';
+}
+
+// ── 4. GOALS (Budget tab) ──────────────────────────────────────────────────
+// record.goals = [{id, name, kind: 'save'|'payoff', target, current, monthly}]
+function _defaultGoals() {
+  var emerg = (FUND_DEFS || []).find(function(f) { return f.id === 'hc_sf_emerg'; }) || { target: 21000 };
+  var bills = getAllBills(), amt = function(re) { var b = bills.find(function(x) { return re.test(x.name) && x.type !== 'in'; }); return b ? b.amt : 0; };
+  return [
+    { id: 'g_emerg', name: 'Emergency fund', kind: 'save', target: emerg.target || 21000, current: getFundBalance('hc_sf_emerg'), monthly: amt(/emergency/i) || 750 },
+    { id: 'g_student', name: 'Student loan paid off', kind: 'payoff', target: 0, current: null, monthly: amt(/student loan/i) || 368 },
+    { id: 'g_camry', name: 'Camry paid off', kind: 'payoff', target: 0, current: null, monthly: amt(/camry/i) || 737 }
+  ];
+}
+function getGoals() { return (record && record.goals && record.goals.length) ? record.goals : _defaultGoals(); }
+function _goalsCard() {
+  var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  var MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var h = '<div class="card" style="margin-bottom:12px;padding:14px 17px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="section-head" style="margin:0">Goals</span><span style="font-size:12px;color:var(--text-3)">tap to update</span></div>';
+  getGoals().forEach(function(g, i) {
+    var left, pct, sub;
+    if (g.kind === 'save') { left = Math.max(0, g.target - (g.current || 0)); pct = g.target ? Math.min(100, (g.current || 0) / g.target * 100) : 0; }
+    else { left = g.current; pct = g.start && g.current !== null ? Math.min(100, (g.start - g.current) / g.start * 100) : 0; }
+    if (left === null || left === undefined) sub = 'Add the balance to see when it’s done.';
+    else if (left <= 0) sub = 'Done ✓';
+    else { var months = g.monthly > 0 ? Math.ceil(left / g.monthly) : null; var d = new Date(); d.setMonth(d.getMonth() + (months || 0));
+      sub = months ? fmt(left) + ' to go at ' + fmt(g.monthly) + '/mo → <b>' + MN[d.getMonth()] + ' ' + d.getFullYear() + '</b>' + (g.kind === 'payoff' ? ' (before interest)' : '') : fmt(left) + ' to go'; }
+    h += '<div class="goal" onclick="editGoal(' + i + ')"><div style="display:flex;justify-content:space-between;gap:8px;font-size:16px"><span>' + g.name + '</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap">' + (g.kind === 'save' ? fmt(g.current || 0) + ' <small style="color:var(--text-3)">of ' + fmt(g.target) + '</small>' : (g.current === null || g.current === undefined ? '<small style="color:var(--sky)">Add balance</small>' : fmt(g.current) + ' <small style="color:var(--text-3)">left</small>')) + '</span></div>';
+    h += '<div class="pace-track" style="height:6px;margin:2px 0 0"><div class="pace-fill" style="width:' + pct + '%;background:var(--grass)"></div></div><div style="font-size:13px;color:var(--text-3)">' + sub + '</div></div>';
+  });
+  return h + '</div>';
+}
+function editGoal(i) {
+  var goals = getGoals().map(function(g) { return Object.assign({}, g); }), g = goals[i];
+  var label = g.kind === 'save' ? 'How much is in it now?' : 'What’s the balance left?';
+  showAmtModal(g.name, label + ' Hearth works out when it’s done from the monthly amount (' + '$' + Math.round(g.monthly) + ').', g.current === null ? '' : g.current, async function(val) {
+    var n = parseFloat(String(val).replace(/[$,]/g, '')); if (isNaN(n) || n < 0) return;
+    var fresh = await cloudGet(); if (fresh) record = fresh;
+    if (g.kind === 'payoff' && (g.start === undefined || g.start === null || n > g.start)) g.start = n;
+    g.current = n; goals[i] = g; record.goals = goals;
+    if (g.id === 'g_emerg') { if (!record.funds) record.funds = {}; record.funds.hc_sf_emerg = { bal: n, updated: Date.now() }; }
+    await cloudSet(record); renderBudgetScreen(); toast(g.name + ' updated');
+  });
+}
+
 function renderBudgetScreen() {
   var cont = document.getElementById('budget-screen-content');
   if (!cont) return;
@@ -2348,7 +2573,7 @@ function renderBudgetScreen() {
 
   html += '</div>';
 
-  html += _budgetPlanCard() + _budgetCatsCard();
+  html += _budgetPlanCard() + _goalsCard() + _budgetCatsCard();
   cont.innerHTML = html;
 }
 function getMonthEntries(year, month) {
@@ -5324,7 +5549,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.5.0';
+var APP_VERSION = 'v4.6.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
