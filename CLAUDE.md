@@ -9,7 +9,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.2.0** (Nov 25, 2026: History = Register / Card cycle / Reports; CC cycle 25th–24th everywhere). Bump patch/minor from here unless BC names a version.
+Live: **v4.2.1** (Nov 25, 2026: meeting a budget is amber "At budget"; red only when more than $1 over). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -52,6 +52,8 @@ Live: **v4.2.0** (Nov 25, 2026: History = Register / Card cycle / Reports; CC cy
 - **Weekly** (`renderWeekly`): Monday–Sunday, **catch-up** targets: what's left of each month's
   target/category budget spread over its remaining days. Weekly limits for every budgeted
   category except Groceries, Gas & transit and subscriptions.
+- **Budget colours** (`_paceStatus`): red only when more than $1 past the budget; met or within $1
+  is amber ("At budget"); otherwise green, or amber when ahead of pace.
 - **Dashboard pacing** and **Budget tab**: calendar month. Card bills are separate from the $3,500.
   Category budgets sum below $3,500 on purpose; the gap is the **cushion** row.
 - **Card cycle**: Capital One's cycle is the **25th–24th**, paid on the 19th. `CC_CYCLE_DAY = 25`;
