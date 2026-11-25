@@ -3408,16 +3408,22 @@ async function regMarkAllPosted() {
   refreshMain(); updateCCBalanceCard(); renderRegister();
   toast(n + ' marked as posted');
 }
-function renderCycles() {
-  _histChromeFor(null);
-  var cont = document.getElementById('history-list'); cont.className = '';
-  var fmt = function(n) { return '$' + Math.round(Math.abs(n)).toLocaleString('en-US'); };
-  var mnS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// v4.3.1: reconciling. record.ccRecon['{payYear}_{payMonth}'] = {note, explained, ts};
+// record.ccRecon.baseline = {amt, ts} ("Start fresh"). Card payments made from checking
+// during a cycle (bills whose category is "Card payment") are explained automatically.
+function _cycleAutoExplained(F, T) {
+  var amt = 0, names = [];
+  getAllBills().forEach(function(b) {
+    if (b.type !== 'out' || !(b.amt > 0)) return;
+    if ((b.cat || guessBillCategory(b.name)) !== 'Card payment') return;
+    getBillOccurrencesInRange(b, F, T).forEach(function() { amt += b.amt; names.push(b.name); });
+  });
+  return { amt: amt, names: names };
+}
+function _cycleList() {
   var today = new Date(); today.setHours(0, 0, 0, 0);
   var evs = getScheduledEvents().filter(function(ev) { return ev.type === 'cc' && !ev.fixedAmt && ev.ccCycleFrom && ev.ccCycleFrom <= today; });
-  // also include older cycles the scheduler no longer generates (it looks back 2 months)
   var seen = {}; evs.forEach(function(ev) { seen[ev.ccCycleFrom.toDateString()] = true; });
-  var older = [];
   for (var py = 2026, pm = 5; ; pm++) {
     if (pm > 11) { pm = 0; py++; }
     var pay = new Date(py, pm, 19); if (pay > new Date(today.getFullYear(), today.getMonth() + 3, 1)) break;
@@ -3426,30 +3432,101 @@ function renderCycles() {
     else if (py === 2026 && pm === 6) { F = new Date(2026, 4, 26); T = new Date(2026, 5, 24, 23, 59, 59); }
     else { F = new Date(py, pm - 2, 25); T = new Date(py, pm - 1, 24, 23, 59, 59); }
     if (F > today || seen[F.toDateString()]) continue;
-    older.push({ date: pay, ccYear: py, ccMonth: pm, ccCycleFrom: F, ccCycleTo: T });
+    evs.push({ date: pay, ccYear: py, ccMonth: pm, ccCycleFrom: F, ccCycleTo: T });
   }
-  var all = evs.concat(older).sort(function(a, b) { return b.ccCycleFrom - a.ccCycleFrom; });
-  var html = '<div style="font-size:14px;color:var(--text-2);background:var(--surface2);border-radius:10px;padding:9px 12px;margin-bottom:10px;line-height:1.45">Each Capital One cycle (25th\u201324th) against what was billed. When a statement arrives, enter its amount; Hearth then uses it for that payment.</div><div class="card" style="padding:6px 14px">';
-  all.forEach(function(ev) {
-    var F = ev.ccCycleFrom, T = ev.ccCycleTo;
+  evs.sort(function(a, b) { return b.ccCycleFrom - a.ccCycleFrom; });
+  return evs.map(function(ev) {
+    var F = ev.ccCycleFrom, T = ev.ccCycleTo, key = ev.ccYear + '_' + ev.ccMonth;
     var logged = getCCSpend(F, T, { includeScheduled: false }), bills = getScheduledCCInCycle(F, T);
     var pend = 0, pn = 0;
     [getQuarterKeyForDate(F), getQuarterKeyForDate(T)].filter(function(k, i, a) { return a.indexOf(k) === i; }).forEach(function(k) { loadEntries(k).forEach(function(e) { var d = new Date(e.ts); if (d >= F && d <= T && e.pending && _isCardEntry(e)) { pend += e.amt; pn++; } }); });
-    var total = logged + bills, ov = record.ccOverrides && record.ccOverrides['cc_override_' + ev.ccYear + '_' + ev.ccMonth];
-    var fc = forecastCCPayment(ev.ccYear, ev.ccMonth, F, T);
-    var open = T >= today, pill;
-    if (open) pill = '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">In progress' + (pn ? ' \u00b7 ' + pn + ' pending' : '') + '</span>';
-    else if (!ov) pill = '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">Closed \u00b7 needs statement' + (pn ? ' \u00b7 ' + pn + ' pending' : '') + '</span>';
-    else { var diff = ov - total; pill = Math.abs(diff) <= 50 ? '<span class="pace-pill ok" style="font-size:11px;padding:2px 8px">Matched</span>' : '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">' + (diff > 0 ? fmt(diff) + ' not logged' : fmt(-diff) + ' less than logged') + '</span>'; }
-    html += '<div style="display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid var(--border)">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><span><b>' + mnS[F.getMonth()] + ' ' + F.getDate() + ' \u2013 ' + mnS[T.getMonth()] + ' ' + T.getDate() + '</b> <span style="font-size:12px;color:var(--text-3)">paid ' + mnS[ev.ccMonth] + ' 19</span></span>' + pill + '</div>';
+    var ov = record.ccOverrides && record.ccOverrides['cc_override_' + key];
+    var rec = record.ccRecon && record.ccRecon[key];
+    var auto = _cycleAutoExplained(F, T);
+    var total = logged + bills, diff = ov ? ov - total : null;
+    var explained = (auto.amt ? -auto.amt : 0) + (rec && rec.explained ? rec.explained : 0);
+    return { ev: ev, key: key, F: F, T: T, logged: logged, bills: bills, pend: pend, pn: pn, total: total, statement: ov || null, diff: diff, rec: rec || null, auto: auto, explained: explained, open: T >= today };
+  });
+}
+function cycleGap(list) {
+  list = list || _cycleList();
+  var raw = 0;
+  list.forEach(function(c) { if (c.statement && !c.open) raw += c.diff - c.explained; });
+  var base = (record.ccRecon && record.ccRecon.baseline && record.ccRecon.baseline.amt) || 0;
+  return { raw: raw, base: base, gap: raw - base, cycles: list.filter(function(c) { return c.statement && !c.open; }).length };
+}
+var _reconOpen = null;
+function renderCycles() {
+  _histChromeFor(null);
+  var cont = document.getElementById('history-list'); cont.className = '';
+  var fmt = function(n) { return '$' + Math.round(Math.abs(n)).toLocaleString('en-US'); };
+  var mnS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var list = _cycleList(), g = cycleGap(list);
+  var html = '<div style="background:var(--surface);border:1.5px solid var(--sky);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;margin-bottom:10px">';
+  html += '<span style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);font-weight:600">' + (g.base ? 'Since you started fresh' : 'Since April') + '</span>';
+  if (Math.abs(g.gap) < 1) html += '<b style="font-size:22px">All accounted for ✓</b><span style="font-size:13px;color:var(--text-2)">Capital One and Hearth agree, after timing and explained items.</span>';
+  else html += '<b style="font-size:22px;font-variant-numeric:tabular-nums">' + fmt(g.gap) + (g.gap > 0 ? ' more billed than recorded' : ' less billed than recorded') + '</b><span style="font-size:13px;color:var(--text-2)">' + (g.cycles ? 'About ' + fmt(g.gap / Math.max(1, g.cycles)) + ' a cycle. ' : '') + (g.gap > 0 ? 'Likely missed entries, interest or bill drift. ' : 'Likely refunds or charges logged twice. ') + 'Timing differences cancel out here; watch whether it grows.</span>';
+  html += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:4px">';
+  var unrec = list.filter(function(c) { return c.statement && !c.open && !c.rec; }).length;
+  if (unrec) html += '<button class="pace-more" onclick="reconcileAll()">Mark all ' + unrec + ' past cycles reconciled</button>';
+  if (Math.abs(g.gap) >= 1) html += '<button class="pace-more" onclick="cycleStartFresh()">Start fresh from here</button>';
+  else if (g.base) html += '<button class="pace-more" onclick="cycleStartFresh(true)">Undo start fresh</button>';
+  html += '</div></div>';
+  html += '<div class="card" style="padding:6px 14px">';
+  list.forEach(function(c) {
+    var F = c.F, T = c.T, pill = '';
+    if (c.open) pill = '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">In progress' + (c.pn ? ' · ' + c.pn + ' pending' : '') + '</span>';
+    else if (!c.statement) pill = '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">Closed · needs statement' + (c.pn ? ' · ' + c.pn + ' pending' : '') + '</span>';
+    else if (c.rec) pill = '<span class="pace-pill ok" style="font-size:11px;padding:2px 8px">Reconciled ✓</span>';
+    else {
+      var unexplained = c.diff - c.explained;
+      if (Math.abs(unexplained) <= Math.max(75, c.statement * 0.02)) pill = '<span class="pace-pill ok" style="font-size:11px;padding:2px 8px">Matched ✓</span>';
+      else if (Math.abs(unexplained) > Math.max(500, c.statement * 0.10)) pill = '<span class="pace-pill ahead" style="font-size:11px;padding:2px 8px">Big difference · explain</span>';
+    }
+    html += '<div style="display:flex;flex-direction:column;gap:6px;padding:11px 0;border-bottom:1px solid var(--border)">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><span><b>' + mnS[F.getMonth()] + ' ' + F.getDate() + ' – ' + mnS[T.getMonth()] + ' ' + T.getDate() + '</b> <span style="font-size:12px;color:var(--text-3)">paid ' + mnS[c.ev.ccMonth] + ' 19</span></span>' + pill + '</div>';
     var kv = function(k, v, b) { return '<span>' + (b ? '<b>' + k + '</b>' : k) + '</span><span style="text-align:right">' + (b ? '<b>' + v + '</b>' : v) + '</span>'; };
-    html += '<div style="display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:14px;color:var(--text-2);font-variant-numeric:tabular-nums">' + kv('Logged charges', fmt(logged)) + kv('Card bills', fmt(bills)) + (pn ? kv('Still pending', fmt(pend) + ' (' + pn + ')') : '') + kv('Hearth total', fmt(total), true) + (ov ? kv('Capital One statement', fmt(ov)) : kv('Payment forecast', fmt(fc.amt))) + '</div>';
-    if (!open) html += '<button class="reg-pchip" style="align-self:flex-start;font-size:13px;padding:5px 10px" onclick="cycleStatement(' + ev.ccYear + ',' + ev.ccMonth + ',' + (ov || Math.round(total)) + ')">' + (ov ? 'Change statement amount' : 'Enter statement amount') + '</button>';
+    html += '<div style="display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:14px;color:var(--text-2);font-variant-numeric:tabular-nums">' + kv('Logged charges', fmt(c.logged)) + kv('Card bills', fmt(c.bills)) + (c.pn ? kv('Still pending', fmt(c.pend) + ' (' + c.pn + ')') : '') + kv('Hearth total', fmt(c.total), true) + (c.statement ? kv('Capital One statement', fmt(c.statement)) : kv('Payment forecast', fmt(forecastCCPayment(c.ev.ccYear, c.ev.ccMonth, F, T).amt))) + '</div>';
+    if (c.statement && !c.open) {
+      if (Math.abs(c.diff) >= 1) html += '<div style="font-size:13px;color:var(--text-3)">' + fmt(c.diff) + (c.diff > 0 ? ' more' : ' less') + ' on the statement</div>';
+      if (c.auto.amt) html += '<div style="font-size:13px;color:var(--text-2);font-style:italic">Explained: ' + c.auto.names.join(', ') + ' (' + fmt(c.auto.amt) + ') paid straight to the card</div>';
+      if (c.rec && (c.rec.note || c.rec.explained)) html += '<div style="font-size:13px;color:var(--text-2);font-style:italic">' + String(c.rec.note || '').replace(/</g, '&lt;') + (c.rec.explained ? (c.rec.note ? ' · ' : '') + 'explains ' + fmt(c.rec.explained) : '') + '</div>';
+    }
+    var btns = [];
+    if (!c.open) btns.push('<button class="pace-more" onclick="cycleStatement(' + c.ev.ccYear + ',' + c.ev.ccMonth + ',' + (c.statement || Math.round(c.total)) + ')">' + (c.statement ? 'Change statement amount' : 'Enter statement amount') + '</button>');
+    if (c.statement && !c.open) btns.push(c.rec ? '<button class="pace-more" onclick="reconcileCycle(\'' + c.key + '\', true)">Undo reconcile</button>' : '<button class="pace-more" onclick="_reconOpen=\'' + c.key + '\';renderCycles()">Reconcile</button>');
+    if (_reconOpen === c.key && !c.rec) {
+      html += '<div style="display:flex;flex-direction:column;gap:6px;background:var(--surface2);border-radius:10px;padding:10px"><input id="rc-note" placeholder="Note (optional), e.g. timing" style="font-family:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"><input id="rc-amt" type="number" inputmode="decimal" placeholder="Explained amount (optional), e.g. a refund" style="font-family:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"><div style="font-size:12px;color:var(--text-3)">An explained amount comes off the running total. Leave it empty for timing differences; they cancel out on their own.</div><div style="display:flex;gap:10px"><button class="btn btn-ghost" style="padding:8px 14px;border-color:var(--grass);color:var(--grass-dim)" onclick="reconcileCycle(\'' + c.key + '\')">Reconcile</button><button class="pace-more" onclick="_reconOpen=null;renderCycles()">Cancel</button></div></div>';
+    } else if (btns.length) html += '<div style="display:flex;gap:14px;flex-wrap:wrap">' + btns.join('') + '</div>';
     html += '</div>';
   });
   html += '</div>';
   cont.innerHTML = html;
+}
+async function _reconSave(mut, msg) {
+  var fresh = await cloudGet(); if (fresh) record = fresh;
+  if (!record.ccRecon) record.ccRecon = {};
+  mut(record.ccRecon);
+  await cloudSet(record);
+  _reconOpen = null; renderCycles(); if (msg) toast(msg);
+}
+function reconcileCycle(key, undo) {
+  if (undo) return _reconSave(function(r) { delete r[key]; }, 'Reconcile undone');
+  var note = ((document.getElementById('rc-note') || {}).value || '').trim();
+  var amt = parseFloat(String((document.getElementById('rc-amt') || {}).value || '').replace(/[$,]/g, ''));
+  var c = _cycleList().find(function(x) { return x.key === key; });
+  var explained = (!isNaN(amt) && amt > 0) ? (c && c.diff < 0 ? -amt : amt) : 0;
+  return _reconSave(function(r) { r[key] = { note: note, explained: explained, ts: Date.now() }; }, 'Cycle reconciled');
+}
+function reconcileAll() {
+  var keys = _cycleList().filter(function(c) { return c.statement && !c.open && !c.rec; }).map(function(c) { return c.key; });
+  return _reconSave(function(r) { keys.forEach(function(k) { r[k] = { note: '', explained: 0, ts: Date.now() }; }); }, keys.length + ' cycles reconciled');
+}
+function cycleStartFresh(undo) {
+  if (undo) return _reconSave(function(r) { delete r.baseline; }, 'Back to counting since April');
+  var g = cycleGap();
+  if (!confirm('Accept the current difference of $' + Math.round(Math.abs(g.gap)).toLocaleString('en-US') + ' and count only new differences from here?')) return;
+  return _reconSave(function(r) { r.baseline = { amt: g.raw, ts: Date.now() }; }, 'Starting fresh from here');
 }
 function cycleStatement(y, m, cur) {
   var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -5168,7 +5245,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.3.0';
+var APP_VERSION = 'v4.3.1';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [

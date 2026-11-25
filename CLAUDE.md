@@ -9,7 +9,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.3.0** (Nov 25, 2026: Budget tab = monthly plan + everyday budgets; editable everyday target). Bump patch/minor from here unless BC names a version.
+Live: **v4.3.1** (Nov 25, 2026: Card cycle reconciling, running total, Start fresh). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -67,6 +67,10 @@ Live: **v4.3.0** (Nov 25, 2026: Budget tab = monthly plan + everyday budgets; ed
 - **History**: Register (calendar month, newest first, filters, pending toggles, Mark all posted,
   search across all months), Card cycle (each cycle vs the statement amount in `ccOverrides`),
   Reports (P&L folded in as tap-to-expand Income/Expenses). Quarter/Month/CC Cycle/P&L views retired.
+- **Reconciling** (`renderCycles`, `cycleGap`): running total = Σ(statement − Hearth total) over closed
+  cycles, minus explained amounts (manual `ccRecon[key].explained`, plus card payments made from
+  checking, auto via bill category "Card payment"), minus `ccRecon.baseline.amt` ("Start fresh").
+  `ccRecon['{payYear}_{payMonth}'] = {note, explained, ts}`. Reconciling never changes amounts or the forecast.
 - **CC payment forecast** (`forecastCCPayment`): override wins → closed cycle uses actual →
   open/future cycle uses max(actual so far + bills still to post, $3,500 + scheduled card bills).
 - **Reports** (`reportFigures`): income = paychecks + logged income (not fund draws);
