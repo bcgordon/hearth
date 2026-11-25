@@ -9,7 +9,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.0.0** (Nov 24, 2026: watch list). Bump patch/minor from here unless BC names a version.
+Live: **v4.1.0** (Nov 25, 2026: weekly catch-up targets, one-month budgets). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -42,10 +42,16 @@ Live: **v4.0.0** (Nov 24, 2026: watch list). Bump patch/minor from here unless B
   `fundCovers` (`fund_cover_{id}_{y}_{m}_{d}`), `dismissedEvents` (`{y}-{m}-{d}-{Name_With_Underscores}`,
   month 0-indexed: the "skip" on upcoming events). `billPending`.
 - `config`: `ccCycleStart/End`, `budget`, `names`. `budgets`: quarterly category overrides.
+- `monthBudgets['YYYY-MM'][category]` = a one-month monthly amount (e.g. December gifts). The
+  month's everyday target rises by the difference (`monthTarget`), and so does the CC forecast
+  estimate for the cycle that closes in that month. `watchDone[key]` = ts (watch list).
 
 ## How the numbers are defined (keep these consistent)
 - **Everyday spending** = card entries (cc + credits), not fund-covered, not checking/income.
   Target **$3,500/month** (`PACE_TARGET`), the same figure the forecast uses.
+- **Weekly** (`renderWeekly`): Monday–Sunday, **catch-up** targets: what's left of each month's
+  target/category budget spread over its remaining days. Weekly limits for every budgeted
+  category except Groceries, Gas & transit and subscriptions.
 - **Dashboard pacing** and **Budget tab**: calendar month. Card bills are separate from the $3,500.
   Category budgets sum below $3,500 on purpose; the gap is the **cushion** row.
 - **Balance tab → credit card card check**: billing cycle (`CC_CYCLE_START/END`). Leave it on the cycle.
