@@ -210,6 +210,20 @@ textarea { resize: none; }
 .watch-status { font-size: 14px; color: var(--text-2); }
 .watch-actions { display: flex; gap: 14px; }
 .watch-actions button { background: none; border: none; padding: 2px 0; font-family: inherit; font-size: 13px; color: var(--sky); cursor: pointer; text-decoration: underline dotted; }
+.wk-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 120px; position: relative; margin-top: 6px; }
+.wk-day { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; font-size: 11px; color: var(--text-3); position: relative; z-index: 1; min-width: 0; }
+.wk-day b { display: block; width: 100%; border-radius: 5px 5px 2px 2px; }
+.wk-day .amt { font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wk-day.today > span:last-child { color: var(--text); font-weight: 700; }
+.wk-day.future b { border: 1.5px dashed var(--border-dark); background: transparent !important; }
+.wk-avg { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--text-3); z-index: 0; }
+.wk-avg span { position: absolute; right: 0; top: -16px; font-size: 10px; color: var(--text-3); }
+.wks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 8px; }
+.wks-tile { border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 4px; text-align: center; display: flex; flex-direction: column; gap: 2px; background: var(--surface2); }
+.wks-tile.cur { border-color: var(--sky); }
+.wks-tile .d { font-size: 11px; color: var(--text-3); }
+.wks-tile .t { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.wks-tile .s { font-size: 11px; font-weight: 600; }
 .pace-more { background: none; border: none; padding: 4px 0; font-family: inherit; font-size: 14px; color: var(--sky); cursor: pointer; text-align: left; text-decoration: underline dotted; }
 .updbar { position: fixed; left: 50%; bottom: calc(max(env(safe-area-inset-bottom), 16px) + 84px); transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 10px; width: calc(100% - 32px); max-width: 460px; box-sizing: border-box; padding: 10px 10px 10px 18px; background: var(--surface); color: var(--text); border: 1.5px solid var(--coral); border-radius: var(--radius-pill); box-shadow: 0 3px 0 var(--coral); font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; z-index: 9997; transition: transform 0.3s cubic-bezier(.4,0,.2,1), opacity 0.3s; }
 .updbar.on { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
@@ -660,6 +674,28 @@ textarea { resize: none; }
 </div>
 </div>
 <div id="quote-of-day" style="padding:10px 16px 2px;font-size:14px;color:var(--text-3);font-style:italic;text-align:center;line-height:1.5"></div>
+<!-- This week (v4.1.0) -->
+<div class="card card-sky" id="wk-card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <span class="section-head" style="margin:0;color:var(--sky)" id="wk-title">This week</span>
+    <span class="pace-pill ok" id="wk-pill">On track</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px;flex-wrap:wrap">
+    <span><span class="pace-big" id="wk-spent">$0</span> <span class="pace-of" id="wk-target"></span></span>
+    <span class="pace-of" id="wk-day"></span>
+  </div>
+  <div class="wk-days" id="wk-days"></div>
+  <div class="pace-sentence" id="wk-sentence"></div>
+  <div class="pace-cats" id="wk-cats"></div>
+  <button class="pace-more" id="wk-more" onclick="wkShowAll=!wkShowAll;renderWeekly()"></button>
+</div>
+
+<!-- Weeks in the month (v4.1.0) -->
+<div class="card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="section-head" style="margin:0" id="wks-title">Weeks this month</span><span style="font-size:12px;color:var(--text-3)">catch-up targets</span></div>
+  <div class="wks-grid" id="wks-grid"></div>
+</div>
+
 <!-- Monthly pace card (primary) — v3.12.0 -->
 <div class="card card-sky" style="margin-bottom:12px;display:flex;flex-direction:column;gap:10px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -715,7 +751,7 @@ textarea { resize: none; }
   <div id="pace-day-detail" style="font-size:13px;color:var(--text-2);min-height:19px">Tap a day to see what went out.</div>
   <div class="pace-legend">
     <span><i style="border-top-color:var(--coral)"></i><span id="pace-leg-this">This month</span></span>
-    <span><i style="border-top-color:var(--text-3);border-top-style:dashed;border-top-width:2px"></i><span id="pace-leg-pace">Pace to $3,500</span></span>
+    <span><i style="border-top-color:var(--text-3);border-top-style:dashed;border-top-width:2px"></i><span id="pace-leg-pace">Pace</span></span>
     <span><i style="border-top-color:var(--border-dark)"></i><span id="pace-leg-last">Last month</span></span>
   </div>
 </div>
@@ -1915,7 +1951,7 @@ function _budgetMonthFigures(now) {
   var y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
   var days = new Date(y, m + 1, 0).getDate();
   var bills = _paceBillsByDay(y, m);
-  var r = { cardActual: 0, cardBudget: PACE_TARGET, checkingPlanned: 0, checkingActual: 0, savingsPlanned: 0, savingsActual: 0 };
+  var r = { cardActual: 0, cardBudget: monthTarget(y, m), checkingPlanned: 0, checkingActual: 0, savingsPlanned: 0, savingsActual: 0 };
   getMonthEntries(y, m).forEach(function(e) { if (new Date(e.ts).getDate() <= day) r.cardActual += _paceEveryday(e); });
   bills.forEach(function(list, i) {
     list.forEach(function(b) {
@@ -2338,6 +2374,7 @@ function refreshMain() {
   renderMonthlyBreakdown();
   try { renderPacing(); } catch (e) { console.error('pacing', e); }
   try { renderWatchList(); } catch (e) { console.error('watch', e); }
+  try { renderWeekly(); } catch (e) { console.error('weekly', e); }
   updateSidebar();
 }
 
@@ -2346,6 +2383,28 @@ function refreshMain() {
 // discretionary target — the same figure the forecast uses. Calendar month.
 // Scheduled card bills are shown separately as already committed.
 var PACE_TARGET = 3500;
+// One-month budget overrides (v4.1.0): record.monthBudgets['YYYY-MM'][category] = monthly amount.
+// A month's everyday target rises by however much its overrides exceed the usual budgets.
+function _monthKey(y, m) { return y + '-' + String(m + 1).padStart(2, '0'); }
+function getMonthCatBudget(name, y, m) {
+  var mo = record && record.monthBudgets && record.monthBudgets[_monthKey(y, m)];
+  if (mo && mo[name] !== undefined) return mo[name];
+  var cat = BUDGET_CATEGORIES.find(function(c) { return c.name === name; });
+  var q = getCatBudget(name, cat ? cat.budget : null);
+  return q ? Math.round(q / 3) : 0;
+}
+function monthTargetExtra(y, m) {
+  var mo = record && record.monthBudgets && record.monthBudgets[_monthKey(y, m)];
+  if (!mo) return 0;
+  var extra = 0;
+  Object.keys(mo).forEach(function(name) {
+    var cat = BUDGET_CATEGORIES.find(function(c) { return c.name === name; });
+    var q = getCatBudget(name, cat ? cat.budget : null);
+    extra += mo[name] - (q ? Math.round(q / 3) : 0);
+  });
+  return Math.max(0, extra);
+}
+function monthTarget(y, m) { return PACE_TARGET + monthTargetExtra(y, m); }
 var paceShowAllCats = false;
 var paceMode = 'all'; // 'all' = everyday + bills, 'every' = everyday only
 try { paceMode = localStorage.getItem('hft_pace_mode') || 'all'; } catch (e) {}
@@ -2408,10 +2467,11 @@ function renderPacing() {
   var y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
   var days = new Date(y, m + 1, 0).getDate();
   var frac = day / days;
+  var TARGET = monthTarget(y, m);
   var cum = _paceCumulative(y, m, day);
   var spent = cum.length ? cum[cum.length - 1] : 0;
-  var paceNow = PACE_TARGET * frac;
-  var status = _paceStatus(spent, PACE_TARGET, frac);
+  var paceNow = TARGET * frac;
+  var status = _paceStatus(spent, TARGET, frac);
   var colors = { ok: 'var(--grass)', ahead: 'var(--sun)', over: 'var(--red)' };
   var labels = { ok: 'On track', ahead: 'Ahead of pace', over: 'Over' };
   var mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -2419,7 +2479,7 @@ function renderPacing() {
   var pill = document.getElementById('pace-pill');
   pill.className = 'pace-pill ' + status; pill.textContent = labels[status];
   document.getElementById('pace-spent').textContent = fmt(spent);
-  document.getElementById('pace-target').textContent = 'of ' + fmt(PACE_TARGET);
+  document.getElementById('pace-target').textContent = 'of ' + fmt(TARGET);
   document.getElementById('pace-day').textContent = 'day ' + day + ' of ' + days;
   // Essential (green) then non-essential (amber), as shares of the $3,500.
   // Past the target the bar is scaled to the total and outlined in red.
@@ -2429,7 +2489,7 @@ function renderPacing() {
     var a = _paceEveryday(e); if (!a) return;
     if (e.type === 'essential') totE += a; else totN += a;
   });
-  var scale = Math.max(PACE_TARGET, spent);
+  var scale = Math.max(TARGET, spent);
   var fe = document.getElementById('pace-fill-e'), fn = document.getElementById('pace-fill-n');
   fe.style.width = Math.max(0, totE / scale * 100) + '%';
   fn.style.left = Math.max(0, totE / scale * 100) + '%';
@@ -2439,7 +2499,7 @@ function renderPacing() {
   var trk = document.getElementById('pace-track');
   trk.style.borderColor = status === 'over' ? 'var(--red)' : '';
   trk.style.boxShadow = status === 'over' ? '0 0 0 1px var(--red)' : '';
-  var scaledFrac = PACE_TARGET * frac / scale;
+  var scaledFrac = TARGET * frac / scale;
   // Keep the Essential / Non-essential labels on the same basis as the bar
   document.getElementById('lbl-e').textContent = fmt(totE);
   document.getElementById('lbl-n').textContent = fmt(totN);
@@ -2451,11 +2511,11 @@ function renderPacing() {
   tl.style.transform = (scaledFrac > 0.8 || scaledFrac < 0.2) ? 'none' : 'translateX(-50%)';
 
   var daysLeft = days - day + 1; // including today
-  var left = PACE_TARGET - spent;
+  var left = TARGET - spent;
   var dayWord = daysLeft === 1 ? 'today' : daysLeft + ' days';
   var sentence;
   if (status === 'over') {
-    sentence = '<b>' + fmt(spent - PACE_TARGET) + ' over</b> the month' + (daysLeft > 1 ? ', with ' + daysLeft + ' days left.' : '.');
+    sentence = '<b>' + fmt(spent - TARGET) + ' over</b> the month' + (daysLeft > 1 ? ', with ' + daysLeft + ' days left.' : '.');
   } else if (status === 'ahead') {
     sentence = '<b>' + fmt(spent - paceNow) + ' ahead of pace.</b> ' + fmt(left) + ' left for ' + dayWord + (daysLeft > 1 ? ', about <b>' + fmt(left / daysLeft) + ' a day</b>.' : '.');
   } else {
@@ -2482,12 +2542,12 @@ function renderPacing() {
   var actual = [], expected = [], lastS = [], ta = 0, te = 0, tl = 0;
   for (var di = 0; di < days; di++) {
     var bd = withBills ? sumB(billsNow[di]) : 0;
-    te += PACE_TARGET / days + bd; expected.push(te);
+    te += TARGET / days + bd; expected.push(te);
     if (di < day) { ta += spendNow[di] + bd; actual.push(ta); }
   }
   for (var dj = 0; dj < lastDays; dj++) { tl += spendLast[dj] + (withBills ? sumB(billsLast[dj]) : 0); lastS.push(tl); }
-  document.getElementById('pace-leg-pace').textContent = withBills ? 'Expected (bills + $3,500 pace)' : 'Pace to $3,500';
-  renderPaceChart(actual, lastS, days, mn[m].slice(0, 3), mn[lm].slice(0, 3), expected, { bills: billsNow, spend: spendNow, withBills: withBills, y: y, m: m });
+  document.getElementById('pace-leg-pace').textContent = withBills ? 'Expected (bills + ' + fmt(TARGET) + ' pace)' : 'Pace to ' + fmt(TARGET);
+  renderPaceChart(actual, lastS, days, mn[m].slice(0, 3), mn[lm].slice(0, 3), expected, { bills: billsNow, spend: spendNow, withBills: withBills, y: y, m: m, target: TARGET });
 
   // ── categories ──
   var monthly = {};
@@ -2500,7 +2560,7 @@ function renderPacing() {
   var rows = [];
   BUDGET_CATEGORIES.forEach(function(cat) {
     if (!cat.budget) return;
-    var mb = Math.round(getCatBudget(cat.name, cat.budget) / 3);
+    var mb = getMonthCatBudget(cat.name, y, m);
     if (!mb) return;
     var sp = monthly[cat.name] || 0;
     var st = _paceStatus(sp, mb, frac);
@@ -2529,7 +2589,7 @@ function renderPacing() {
     if (budgeted[c] || !monthly[c]) return;
     unbudgeted += monthly[c]; unbNames.push(c + ' ' + fmt(monthly[c]));
   });
-  var cushion = PACE_TARGET - budgetSum;
+  var cushion = TARGET - budgetSum;
   var used = catNet + unbudgeted;
   var cLeft = cushion - used;
   var cStatus = cLeft < 0 ? 'over' : (used > cushion * frac * 1.05 && used > 0) ? 'ahead' : 'ok';
@@ -2653,13 +2713,129 @@ function watchSeeCharges(name) {
   document.body.appendChild(overlay);
 }
 
+// ── WEEKLY TARGETS (v4.1.0) ─────────────────────────────────────────────────
+// Weeks run Monday–Sunday. Catch-up targets: at the start of a week, whatever is
+// left of each month's target (or category budget) is spread evenly over that
+// month's remaining days, and the week's target is the sum for its 7 days.
+// A week that straddles two months takes days from each.
+var WEEK_EXCLUDE = { 'Groceries': true, 'Gas & transit': true, 'Digital Subscriptions': true, 'House Subscriptions': true };
+var wkShowAll = false;
+function _weekStart(d) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); var dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return x; }
+function _everydayBetween(from, to, cat) { // inclusive dates
+  var total = 0, t0 = from.getTime(), t1 = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59).getTime();
+  var seen = {};
+  for (var d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d.setMonth(d.getMonth() + 1)) {
+    var k = getQuarterKeyForDate(d); if (seen[k]) continue; seen[k] = true;
+    loadEntries(k).forEach(function(e) { if (e.ts < t0 || e.ts > t1) return; if (cat && (e.cat || 'Other') !== cat) return; total += _paceEveryday(e); });
+  }
+  return total;
+}
+function _weekTarget(ws, cat, clipFrom, clipTo) {
+  // cat: undefined = whole everyday target; otherwise that category's budget
+  var target = 0, perMonth = {};
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i);
+    if ((clipFrom && d < clipFrom) || (clipTo && d > clipTo)) continue;
+    var key = d.getFullYear() + '-' + d.getMonth();
+    if (!perMonth[key]) {
+      var y = d.getFullYear(), m = d.getMonth(), days = new Date(y, m + 1, 0).getDate();
+      var mStart = new Date(y, m, 1), from = ws > mStart ? ws : mStart;
+      var budget = cat ? getMonthCatBudget(cat, y, m) : monthTarget(y, m);
+      var before = ws > mStart ? _everydayBetween(mStart, new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() - 1), cat) : 0;
+      var daysLeft = days - from.getDate() + 1;
+      perMonth[key] = Math.max(0, budget - before) / daysLeft;
+    }
+    target += perMonth[key];
+  }
+  return target;
+}
+function renderWeekly() {
+  if (!document.getElementById('wk-card') || !record) return;
+  var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  var mnS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var ws = _weekStart(today), we = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6);
+  var dayIdx = Math.round((today - ws) / 86400000), frac = (dayIdx + 1) / 7;
+  var target = _weekTarget(ws);
+  var daily = [];
+  for (var i = 0; i < 7; i++) { var d = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i); daily.push(i <= dayIdx ? _everydayBetween(d, d) : null); }
+  var spent = daily.reduce(function(t, v) { return t + (v || 0); }, 0);
+  var status = _paceStatus(spent, target, frac);
+  var labels = { ok: 'On track', ahead: 'Ahead of pace', over: 'Over' };
+  var rng = function(a, b) { return mnS[a.getMonth()] + ' ' + a.getDate() + '\u2013' + (a.getMonth() === b.getMonth() ? '' : mnS[b.getMonth()] + ' ') + b.getDate(); };
+  document.getElementById('wk-title').textContent = 'This week \u00b7 ' + rng(ws, we);
+  var pill = document.getElementById('wk-pill'); pill.className = 'pace-pill ' + status; pill.textContent = labels[status];
+  document.getElementById('wk-spent').textContent = fmt(spent);
+  document.getElementById('wk-target').textContent = 'of ' + fmt(target);
+  document.getElementById('wk-day').textContent = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][dayIdx] + ', day ' + (dayIdx + 1) + ' of 7';
+  var left = target - spent, daysLeft = 7 - dayIdx;
+  var sent;
+  if (target < 1) sent = 'The month\u2019s target is already used up, so this week\u2019s catch-up target is <b>$0</b>.';
+  else if (left < 0) sent = '<b>' + fmt(-left) + ' over</b> this week' + (daysLeft > 1 ? ', with ' + daysLeft + ' days left.' : '.');
+  else sent = '<b>' + fmt(left) + ' left</b> for ' + (daysLeft === 1 ? 'today' : daysLeft + ' days') + (daysLeft > 1 ? ', about <b>' + fmt(left / daysLeft) + ' a day</b>.' : '.');
+  document.getElementById('wk-sentence').innerHTML = sent;
+  // day bars
+  var avg = target / 7, perDayLeft = daysLeft > 0 ? Math.max(0, left) / daysLeft : 0;
+  var max = Math.max(avg * 1.6, Math.max.apply(null, daily.map(function(v) { return v || 0; })), 1), H = 78;
+  var html = '';
+  ['M','T','W','T','F','S','S'].forEach(function(n, i) {
+    var v = daily[i], fut = v === null, h = fut ? Math.max(3, perDayLeft / max * H) : Math.max(2, v / max * H);
+    var col = !fut && v > avg * 1.5 ? 'var(--sun)' : 'var(--grass)';
+    html += '<div class="wk-day' + (i === dayIdx ? ' today' : '') + (fut ? ' future' : '') + '"><span class="amt">' + (fut ? '' : fmt(v)) + '</span><b style="height:' + h + 'px;background:' + col + '"></b><span>' + n + '</span></div>';
+  });
+  if (avg > 0) html += '<div class="wk-avg" style="bottom:' + (avg / max * H + 18) + 'px"><span>' + fmt(avg) + '/day</span></div>';
+  document.getElementById('wk-days').innerHTML = html;
+  // category weekly limits
+  var rows = [];
+  BUDGET_CATEGORIES.forEach(function(c) {
+    if (!c.budget || WEEK_EXCLUDE[c.name]) return;
+    var lim = _weekTarget(ws, c.name), sp = _everydayBetween(ws, today, c.name);
+    var st = _paceStatus(sp, lim, frac);
+    if (lim < 1 && sp <= 0) st = 'ok';
+    rows.push({ name: c.name, spent: sp, lim: lim, status: st, rank: { over: 3, ahead: 2, ok: 1 }[st] });
+  });
+  rows.sort(function(a, b) { return b.rank - a.rank || (b.spent / Math.max(b.lim, 1)) - (a.spent / Math.max(a.lim, 1)); });
+  var colors = { ok: 'var(--grass)', ahead: 'var(--sun)', over: 'var(--red)' };
+  var shown = wkShowAll ? rows : rows.slice(0, 4), box = document.getElementById('wk-cats');
+  box.innerHTML = '';
+  shown.forEach(function(r) {
+    var diff = r.spent - r.lim, tag = diff > 0.5 ? fmt(diff) + ' over' : fmt(-diff) + ' left';
+    var div = document.createElement('div'); div.className = 'pace-cat';
+    div.onclick = function() { showCategoryRegister(r.name); };
+    div.innerHTML = '<div class="pace-cat-row"><span>' + r.name + ' <span class="pace-pill ' + r.status + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + tag + '</span></span><span class="pace-cat-amt">' + fmt(r.spent) + ' / ' + fmt(r.lim) + '</span></div>' +
+      '<div class="pace-track"><div class="pace-fill" style="width:' + (r.lim > 0 ? Math.min(100, r.spent / r.lim * 100) : (r.spent > 0 ? 100 : 0)) + '%;background:' + colors[r.status] + '"></div><div class="pace-tick" style="left:' + (frac * 100) + '%"></div></div>';
+    box.appendChild(div);
+  });
+  var more = document.getElementById('wk-more');
+  more.style.display = rows.length > 4 ? '' : 'none';
+  more.textContent = wkShowAll ? 'Show fewer' : 'Show all ' + rows.length + ' weekly limits';
+  // weeks in the month
+  var mStart = new Date(today.getFullYear(), today.getMonth(), 1), mEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  document.getElementById('wks-title').textContent = 'Weeks in ' + ['January','February','March','April','May','June','July','August','September','October','November','December'][today.getMonth()];
+  var tiles = '';
+  for (var w = _weekStart(mStart); w <= mEnd; w = new Date(w.getFullYear(), w.getMonth(), w.getDate() + 7)) {
+    var wEnd = new Date(w.getFullYear(), w.getMonth(), w.getDate() + 6);
+    if (w > today) break;
+    var cur = w.getTime() === ws.getTime();
+    var cFrom = w < mStart ? mStart : w, cTo = wEnd > mEnd ? mEnd : wEnd;
+    var t = _weekTarget(w, undefined, mStart, mEnd), sp2 = _everydayBetween(cFrom, cur ? (today < cTo ? today : cTo) : cTo);
+    var d2 = sp2 - t, cls, txt;
+    if (cur) { cls = 'var(--sky-dim)'; txt = 'so far'; }
+    else if (d2 <= 0) { cls = 'var(--grass-dim)'; txt = fmt(-d2) + ' under'; }
+    else { cls = d2 > t * 0.25 ? 'var(--red)' : 'var(--sun-dim)'; txt = '+' + fmt(d2); }
+    tiles += '<div class="wks-tile' + (cur ? ' cur' : '') + '"><span class="d">' + (cFrom.getTime() === cTo.getTime() ? mnS[cFrom.getMonth()] + ' ' + cFrom.getDate() : rng(cFrom, cTo)) + '</span><span class="t">' + fmt(sp2) + '</span><span class="s" style="color:' + cls + '">' + txt + '</span><span class="d">of ' + fmt(t) + '</span></div>';
+  }
+  document.getElementById('wks-grid').innerHTML = tiles;
+}
+
 function togglePaceCats() { paceShowAllCats = !paceShowAllCats; renderPacing(); }
 
 function renderPaceChart(cum, last, days, thisLbl, lastLbl, expected, info) {
+  var PT = (info && info.target) || PACE_TARGET;
   var wrap = document.getElementById('pace-chart');
   if (!wrap) return;
   var W = 340, H = 170, m = { l: 38, r: 8, t: 10, b: 22 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
-  var top = Math.max(PACE_TARGET, cum.length ? cum[cum.length - 1] : 0, last.length ? last[last.length - 1] : 0, expected ? expected[expected.length - 1] : 0);
+  var top = Math.max(PT, cum.length ? cum[cum.length - 1] : 0, last.length ? last[last.length - 1] : 0, expected ? expected[expected.length - 1] : 0);
   var step = top > 12000 ? 4000 : top > 6000 ? 2000 : 1000;
   var max = Math.ceil(top / step) * step;
   var x = function(d) { return m.l + (d - 1) / (days - 1) * iw; };
@@ -2682,7 +2858,7 @@ function renderPaceChart(cum, last, days, thisLbl, lastLbl, expected, info) {
       svg += '<text x="' + (x(i + 1) - 3) + '" y="' + (y(expected[i]) - 5) + '" text-anchor="end" style="font-size:10px">' + nm + '</text>';
     });
   } else {
-    svg += '<line x1="' + x(1) + '" y1="' + y(0) + '" x2="' + x(days) + '" y2="' + y(PACE_TARGET) + '" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="3 3"/>';
+    svg += '<line x1="' + x(1) + '" y1="' + y(0) + '" x2="' + x(days) + '" y2="' + y(PT) + '" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="3 3"/>';
   }
   svg += '<path d="' + path(cum) + '" fill="none" stroke="var(--coral)" stroke-width="2.5"/>';
   if (cum.length) svg += '<circle cx="' + x(cum.length) + '" cy="' + y(cum[cum.length - 1]) + '" r="4.5" fill="var(--coral)" stroke="var(--surface)" stroke-width="2"/>';
@@ -2698,7 +2874,7 @@ function renderPaceChart(cum, last, days, thisLbl, lastLbl, expected, info) {
     xl.setAttribute('x1', x(d)); xl.setAttribute('x2', x(d)); xl.setAttribute('visibility', 'visible');
     var tv = d <= cum.length ? '$' + Math.round(cum[d - 1]).toLocaleString('en-US') : '—';
     var lv = d <= last.length ? '$' + Math.round(last[d - 1]).toLocaleString('en-US') : '—';
-    var ev = expected ? expected[d - 1] : PACE_TARGET * d / days;
+    var ev = expected ? expected[d - 1] : PT * d / days;
     lbl.textContent = thisLbl + ' ' + d + ': ' + tv + ' · expected $' + Math.round(ev).toLocaleString('en-US') + ' · ' + lastLbl + ': ' + lv;
     var det = document.getElementById('pace-day-detail');
     if (det && info) {
@@ -2869,7 +3045,7 @@ function showCCBreakdown(ccYear, ccMonth, cycleFromStr, cycleToStr) {
       lines.push({ name: 'Rest of cycle (estimate)', amt: _gap, sub: 'keeps the forecast at $3,500 + bills until the statement closes' });
     }
   } else {
-    lines.push({ name: 'Discretionary spending (estimate)', amt: 3500, sub: 'default placeholder' });
+    lines.push({ name: 'Discretionary spending (estimate)', amt: fc.estimate - getScheduledCCInCycle(cycleFrom, cycleTo), sub: fc.estimate - getScheduledCCInCycle(cycleFrom, cycleTo) > 3500 ? 'includes this month\u2019s one-time budget' : 'default placeholder' });
     pushScheduled('all');
   }
 
@@ -4451,7 +4627,8 @@ function forecastCCPayment(ccYear, ccMonth, cycleFrom, cycleTo) {
   var overrideKey = 'cc_override_' + ccYear + '_' + ccMonth;
   var override = record && record.ccOverrides && record.ccOverrides[overrideKey];
   var scheduledAll = getScheduledCCInCycle(cycleFrom, cycleTo);
-  var estimate = 3500 + scheduledAll;
+  var extra = monthTargetExtra(cycleTo.getFullYear(), cycleTo.getMonth());
+  var estimate = 3500 + extra + scheduledAll;
   if (override) return { amt: parseFloat(override), mode: 'override', estimate: estimate };
   var hasEntries = hasCCEntries(cycleFrom, cycleTo);
   var startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
@@ -4753,7 +4930,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.0.0';
+var APP_VERSION = 'v4.1.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
