@@ -16,7 +16,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.6.2** (Nov 25, 2026: hide the iPad sidebar, demo mode, one-month budgets on the Add tiles). Bump patch/minor from here unless BC names a version.
+Live: **v4.6.3** (Nov 25, 2026: household figures moved out of the code into the record). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -41,7 +41,8 @@ Live: **v4.6.2** (Nov 25, 2026: hide the iPad sidebar, demo mode, one-month budg
 ## Data model (`record`)
 - `entries` keyed by quarter (`2026_Q4`): `{id, ts, amt, cat, type, payMethod, note, pending?,
   fundCoverage?, fundBillId?}`. `payMethod`: `cc`, `checking`, `income`, `credit` (negative amt).
-- `bills`: custom scheduled bills; defaults are `DEFAULT_BILLS` in code minus `deletedBills`.
+- `bills`: **every** scheduled bill, paycheck and savings transfer (v4.6.3: `DEFAULT_BILLS` in code is empty;
+  the old defaults were copied into `record.bills` with their `hc_*` ids, which also sit in `deletedBills`).
   Fields: `freq` (monthly/weekly/biweekly/quarterly/annual/once), `type` (in/out/save),
   `paidBy`, `day`, `startDate` (weekly/biweekly), `startMonth/Year`, `endMonth/Year`,
   `isFundTransfer`, `eom`, `cat` (report category, optional; guessed from the name if absent).
@@ -49,7 +50,8 @@ Live: **v4.6.2** (Nov 25, 2026: hide the iPad sidebar, demo mode, one-month budg
   amount or `'skip'`), `ccOverrides` (`cc_override_{y}_{m}`, a complete payment amount),
   `fundCovers` (`fund_cover_{id}_{y}_{m}_{d}`), `dismissedEvents` (`{y}-{m}-{d}-{Name_With_Underscores}`,
   month 0-indexed: the "skip" on upcoming events). `billPending`.
-- `config`: `ccCycleStart/End`, `budget`, `names`. `budgets`: quarterly category overrides.
+- `config`: `ccCycleStart/End`, `budget`, `names`, `everydayTarget` (code default is a generic 3000),
+  `may6Payment` (the one-off May 2026 card payment). `fundTargets[id]` = each sinking fund's target. `budgets`: quarterly category overrides.
 - `monthBudgets['YYYY-MM'][category]` = a one-month monthly amount (e.g. December gifts). The
   month's everyday target rises by the difference (`monthTarget`), and so does the CC forecast
   estimate for the cycle that closes in that month. `watchDone[key]` = ts (watch list).
@@ -108,8 +110,9 @@ Live: **v4.6.2** (Nov 25, 2026: hide the iPad sidebar, demo mode, one-month budg
   `buildDemoRecord()` makes a made-up household from today's date; while `demoMode` is on, `cloudGet`/`cloudSet`
   only touch `demoRecord` in memory and `callSheetsSync` does nothing. Any new code that writes anywhere
   must respect `demoMode` too. Add tiles and the dashboard's budget labels now count `monthBudgets`.
-- Open: `DEFAULT_BILLS` in this public repo still holds the household's real bills and paychecks; move them
-  into the record and out of the code (offered to BC Nov 25).
+- v4.6.3: no household figures in the code. Bills, paychecks, fund targets, the everyday target and the
+  May 2026 payment live in the record; new code must read them from there, never hard-code amounts.
+  (Older commits in git history still contain the old figures.)
 - The Camry loan is serviced by Royal Credit Union; due on the 3rd from Dec 2026 (the old bill ends Oct 2026).
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
