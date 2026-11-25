@@ -649,6 +649,15 @@ input, textarea, select { font-family: var(--font) !important; }
 }
 
 
+
+/* v4.6.4: version history */
+.ver { padding: 12px 0; border-bottom: 1px dashed var(--border); }
+.ver:last-child { border-bottom: none; }
+.ver-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ver-v { font-size: 17px; font-weight: 700; color: var(--text); }
+.ver-d { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.ver ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--text-2); line-height: 1.45; }
+.ver-now { font-size: 11px; letter-spacing: .12em; color: var(--grass-dim); border: 1px solid var(--grass-dim); border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
 /* v4.6.2: hide the iPad sidebar; demo mode */
 .sb-hide { margin-left: 6px; background: none; border: 1px solid var(--band-dim); color: var(--band-ink); border-radius: 4px; font-size: 16px; line-height: 1; padding: 3px 7px; cursor: pointer; font-family: var(--font); }
 #sb-show { display: none; }
@@ -1147,6 +1156,13 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
 
 
 <!-- SINKING FUNDS -->
+<div id="screen-versions" class="screen">
+<div class="back-row">
+<button class="back-btn" onclick="showScreen('screen-settings')">&#8592;</button>
+<span style="font-size:17px;font-weight:600;color:var(--sky)">Version history</span>
+</div>
+<div id="versions-content"></div>
+</div>
 <div id="screen-subs" class="screen">
 <div class="back-row">
 <button class="back-btn" onclick="showScreen(subsBackTo || 'screen-settings')">&#8592;</button>
@@ -1360,6 +1376,7 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
 <div class="set-sec-label">Account</div>
 <div class="set-list">
   <button class="set-item" onclick="updNow()"><span>Check for update<small>Hearth <span id="settings-version"></span></small></span><span class="val">&rsaquo;</span></button>
+  <button class="set-item" onclick="showScreen('screen-versions')"><span>Version history<small>What changed in each update</small></span><span class="val">&rsaquo;</span></button>
 </div>
 <button class="btn btn-red btn-full" style="padding:14px;margin-top:22px" onclick="doLock()">Lock / sign out</button>
 <div style="display:none"><input id="set-budget" type="number"><textarea id="set-names"></textarea><input type="checkbox" id="dark-mode-toggle"></div>
@@ -1645,6 +1662,7 @@ async function showScreen(id) {
   if (id === 'screen-history') { if (historyView !== 'cccycle' && historyView !== 'category' && historyView !== 'type' && historyView !== 'pl' && historyView !== 'reports' && historyView !== 'register' && historyView !== 'cycles') { historyQOffset = 0; historyMonthOffset = 0; historyView = 'register'; regMonthOffset = 0; regFilter = 'all'; regSearch = ''; } document.getElementById('hist-view-q').className = 'pill' + (historyView === 'quarter' ? ' sel-e' : ''); document.getElementById('hist-view-m').className = 'pill' + (historyView === 'month' ? ' sel-e' : ''); var ccP = document.getElementById('hist-view-cc'); if (ccP) ccP.className = 'pill' + (historyView === 'cccycle' ? ' sel-n' : ''); var plP = document.getElementById('hist-view-pl'); if (plP) plP.className = 'pill' + (historyView === 'pl' ? ' sel-e' : ''); var rpP = document.getElementById('hist-view-rep'); if (rpP) rpP.className = 'pill' + (historyView === 'reports' ? ' sel-e' : ''); _histPills(historyView); if (historyView === 'pl') { _restoreHistoryChrome(); renderPLView(); } else if (historyView === 'reports') { renderReportsView(); } else if (historyView === 'register') { renderRegister(); } else if (historyView === 'cycles') { renderCycles(); } else { _restoreHistoryChrome(); historyNav(0); } }
   if (id === 'screen-budget') { renderBudgetScreen(); }
   if (id === 'screen-subs') { renderSubscriptions(); }
+  if (id === 'screen-versions') { renderVersions(); }
   if (id === 'screen-settings') {
     updateSyncBadge();
     
@@ -2216,6 +2234,43 @@ async function saveBudgetSheet(removeOne) {
 
 
 
+
+// ═══ v4.6.4: VERSION HISTORY (Settings › Version history) ══════════════════
+// Newest first. Plain words, no household figures (this file is public).
+var VERSION_HISTORY = [
+  ['v4.6.4', 'Nov 25, 2026', ['Version history in Settings.', 'Bills can use the Runaway Anchor category.']],
+  ['v4.6.3', 'Nov 25, 2026', ['Your bills, paychecks and savings targets now live only in your private household record, not in the app’s code.', '“Create a household” removed from the lock screen.']],
+  ['v4.6.2', 'Nov 25, 2026', ['Hide the iPad sidebar for a wider screen (« next to the logo, » to bring it back).', 'Demo mode: show Hearth with a made-up household. Nothing is saved.', 'One-month budgets (like December gifts) show on the Add expense tiles.']],
+  ['v4.6.1', 'Nov 25, 2026', ['Merchant suggestions fold spellings of the same place together (Festival = Festival Foods).']],
+  ['v4.6.0', 'Nov 25, 2026', ['Add expense remembers merchants and fills in the category.', 'Subscriptions page with price-change flags.', 'Calendar on the Balance tab.', 'Goals on the Budget tab.']],
+  ['v4.5.0', 'Nov 25, 2026', ['iPad sidebar with At a glance cards.']],
+  ['v4.4.3', 'Nov 25, 2026', ['The fireplace mark on the Dashboard tab and the sidebar.']],
+  ['v4.4.2', 'Nov 25, 2026', ['New app icon: teal fireplace with a mint flame.']],
+  ['v4.4.1', 'Nov 25, 2026', ['Light mode in Hermes mint.']],
+  ['v4.4.0', 'Nov 25, 2026', ['The Typewriter look.', '+ Add expense at the top of the dashboard.', 'Settings reorganised.']],
+  ['v4.3.1', 'Nov 25, 2026', ['Card cycle reconciling against Capital One statements.']],
+  ['v4.3.0', 'Nov 25, 2026', ['Budget tab becomes your monthly plan, with an editable everyday target.']],
+  ['v4.2.1', 'Nov 25, 2026', ['Meeting a budget shows amber; red only once you’re over.']],
+  ['v4.2.0', 'Nov 25, 2026', ['History redesigned: Register, Card cycle and Reports.', 'The card cycle (25th–24th) rolls over by itself.']],
+  ['v4.1.0', 'Nov 25, 2026', ['Weekly catch-up targets.', 'One-month budgets.']],
+  ['v4.0.0', 'Nov 24, 2026', ['Watch list built from entry notes.']],
+  ['v3.16.0', 'Nov 24, 2026', ['Reports in History.']],
+  ['v3.15.0', 'Nov 24, 2026', ['Budget tab follows the calendar month.']],
+  ['v3.14.0', 'Nov 24, 2026', ['Cushion row under the categories.']],
+  ['v3.13.0', 'Nov 24, 2026', ['Essential / non-essential split bar.', 'Over/under amounts per category.', 'Month chart with bills.']],
+  ['v3.12.0', 'Nov 24, 2026', ['Monthly pacing on the dashboard.']],
+  ['v3.11.0', 'Nov 24, 2026', ['“Update ready · Reload” prompt.']],
+  ['v3.10.0', 'Nov 24, 2026', ['Card payment forecast never drops below the plan.', 'Editing a bill keeps its other settings.']],
+  ['v3.9.0', 'Nov 24, 2026', ['One-tap pending on Add expense and Recent entries.']],
+  ['Earlier', 'Apr – Nov 2026', ['Hearth begins: expenses, bills and paychecks, sinking funds and the checking forecast.']]
+];
+function renderVersions() {
+  var el = document.getElementById('versions-content'); if (!el) return;
+  try { window.scrollTo(0, 0); var ic = document.getElementById('ipad-content'); if (ic) ic.scrollTop = 0; } catch (e) {}
+  el.innerHTML = '<div class="card" style="padding:4px 17px">' + VERSION_HISTORY.map(function(v) {
+    return '<div class="ver"><div class="ver-h"><span class="ver-v">' + v[0] + (v[0] === APP_VERSION ? '<span class="ver-now">THIS VERSION</span>' : '') + '</span><span class="ver-d">' + v[1] + '</span></div><ul>' + v[2].map(function(t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>';
+  }).join('') + '</div>';
+}
 // ═══ v4.6.2 ═══════════════════════════════════════════════════════════════
 // ── HIDE THE iPAD SIDEBAR ──────────────────────────────────────────────────
 function setSidebarHidden(on) {
@@ -3671,7 +3726,7 @@ var plMonthOffset = 0;
 // Expenses: card spending (incl. fund-covered purchases), card bills, checking
 // bills. Not expenses: sinking-fund transfers, card payments and allowances
 // (allowances count as transfers, shown on their own line).
-var REPORT_BILL_CATS = ['Home & utilities','Car','Phone & internet','Insurance','Loans & tuition','Taxes','Health & fitness','Pets','Medical','Digital Subscriptions','House Subscriptions','Other cards','Allowances','Card payment','Other'];
+var REPORT_BILL_CATS = ['Home & utilities','Car','Phone & internet','Insurance','Loans & tuition','Taxes','Health & fitness','Pets','Medical','Digital Subscriptions','House Subscriptions','Other cards','Allowances','Card payment','Runaway Anchor','Other'];
 function guessBillCategory(name) {
   var n = String(name || '').toLowerCase();
   for (var i = 0; i < BUDGET_CATEGORIES.length; i++) if (BUDGET_CATEGORIES[i].name.toLowerCase() === n) return BUDGET_CATEGORIES[i].name;
@@ -5711,7 +5766,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.6.3';
+var APP_VERSION = 'v4.6.4';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
