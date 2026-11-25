@@ -3,7 +3,8 @@
 Hearth is a family budget web app, a single file (`index.html`, vanilla JS/HTML/CSS) served by
 GitHub Pages at **hearth.stillwater.place** (CNAME → `bcgordon.github.io`). Data lives in
 Supabase (project **Home Finance**, table `households`, one JSON `data` record per household).
-**Look (v4.4.0): Typewriter**, after myStereo's favourite view: cream paper + blue ink (light),
+**Look (v4.4.0): Typewriter**, after myStereo's favourite view: cream paper cards on a pale mint page with Hermes-mint keycaps, band and tab bar (light, mint
+sampled from a Hermes typewriter: #a0d8c8 / #b8f0df / #88c0b0), blue ink,
 Deep Teal (dark), American Typewriter (on every household device; Courier Prime fallback), a seafoam
 band with a chrome strip on each header, cream keycaps for main actions, flat thin-ruled surfaces.
 Only Light / Dark / Match phone (`hft_mode`). The skin is the `TYPEWRITER SKIN` block at the end of
@@ -13,7 +14,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.4.0** (Nov 25, 2026: Typewriter look, Settings reorganised, + Add expense at the top). Bump patch/minor from here unless BC names a version.
+Live: **v4.4.1** (Nov 25, 2026: light mode in Hermes mint). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -85,7 +86,7 @@ Live: **v4.4.0** (Nov 25, 2026: Typewriter look, Settings reorganised, + Add exp
   (see `_paceBillsByDay`). Monthly `eom` bills fall on the last day of the month.
 
 ## Known open items
-- v4.4.1 to do: Settings day pickers (statement close / autopay) are display-only — wire them
+- Next (v4.4.x) to do: Settings day pickers (statement close / autopay) are display-only — wire them
   carefully (cycle code); tidy older screens (Balance, Funds, Bills) and the iPad sidebar.
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
