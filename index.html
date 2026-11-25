@@ -1476,8 +1476,10 @@ function buildCategoryGrid(spendMap) {
     btn.dataset.cat = cat.name;
     let bottomLine = '';
     if (cat.budget) {
-      const qBudget = getCatBudget(cat.name, cat.budget); // stored as quarterly, may be overridden
-      const mBudget = Math.round(qBudget / 3); // monthly = quarter / 3
+      // this month's budget and this quarter's, both counting one-month budgets (monthBudgets)
+      const _now = new Date(), _qs = Math.floor(_now.getMonth() / 3) * 3;
+      const mBudget = getMonthCatBudget(cat.name, _now.getFullYear(), _now.getMonth());
+      const qBudget = [0, 1, 2].reduce(function(t, i) { return t + getMonthCatBudget(cat.name, _now.getFullYear(), _qs + i); }, 0);
       const mSpent = monthly[cat.name] || 0;
       const qSpent = quarterly[cat.name] || 0;
 
@@ -2721,9 +2723,8 @@ function refreshMain() {
   // Essential/Non-essential budget totals for sub-labels
   var essentialBudget = 0, nonEssentialBudget = 0;
   BUDGET_CATEGORIES.forEach(function(cat) {
-    var qb = getCatBudget(cat.name, cat.budget);
-    if (!qb) return;
-    var mb = Math.round(qb / 3);
+    var _n = new Date(), mb = getMonthCatBudget(cat.name, _n.getFullYear(), _n.getMonth());
+    if (!mb) return;
     if (cat.essential) essentialBudget += mb;
     else nonEssentialBudget += mb;
   });
@@ -5622,7 +5623,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.6.1';
+var APP_VERSION = 'v4.6.2';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
