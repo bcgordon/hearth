@@ -16,7 +16,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.6.5** (Nov 25, 2026: card bills on the Balance calendar). Bump patch/minor from here unless BC names a version.
+Live: **v4.6.6** (Nov 25, 2026: the Calm button). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -121,6 +121,10 @@ Live: **v4.6.5** (Nov 25, 2026: card bills on the Balance calendar). Bump patch/
 - v4.6.5: the Balance calendar shows card bills (💳 next to the date; "On the card" list when a day is
   tapped) for reference only. `buildProjection` still excludes `paidBy: 'cc'` bills on purpose: they're
   inside the card payment on the 19th, so they never change a day's checking total or balance bar.
+- v4.6.6: **Calm** (`openCalm`/`closeCalm`, `#calm`): Deep Teal full screen, `calm-hearth.png` (the 640px
+  fireplace with the flame dimmed) + `calm-flame.png` (the flame cut out, animated: flicker + sway),
+  a glow over the logs, a halo and the words "breathe in / breathe out" on a 10 s cycle (5 in, 5 out),
+  "I'm calm now" lower right. Opened from the dashboard (under the quote) and the iPad sidebar.
 - The Camry loan is serviced by Royal Credit Union; due on the 3rd from Dec 2026 (the old bill ends Oct 2026).
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
