@@ -699,6 +699,10 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
 .cal-d { font-size: 11px; color: var(--text-3); }
 .cal-in { font-size: 10px; color: var(--grass-dim); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cal-out { font-size: 10px; color: var(--coral); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-d { display: flex; justify-content: space-between; align-items: center; }
+.cal-card { font-style: normal; font-size: 9px; opacity: .8; }
+@media (max-width: 767px) { .cal-day { padding: 3px 2px; } .cal-in, .cal-out { font-size: 9px; letter-spacing: -.03em; } }
+.cal-card-h { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
 .cal-bal { margin-top: auto; height: 4px; border-radius: 2px; }
 .cal-list { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
 .cal-list div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--border); padding: 4px 0; }
@@ -2262,6 +2266,7 @@ applyTextSize();
 // ═══ v4.6.4: VERSION HISTORY (Settings › Version history) ══════════════════
 // Newest first. Plain words, no household figures (this file is public).
 var VERSION_HISTORY = [
+  ['v4.6.5', 'Nov 25, 2026', ['Card bills (Netflix, Spotify and the rest) show on their dates in the Balance calendar, marked 💳. They\u2019re already inside the card payment on the 19th, so they don\u2019t change the balance.']],
   ['v4.6.4', 'Nov 25, 2026', ['Bigger text, with a Text size choice in Settings (Standard, Larger, Largest).', 'The iPad and desktop sidebar stays in place when you scroll.', 'Version history in Settings.', 'Bills can use the Runaway Anchor category.']],
   ['v4.6.3', 'Nov 25, 2026', ['Your bills, paychecks and savings targets now live only in your private household record, not in the app’s code.', '“Create a household” removed from the lock screen.']],
   ['v4.6.2', 'Nov 25, 2026', ['Hide the iPad sidebar for a wider screen (« next to the logo, » to bring it back).', 'Demo mode: show Hearth with a made-up household. Nothing is saved.', 'One-month budgets (like December gifts) show on the Add expense tiles.']],
@@ -2600,6 +2605,19 @@ function renderCalendar() {
   var running = null, start = new Date(Math.max(today, new Date(y, m, 1) - 0)), probe = new Date(today);
   var balOn = function(d) { var t = new Date(today), b = null; while (t <= d) { var k = t.toDateString(); if (eod[k] !== undefined) b = eod[k]; t.setDate(t.getDate() + 1); } return b; };
   var first = new Date(y, m, 1), lead = (first.getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
+  // v4.6.5: card bills on their own dates, for reference only. They're already inside the card
+  // payment on the 19th, so they never change a day's checking total or balance bar.
+  var cardByDay = {}, ovs = record.billOverrides || {}, dis = record.dismissedEvents || {};
+  getAllBills().forEach(function(b) {
+    if (b.paidBy !== 'cc' || b.type !== 'out' || !(b.amt > 0) || b.isFundTransfer) return;
+    getBillOccurrencesInRange(b, new Date(y, m, 1), new Date(y, m, days, 23, 59, 59)).forEach(function(od) {
+      od = new Date(od); if (b.freq === 'monthly' && b.eom) od = new Date(y, m, days);
+      var ov = ovs['bill_override_' + b.id + '_' + od.getFullYear() + '_' + od.getMonth() + '_' + od.getDate()];
+      if (ov === 'skip' || dis[od.getFullYear() + '-' + od.getMonth() + '-' + od.getDate() + '-' + b.name.replace(/\s/g, '_')]) return;
+      var a = (ov !== undefined && !isNaN(parseFloat(ov))) ? parseFloat(ov) : b.amt;
+      (cardByDay[od.toDateString()] = cardByDay[od.toDateString()] || []).push({ name: b.name, amt: a });
+    });
+  });
   var h = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><span class="section-head" style="margin:0">Calendar</span><span style="display:flex;gap:6px;align-items:center"><button class="pill" style="padding:4px 10px !important" onclick="calOffset--;calSel=null;renderCalendar()"' + (calOffset <= 0 ? ' disabled style="opacity:.4"' : '') + '>‹</button><b style="font-size:15px;min-width:120px;text-align:center">' + MN[m] + ' ' + y + '</b><button class="pill" style="padding:4px 10px !important" onclick="calOffset++;calSel=null;renderCalendar()">›</button></span></div>';
   h += '<div class="cal-grid">' + ['M','T','W','T','F','S','S'].map(function(d) { return '<div class="cal-dow">' + d + '</div>'; }).join('');
   for (var i = 0; i < lead; i++) h += '<div></div>';
@@ -2610,14 +2628,21 @@ function renderCalendar() {
     var outs = evs.filter(function(e) { return e.type !== 'in' && !e.fundCovered; }).reduce(function(s, e) { return s + e.amt; }, 0);
     var bal = past ? null : balOn(dt);
     var col = bal === null ? 'transparent' : bal < 2000 ? 'var(--red)' : bal < 3000 ? 'var(--sun)' : 'var(--grass)';
-    h += '<button class="cal-day' + (past ? ' out' : '') + (k === today.toDateString() ? ' today' : '') + (calSel === k ? ' sel' : '') + '" onclick="calSel=\'' + k + '\';renderCalendar()"><span class="cal-d">' + d + '</span>' + (ins ? '<span class="cal-in">+' + _calK(ins) + '</span>' : '') + (outs ? '<span class="cal-out">−' + _calK(outs) + '</span>' : '') + '<span class="cal-bal" style="background:' + col + '"></span></button>';
+    var cards = (cardByDay[k] || []).reduce(function(s, e) { return s + e.amt; }, 0);
+    h += '<button class="cal-day' + (past ? ' out' : '') + (k === today.toDateString() ? ' today' : '') + (calSel === k ? ' sel' : '') + '" onclick="calSel=\'' + k + '\';renderCalendar()"><span class="cal-d">' + d + (cards ? '<i class="cal-card" title="card bills">💳</i>' : '') + '</span>' + (ins ? '<span class="cal-in">+' + _calK(ins) + '</span>' : '') + (outs ? '<span class="cal-out">−' + _calK(outs) + '</span>' : '') + '<span class="cal-bal" style="background:' + col + '"></span></button>';
   }
-  h += '</div><div style="font-size:12px;color:var(--text-3);margin-top:6px">The bar under each day is that day’s ending balance: green $3k+, amber $2k–3k, red under $2k.</div>';
+  h += '</div><div style="font-size:12px;color:var(--text-3);margin-top:6px">The bar under each day is that day’s ending balance: green $3k+, amber $2k–3k, red under $2k. 💳 = card bills that day, already inside the card payment on the 19th.</div>';
   var selDate = calSel ? new Date(calSel) : (calOffset === 0 ? today : new Date(y, m, 1));
   var sk = selDate.toDateString(), sev = byDay[sk] || [], sb = selDate < today ? null : balOn(selDate);
   h += '<div class="cal-list"><div style="border:none"><b>' + selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) + '</b><span>' + (sb !== null ? 'ends at ' + fmt(sb) : '') + '</span></div>';
-  if (!sev.length) h += '<div style="color:var(--text-3);border:none">Nothing scheduled.</div>';
+  var scard = cardByDay[sk] || [];
+  if (!sev.length) h += '<div style="color:var(--text-3);border:none">' + (scard.length ? 'Nothing from checking.' : 'Nothing scheduled.') + '</div>';
   sev.forEach(function(e) { h += '<div><span>' + e.name + (e.fundCovered ? ' <small style="color:var(--text-3)">(fund-covered)</small>' : '') + '</span><span style="color:' + (e.type === 'in' ? 'var(--grass-dim)' : e.type === 'save' ? 'var(--sky)' : 'var(--coral)') + '">' + (e.type === 'in' ? '+' : '−') + fmt(e.amt) + '</span></div>'; });
+  if (scard.length) {
+    h += '<div style="border:none;margin-top:6px"><span class="cal-card-h">On the card</span><span class="cal-card-h">' + '$' + scard.reduce(function(s, e) { return s + e.amt; }, 0).toFixed(2) + '</span></div>';
+    scard.forEach(function(e) { h += '<div style="color:var(--text-2)"><span>💳 ' + e.name + '</span><span>' + '$' + e.amt.toFixed(2) + '</span></div>'; });
+    h += '<div style="color:var(--text-3);font-size:12px;border:none">Paid with the card payment on the 19th, so not counted again here.</div>';
+  }
   card.innerHTML = h + '</div>';
 }
 
@@ -5790,7 +5815,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.6.4';
+var APP_VERSION = 'v4.6.5';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
