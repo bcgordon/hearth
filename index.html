@@ -765,6 +765,7 @@ input, textarea, select { font-family: var(--font) !important; }
 <button class="icon-btn" onclick="showScreen('screen-settings')">Settings</button>
 </div>
 </div>
+<button class="btn btn-coral btn-full" style="padding:17px;margin:2px 0 14px;font-size:18px" onclick="showScreen('screen-add')">+ Add expense</button>
 <div id="quote-of-day" style="padding:10px 16px 2px;font-size:14px;color:var(--text-3);font-style:italic;text-align:center;line-height:1.5"></div>
 <!-- This week (v4.1.0) -->
 <div class="card card-sky" id="wk-card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:10px">
@@ -894,7 +895,6 @@ input, textarea, select { font-family: var(--font) !important; }
   <div id="monthly-grid" style="display:none"></div>
 </div>
 
-<button class="btn btn-coral btn-full" style="padding:19px;border-radius:var(--radius-sm);margin-bottom:24px;font-size:17px" onclick="showScreen('screen-add')">+ Add expense</button>
 <div class="section-head">Recent entries</div>
 <div class="card" id="entries-list">
 <p style="font-size:18px;color:var(--text-3);text-align:center;padding:12px 0;font-style:italic">No entries yet this quarter</p>
@@ -1584,6 +1584,8 @@ async function cloudSet(data) {
 let record = null;
 
 async function showScreen(id) {
+  var _bnMap = { 'screen-main':'bn-main','screen-balance':'bn-balance','screen-budget':'bn-budget','screen-history':'bn-history','screen-settings':'bn-settings' };
+  if (_bnMap[id]) document.querySelectorAll('.bottom-nav-btn').forEach(function(b) { b.classList.toggle('active', b.id === _bnMap[id]); });
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'screen-add' && config) {

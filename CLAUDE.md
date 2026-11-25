@@ -3,13 +3,17 @@
 Hearth is a family budget web app, a single file (`index.html`, vanilla JS/HTML/CSS) served by
 GitHub Pages at **hearth.stillwater.place** (CNAME → `bcgordon.github.io`). Data lives in
 Supabase (project **Home Finance**, table `households`, one JSON `data` record per household).
-Parchment and dark themes, Zilla Slab, 16px base text.
+**Look (v4.4.0): Typewriter**, after myStereo's favourite view: cream paper + blue ink (light),
+Deep Teal (dark), American Typewriter (on every household device; Courier Prime fallback), a seafoam
+band with a chrome strip on each header, cream keycaps for main actions, flat thin-ruled surfaces.
+Only Light / Dark / Match phone (`hft_mode`). The skin is the `TYPEWRITER SKIN` block at the end of
+the `<style>`; colours are the existing tokens (`--coral` = red ink, `--sky` = seafoam ink, etc.).
 
 This repo is **public**. Never commit household data, codes, balances, income figures or keys
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.3.1** (Nov 25, 2026: Card cycle reconciling, running total, Start fresh). Bump patch/minor from here unless BC names a version.
+Live: **v4.4.0** (Nov 25, 2026: Typewriter look, Settings reorganised, + Add expense at the top). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -80,6 +84,8 @@ Live: **v4.3.1** (Nov 25, 2026: Card cycle reconciling, running total, Start fre
   (see `_paceBillsByDay`). Monthly `eom` bills fall on the last day of the month.
 
 ## Known open items
+- v4.4.1 to do: Settings day pickers (statement close / autopay) are display-only — wire them
+  carefully (cycle code); tidy older screens (Balance, Funds, Bills) and the iPad sidebar.
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
   (e.g. checking entries); align them when touched.
