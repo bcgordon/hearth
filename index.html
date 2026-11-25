@@ -2294,6 +2294,7 @@ function renderSubscriptions() {
     var h = logged[kk].filter(function(e) { return new Date(e.ts) >= d150; });
     if (h.length < 2) return;
     var last = h[h.length - 1]; if (new Date(last.ts) < d90) return;
+    if (record.watchDone && record.watchDone[kk] && record.watchDone[kk] > last.ts) return; // cancelled (Done on the watch list)
     var recent = h.filter(function(e) { return new Date(e.ts) >= d90; });
     var monthly = recent.reduce(function(t, e) { return t + e.amt; }, 0) / 3;
     rows.push({ name: String(last.note).replace(/\(.*?\)/g, '').trim(), monthly: monthly, amt: last.amt, freq: 'logged', src: 'Logged ' + h.length + '×', last: last, prev: h[h.length - 2], watch: watch[kk], cat: last.cat });
@@ -2366,7 +2367,11 @@ function _defaultGoals() {
     { id: 'g_camry', name: 'Camry paid off', kind: 'payoff', target: 0, current: null, monthly: amt(/camry/i) || 737 }
   ];
 }
-function getGoals() { return (record && record.goals && record.goals.length) ? record.goals : _defaultGoals(); }
+function getGoals() {
+  var g = (record && record.goals && record.goals.length) ? record.goals : _defaultGoals();
+  // the Emergency fund goal always shows the fund's own balance
+  return g.map(function(x) { return x.id === 'g_emerg' ? Object.assign({}, x, { current: getFundBalance('hc_sf_emerg') }) : x; });
+}
 function _goalsCard() {
   var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
   var MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
