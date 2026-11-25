@@ -840,7 +840,7 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
     <span class="pace-pill ok" id="pace-pill">On track</span>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px;flex-wrap:wrap">
-    <span><span class="pace-big" id="pace-spent">$0</span> <span class="pace-of" id="pace-target">of $3,500</span></span>
+    <span><span class="pace-big" id="pace-spent">$0</span> <span class="pace-of" id="pace-target"></span></span>
     <span class="pace-of" id="pace-day"></span>
   </div>
   <div class="pace-track" id="pace-track"><div class="pace-fill" id="pace-fill-e" style="background:var(--grass);border-radius:7px 0 0 7px"></div><div class="pace-fill" id="pace-fill-n" style="background:var(--sun);border-radius:0 7px 7px 0"></div><div class="pace-tick" id="pace-tick"><span id="pace-tick-label"></span></div></div>
@@ -1142,26 +1142,7 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
   </div>
   <div class="card" style="margin-bottom:12px">
     <div class="section-head" style="margin-bottom:10px">Sinking fund targets</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <span style="font-size:15px;color:var(--text)">Emergency fund</span>
-      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$750/mo</div><div style="font-size:12px;color:var(--text-3)">target $21,000</div></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <span style="font-size:15px;color:var(--text)">Home/auto/insurance</span>
-      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$370/mo</div><div style="font-size:12px;color:var(--text-3)">target $6,000</div></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <span style="font-size:15px;color:var(--text)">Medical &amp; pets</span>
-      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$165/mo</div><div style="font-size:12px;color:var(--text-3)">target $3,000</div></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <span style="font-size:15px;color:var(--text)">Travel fund</span>
-      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$165/mo</div><div style="font-size:12px;color:var(--text-3)">target $5,000</div></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
-      <span style="font-size:15px;color:var(--text)">Big purchases</span>
-      <div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$120/mo</div><div style="font-size:12px;color:var(--text-3)">target $3,000</div></div>
-    </div>
+    <div id="bills-fund-targets"></div>
   </div>
 </div>
 
@@ -1191,7 +1172,7 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
     <div id="funds-total-bar-track" class="progress-track" style="height:14px;margin-bottom:8px">
       <div id="funds-total-bar" style="height:100%;background:var(--sky);border-radius:var(--radius-pill);transition:width 0.4s;width:0%"></div>
     </div>
-    <div style="font-size:13px;color:var(--sky-dim)">Monthly contributions: $1,716 total across all funds</div>
+    <div id="funds-monthly-total" style="font-size:13px;color:var(--sky-dim)"></div>
   </div>
 
   <div id="funds-list"></div>
@@ -2304,10 +2285,11 @@ function buildDemoRecord() {
   return {
     demo: true,
     config: { names: ['Alex', 'Sam'], budget: 3000, everydayTarget: 3000, created: start.getTime() },
-    entries: entries, bills: bills, deletedBills: DEFAULT_BILLS.map(function(b) { return b.id; }),
+    entries: entries, bills: bills, deletedBills: [],
     budgets: { 'Groceries': 2400, 'Meals': 1500, 'Coffee & treats': 300, 'Wine & spirits': 150, 'Shopping': 900, 'Medical': 300, 'Pets': 300, 'Entertainment': 300, 'Gas & transit': 450, 'Personal & gifts': 240, 'House Subscriptions': 150, 'Digital Subscriptions': 150 },
     monthBudgets: monthBudgets,
     balance: { amt: 6240, updated: Date.now() },
+    fundTargets: { hc_sf_emerg: 15000, hc_sf_home: 2500, hc_sf_med: 1500, hc_sf_travel: 3000, hc_sf_big: 2000 },
     funds: { hc_sf_emerg: { bal: 7400, updated: Date.now() }, hc_sf_travel: { bal: 1150, updated: Date.now() }, hc_sf_home: { bal: 820, updated: Date.now() }, hc_sf_big: { bal: 0, updated: Date.now() }, hc_sf_med: { bal: 0, updated: Date.now() } },
     goals: [
       { id: 'g_emerg', name: 'Emergency fund', kind: 'save', target: 15000, current: 7400, monthly: 400 },
@@ -2564,13 +2546,9 @@ function renderCalendar() {
 // ── 4. GOALS (Budget tab) ──────────────────────────────────────────────────
 // record.goals = [{id, name, kind: 'save'|'payoff', target, current, monthly}]
 function _defaultGoals() {
-  var emerg = (FUND_DEFS || []).find(function(f) { return f.id === 'hc_sf_emerg'; }) || { target: 21000 };
+  var emerg = (FUND_DEFS || []).find(function(f) { return f.id === 'hc_sf_emerg'; }) || {};
   var bills = getAllBills(), amt = function(re) { var b = bills.find(function(x) { return re.test(x.name) && x.type !== 'in'; }); return b ? b.amt : 0; };
-  return [
-    { id: 'g_emerg', name: 'Emergency fund', kind: 'save', target: emerg.target || 21000, current: getFundBalance('hc_sf_emerg'), monthly: amt(/emergency/i) || 750 },
-    { id: 'g_student', name: 'Student loan paid off', kind: 'payoff', target: 0, current: null, monthly: amt(/student loan/i) || 368 },
-    { id: 'g_camry', name: 'Camry paid off', kind: 'payoff', target: 0, current: null, monthly: amt(/camry/i) || 737 }
-  ];
+  return [{ id: 'g_emerg', name: 'Emergency fund', kind: 'save', target: emerg.target || 0, current: getFundBalance('hc_sf_emerg'), monthly: amt(/emergency/i) }];
 }
 function getGoals() {
   var g = (record && record.goals && record.goals.length) ? record.goals : _defaultGoals();
@@ -2664,7 +2642,7 @@ function renderBudgetScreen() {
   var checkingBillsActual = actuals.checking;
   var savingsActual = actuals.savings;
 
-  var ccBudget = 3500;
+  var ccBudget = PACE_TARGET;
   var totalCommitment = ccBudget + checkingBills + savingsTotal;
   var netMonthly = monthlyIncome - totalCommitment;
   var netActual = monthlyIncome - (getCCAppTotal() + checkingBillsActual + savingsActual);
@@ -2928,12 +2906,12 @@ function refreshMain() {
 }
 
 // ── MONTHLY PACING (v3.12.0) ─────────────────────────────────────────────────
-// Everyday card spending (cc + credits, not fund-covered) against the $3,500
+// Everyday card spending (cc + credits, not fund-covered) against the everyday target
 // discretionary target — the same figure the forecast uses. Calendar month.
 // Scheduled card bills are shown separately as already committed.
-var PACE_TARGET = 3500;
-// v4.3.0: the everyday target is editable (record.config.everydayTarget); default $3,500.
-function applyEverydayTarget() { var t = config && parseFloat(config.everydayTarget); PACE_TARGET = (t && t > 0) ? t : 3500; }
+var PACE_TARGET = 3000;
+// v4.3.0: the everyday target is editable (record.config.everydayTarget); default from the record.
+function applyEverydayTarget() { var t = config && parseFloat(config.everydayTarget); PACE_TARGET = (t && t > 0) ? t : 3000; }
 // One-month budget overrides (v4.1.0): record.monthBudgets['YYYY-MM'][category] = monthly amount.
 // A month's everyday target rises by however much its overrides exceed the usual budgets.
 function _monthKey(y, m) { return y + '-' + String(m + 1).padStart(2, '0'); }
@@ -3034,7 +3012,7 @@ function renderPacing() {
   document.getElementById('pace-spent').textContent = fmt(spent);
   document.getElementById('pace-target').textContent = 'of ' + fmt(TARGET);
   document.getElementById('pace-day').textContent = 'day ' + day + ' of ' + days;
-  // Essential (green) then non-essential (amber), as shares of the $3,500.
+  // Essential (green) then non-essential (amber), as shares of the target.
   // Past the target the bar is scaled to the total and outlined in red.
   var totE = 0, totN = 0;
   getMonthEntries(y, m).forEach(function(e) {
@@ -3134,7 +3112,7 @@ function renderPacing() {
       '<div class="pace-track"><div class="pace-fill" style="width:' + Math.min(100, r.spent / r.budget * 100) + '%;background:' + colors[r.status] + '"></div><div class="pace-tick" style="left:' + (frac * 100) + '%"></div></div>';
     box.appendChild(div);
   });
-  // ── cushion: the part of $3,500 no category budget claims ──
+  // ── cushion: the part of the target no category budget claims ──
   var budgetSum = 0, catNet = 0, unbudgeted = 0, unbNames = [];
   var budgeted = {};
   rows.forEach(function(r) { budgetSum += r.budget; catNet += r.spent - r.budget; budgeted[r.name] = true; });
@@ -3395,7 +3373,7 @@ function renderPaceChart(cum, last, days, thisLbl, lastLbl, expected, info) {
   var y = function(v) { return m.t + ih - Math.max(0, v) / max * ih; };
   var fmtK = function(v) { return v ? '$' + (v / 1000) + 'k' : '$0'; };
   var path = function(a) { var d = ''; for (var i = 0; i < a.length && i < days; i++) d += (i ? 'H' + x(i + 1).toFixed(1) + 'V' : 'M' + x(1).toFixed(1) + ' ') + y(a[i]).toFixed(1); return d; };
-  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Running total of everyday card spending this month against an even pace to $3,500 and last month.">';
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Running total of everyday card spending this month against an even pace to the everyday target and last month.">';
   for (var v = 0; v <= max; v += step) svg += '<line x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--border)" stroke-width="0.6"/><text x="' + (m.l - 5) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + fmtK(v) + '</text>';
   [1, 8, 15, 22, days].forEach(function(d) { svg += '<text x="' + x(d) + '" y="' + (H - 6) + '" text-anchor="' + (d === 1 ? 'start' : d === days ? 'end' : 'middle') + '">' + thisLbl + ' ' + d + '</text>'; });
   svg += '<path d="' + path(last) + '" fill="none" stroke="var(--border-dark)" stroke-width="2"/>';
@@ -3546,7 +3524,7 @@ function setHistoryView(view) {
 // ── CC PAYMENT BREAKDOWN (Tool 1) ────────────────────────────────────────────
 // Read-only: reconstructs what a forecast CC payment is comprised of and shows
 // it in a bottom-sheet. Mirrors the projection's cycle logic (v3.6.0):
-//   future cycle  = discretionary placeholder (override or 3500) + scheduled CC bills
+//   future cycle  = discretionary placeholder (override or the everyday target) + scheduled CC bills
 //   current cycle = actual logged CC charges (which already include scheduled bills)
 function showCCBreakdown(ccYear, ccMonth, cycleFromStr, cycleToStr) {
   // Reconstruct the cycle window the same way the projection does.
@@ -3600,7 +3578,7 @@ function showCCBreakdown(ccYear, ccMonth, cycleFromStr, cycleToStr) {
     pushEntries(); pushScheduled('all');
     if (fc.usingEstimate) {
       var _gap = Math.round((fc.estimate - fc.soFar - fc.stillToPost) * 100) / 100;
-      lines.push({ name: 'Rest of cycle (estimate)', amt: _gap, sub: 'keeps the forecast at $3,500 + bills until the statement closes' });
+      lines.push({ name: 'Rest of cycle (estimate)', amt: _gap, sub: 'keeps the forecast at the everyday target + bills until the statement closes' });
     }
   } else {
     lines.push({ name: 'Discretionary spending (estimate)', amt: fc.estimate - getScheduledCCInCycle(cycleFrom, cycleTo), sub: fc.estimate - getScheduledCCInCycle(cycleFrom, cycleTo) > PACE_TARGET ? 'includes this month\u2019s one-time budget' : 'default placeholder' });
@@ -3635,7 +3613,7 @@ function showCCBreakdown(ccYear, ccMonth, cycleFromStr, cycleToStr) {
   html += '<span style="font-size:16px;font-weight:700;color:var(--coral)">' + fmt(total) + '</span>';
   html += '</div>';
   if (fc.mode === 'forecast' || (fc.mode === 'inprogress' && fc.usingEstimate)) {
-    html += '<div style="font-size:12px;color:var(--text-3);font-style:italic;margin-top:8px">Forecast: until the statement closes, this never drops below $3,500 + scheduled bills. Once logged charges pass that, the total follows actual spending.</div>';
+    html += '<div style="font-size:12px;color:var(--text-3);font-style:italic;margin-top:8px">Forecast: until the statement closes, this never drops below the everyday target + scheduled bills. Once logged charges pass that, the total follows actual spending.</div>';
   }
 
   modal.innerHTML = html;
@@ -4794,46 +4772,10 @@ function doLock() {
 
 // Default hardcoded bills — stored in Supabase under record.bills
 // Users can add/edit/delete custom bills, which merge with the hardcoded ones
-var DEFAULT_BILLS = [
-  { id:'hc_inc_bw',  name:'Bi-weekly paycheck',      amt:2055, freq:'biweekly', startDate:'2026-04-10', type:'in' },
-  { id:'hc_inc_15',  name:'Semi-monthly paycheck (15th)', amt:4240, day:15, freq:'monthly', type:'in' },
-  { id:'hc_inc_eom', name:'Semi-monthly paycheck (last day)', amt:4240, day:1, freq:'monthly', type:'in', eom:true },
-  { id:'hc_life1',  name:'Life insurance NW Mutual', amt:250,  day:1,  freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
-  { id:'hc_sl_min', name:'Student loan minimum',     amt:386,  day:9,  freq:'monthly', type:'out', startMonth:3, startYear:2026 },
-  { id:'hc_life2',  name:'Life insurance NW Mutual', amt:250,  day:15, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
-  { id:'hc_mort',   name:'Mortgage',                 amt:2710, day:16, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
-  { id:'hc_solar',  name:'Solar bill',               amt:266,  day:16, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
-  { id:'hc_gas',    name:'Gas bill',                 amt:150,  day:23, freq:'monthly', type:'out' },
-  { id:'hc_car',    name:'Car loan',                 amt:414,  day:26, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
-  { id:'hc_tmob',   name:'T-Mobile',                 amt:397,  day:27, freq:'monthly', type:'out' , startMonth:3, startYear:2026 },
-  { id:'hc_allow',  name:'Personal allowances',      amt:340,  freq:'weekly',   startDate:'2026-04-10', day:5, type:'out' , startMonth:3, startYear:2026 },
-  { id:'hc_sl_ext', name:'Student loan extra',       amt:300,  freq:'biweekly', startDate:'2026-04-25', type:'out' },
-  { id:'hc_sf_emerg',  name:'Emergency fund',        amt:750, day:16, freq:'monthly', type:'save', startMonth:4, startYear:2026 },
-  { id:'hc_sf_home',   name:'Home/auto/insurance',   amt:370, day:16, freq:'monthly', type:'save', startMonth:4, startYear:2026 },
-  { id:'hc_sf_med',    name:'Medical & pets',         amt:165, day:17, freq:'monthly', type:'save', startMonth:4, startYear:2026 },
-  { id:'hc_sf_travel', name:'Travel fund',            amt:165, day:17, freq:'monthly', type:'save', startMonth:4, startYear:2026 },
-  { id:'hc_sf_big',    name:'Big purchases',          amt:120, day:17, freq:'monthly', type:'save', startMonth:4, startYear:2026 },
-  { id:'hc_cc_netflix',  name:'Netflix',           amt:27,  day:31, freq:'monthly', type:'out', paidBy:'cc' },
-  { id:'hc_cc_ymca',     name:'YMCA',              amt:0,   day:8,  freq:'monthly', type:'out', paidBy:'cc', note:'check amount' },
-  { id:'hc_cc_apple',    name:'Apple One',          amt:31,  day:8,  freq:'monthly', type:'out', paidBy:'cc' },
-  { id:'hc_cc_vet',      name:'Advanced Vet Care',  amt:59,  day:11, freq:'monthly', type:'out', paidBy:'cc' },
-  { id:'hc_cc_comcast',  name:'Comcast',            amt:117, day:19, freq:'monthly', type:'out', paidBy:'cc' },
-  { id:'hc_cc_spotify',  name:'Spotify',            amt:34,  day:21, freq:'monthly', type:'out', paidBy:'cc' },
-  { id:'hc_cc_youtube',  name:'YouTube Premium',    amt:21.52, day:21, freq:'monthly', type:'out', paidBy:'cc' },
-  { id:'hc_cc_icloud',   name:'iCloud Plus',        amt:9.99,  day:9,  freq:'monthly', type:'out', paidBy:'cc' },
-  { id:'hc_cc_ms365',    name:'Microsoft 365',      amt:11.87, day:11, freq:'monthly', type:'out', paidBy:'cc' },
-  { id:'hc_ham1',   name:'Hamline tuition',          amt:445,  freq:'once', month:3,  day:20, year:2026, type:'out' },
-  { id:'hc_prog1',  name:'Progressive insurance',    amt:950,  freq:'once', month:6,  day:16, year:2026, type:'out' },
-  { id:'hc_noom1',  name:'Noom renewal',             amt:160,  freq:'once', month:6,  day:25, year:2026, type:'out' },
-  { id:'hc_eye',    name:'Eye clinic/contacts',      amt:1044, freq:'once', month:9,  day:15, year:2026, type:'out' },
-  { id:'hc_noom2',  name:'Noom renewal',             amt:160,  freq:'once', month:9,  day:25, year:2026, type:'out' },
-  { id:'hc_li',     name:'LinkedIn annual',          amt:43,   freq:'once', month:10, day:15, year:2026, type:'out' },
-  { id:'hc_calm',   name:'Calm annual',              amt:70,   freq:'once', month:11, day:1,  year:2026, type:'out' },
-  { id:'hc_crook',  name:'Crooked annual',           amt:90,   freq:'once', month:11, day:1,  year:2026, type:'out' },
-  { id:'hc_ham2',   name:'Hamline tuition',          amt:445,  freq:'once', month:0,  day:9,  year:2027, type:'out' },
-  { id:'hc_prog2',  name:'Progressive insurance',    amt:950,  freq:'once', month:0,  day:16, year:2027, type:'out' },
-  { id:'hc_lp',     name:'LastPass annual',          amt:39,   freq:'once', month:1,  day:1,  year:2027, type:'out' },
-];
+// The household's own bills, paychecks and savings live in the Supabase record
+// (record.bills), never in this public file (v4.6.3). Kept as an empty list so
+// older records that name default ids in deletedBills still work.
+var DEFAULT_BILLS = [];
 
 function getAllBills() {
   var defaults = DEFAULT_BILLS.slice();
@@ -4918,6 +4860,12 @@ function renderBillsList() {
   renderGroup('bills-list-monthly',  monthly);
   renderGroup('bills-list-biweekly', biweekly);
   renderGroup('bills-list-once',     once);
+  var ft = document.getElementById('bills-fund-targets');
+  if (ft) ft.innerHTML = FUND_DEFS.map(function(f) {
+    var b = getAllBills().find(function(x) { return x.id === f.id; });
+    if (!b && !f.target) return '';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:15px;color:var(--text)">' + f.name + '</span><div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--sky)">$' + Math.round(b ? b.amt : 0).toLocaleString() + '/mo</div><div style="font-size:12px;color:var(--text-3)">target $' + Math.round(f.target).toLocaleString() + '</div></div></div>';
+  }).join('');
 }
 
 var editingBillId = null;
@@ -5160,13 +5108,16 @@ function selectPaidBy(p) {
 
 // ── SINKING FUNDS ─────────────────────────────────────────────────────────────
 
+// Sinking funds: names and colours only. Each fund's target comes from the record
+// (record.fundTargets[id]); the monthly amount from its scheduled bill.
 var FUND_DEFS = [
-  { id:'hc_sf_emerg',  name:'Emergency fund',      target:21000, color:'var(--grass)',  colorClass:'fc-emerg',  monthlyAmt:750,  note:'Target: $21,000 (~2.4 yrs)' },
-  { id:'hc_sf_home',   name:'Home/auto/insurance', target:6000,  color:'var(--sky)',    colorClass:'fc-home',   monthlyAmt:370,  note:'Annual insurance & repairs' },
-  { id:'hc_sf_med',    name:'Medical & pets',      target:3000,  color:'var(--rose)',   colorClass:'fc-med',    monthlyAmt:165,  note:'Medical expenses & vet bills' },
-  { id:'hc_sf_travel', name:'Travel fund',         target:5000,  color:'var(--sun)',    colorClass:'fc-travel', monthlyAmt:165,  note:'Vacations & trips' },
-  { id:'hc_sf_big',    name:'Big purchases',       target:3000,  color:'var(--coral)',  colorClass:'fc-big',    monthlyAmt:120,  note:'Large one-time purchases' },
+  { id:'hc_sf_emerg',  name:'Emergency fund',      color:'var(--grass)',  colorClass:'fc-emerg',  monthlyAmt:0, note:'For the unexpected' },
+  { id:'hc_sf_home',   name:'Home/auto/insurance', color:'var(--sky)',    colorClass:'fc-home',   monthlyAmt:0, note:'Annual insurance & repairs' },
+  { id:'hc_sf_med',    name:'Medical & pets',      color:'var(--rose)',   colorClass:'fc-med',    monthlyAmt:0, note:'Medical expenses & vet bills' },
+  { id:'hc_sf_travel', name:'Travel fund',         color:'var(--sun)',    colorClass:'fc-travel', monthlyAmt:0, note:'Vacations & trips' },
+  { id:'hc_sf_big',    name:'Big purchases',       color:'var(--coral)',  colorClass:'fc-big',    monthlyAmt:0, note:'Large one-time purchases' },
 ];
+FUND_DEFS.forEach(function(f) { Object.defineProperty(f, 'target', { get: function() { var t = record && record.fundTargets; return (t && t[f.id]) || 0; }, enumerable: true }); });
 
 function getFundBalance(fundId) {
   if (record && record.funds && record.funds[fundId]) {
@@ -5248,7 +5199,7 @@ function renderFunds() {
       '<div class="fund-bar-track"><div class="fund-bar" style="width:' + pct.toFixed(1) + '%;background:' + fund.color + '"></div></div>' +
       '<div class="fund-meta">' +
         '<span>' + pct.toFixed(0) + '% of ' + fmt(fund.target) + ' target</span>' +
-        '<span>' + (monthsToTarget > 0 && bal < fund.target ? monthsToTarget + ' months to target' : bal >= fund.target ? '&#10003; Target reached!' : '') + '</span>' +
+        '<span>' + (monthlyAmt > 0 && monthsToTarget > 0 && bal < fund.target ? monthsToTarget + ' months to target' : bal >= fund.target ? '&#10003; Target reached!' : '') + '</span>' +
       '</div>' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">' +
         '<div style="font-size:13px;color:var(--text-3)">+' + fmt(monthlyAmt) + '/mo &nbsp;&middot;&nbsp; In 12 months: <strong>' + fmt(proj12.bal) + '</strong></div>' +
@@ -5263,6 +5214,8 @@ function renderFunds() {
   });
 
   // Update total card
+  var _fm = document.getElementById('funds-monthly-total');
+  if (_fm) { var _mt = 0; FUND_DEFS.forEach(function(f) { var b = getAllBills().find(function(x) { return x.id === f.id; }); if (b) _mt += b.amt; }); _fm.textContent = 'Monthly contributions: $' + Math.round(_mt).toLocaleString() + ' total across all funds'; }
   var totalEl = document.getElementById('funds-total');
   if (totalEl) totalEl.textContent = '$' + Math.round(totalBal).toLocaleString('en-US');
   var totalBar = document.getElementById('funds-total-bar');
@@ -5310,13 +5263,14 @@ function getScheduledEvents() {
   function lastDay(y, m) { return new Date(y, m + 1, 0); }
 
   // ── INCOME: driven by getAllBills() like everything else ─────────────────
-  // (bi-weekly and semi-monthly paychecks are in DEFAULT_BILLS and editable)
+  // (paychecks are scheduled bills in the record and editable)
 
   // ── CC AUTO-PAY ─────────────────────────────────────────────────────────
-  // Fixed $6,000 payment on May 6 2026 (old cycle payoff)
+  // One-off payment on May 6 2026 (old cycle payoff); amount kept in the record
   var _may6 = new Date(2026, 4, 6);
-  if (_may6 > start && _may6 <= end)
-    events.push({ date: _may6, name: 'Credit card auto-pay', amt: 6000, type: 'cc', fixedAmt: true, ccYear: 2026, ccMonth: 4 });
+  var _may6Amt = (record && record.config && record.config.may6Payment) || 0;
+  if (_may6Amt && _may6 > start && _may6 <= end)
+    events.push({ date: _may6, name: 'Credit card auto-pay', amt: _may6Amt, type: 'cc', fixedAmt: true, ccYear: 2026, ccMonth: 4 });
 
   // Transition payment: Jun 19 2026 — covers Apr 12 - May 25 cycle
   var _jun19 = new Date(2026, 5, 19);
@@ -5447,7 +5401,7 @@ function getScheduledCCInCycle(fromDate, toDate) {
 //   2. closed cycle (ended before today) with logged charges — actual spend.
 //   3. open or future cycle — the larger of
 //        actual so far + scheduled CC bills still to post, and
-//        the estimate ($3,500 discretionary + all scheduled CC bills).
+//        the estimate (everyday target + all scheduled CC bills).
 //      So one early charge can no longer collapse a cycle's forecast to just
 //      that charge; the forecast only drops below the estimate once the
 //      statement closes.
@@ -5758,7 +5712,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.6.2';
+var APP_VERSION = 'v4.6.3';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -6662,7 +6616,7 @@ function amtModalSave() {
 async function editCCPayment(year, month, currentAmt) {
   var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var label = monthNames[month] + ' ' + year;
-  showAmtModal('CC payment — ' + label, 'Leave blank and tap Reset to use actual entries or $6,000 estimate', currentAmt, async function(val) {
+  showAmtModal('CC payment — ' + label, 'Leave blank and tap Reset to use actual entries or the estimate', currentAmt, async function(val) {
     if (!record.ccOverrides) record.ccOverrides = {};
     var overrideKey = 'cc_override_' + year + '_' + month;
     if (val === '' || val === '0') {
