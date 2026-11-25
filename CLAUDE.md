@@ -23,7 +23,8 @@ Live: **v4.4.0** (Nov 25, 2026: Typewriter look, Settings reorganised, + Add exp
 3. **Bump the version on every app push, in two places that must match:** `APP_VERSION` in
    `index.html` and `version.txt`. The app compares them to show "Update ready · Reload".
 4. **Syntax-check before shipping:** extract the inline `<script>` and run `new Function(code)`.
-5. **After pushing, confirm the deploy:** a Pages run for the new commit finished successfully,
+5. **After pushing, confirm the deploy** (if the Pages *deploy* step fails or sits queued, push a
+   small new commit rather than waiting on a re-run): a Pages run for the new commit finished successfully,
    and the live `version.txt` and `APP_VERSION` show the new version. If no build fires,
    a trivial re-commit forces one. If HTTPS breaks (GitHub cert), re-save the custom domain in
    Settings → Pages.
