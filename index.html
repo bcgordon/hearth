@@ -621,6 +621,32 @@ input, textarea, select { font-family: var(--font) !important; }
 #toast { background: var(--key-bg) !important; color: var(--key-ink) !important; border: none !important; box-shadow: 0 0 0 2.5px var(--key-rim), 0 4px 0 2.5px var(--key-base) !important; }
 .updbar { border-color: var(--sky) !important; box-shadow: none !important; }
 .updbar .upd-go { background: var(--key-bg) !important; color: var(--key-ink) !important; border: none !important; box-shadow: 0 0 0 2px var(--key-rim), 0 3px 0 2px var(--key-base) !important; }
+
+/* iPad sidebar (v4.5.0) */
+@media (min-width: 768px) {
+  #dash-add { display: none !important; }
+  #ipad-sidebar { width: 300px !important; min-width: 300px !important; background: var(--band) !important; border-right: none !important; padding: 22px 16px 24px !important; gap: 10px !important; box-shadow: inset -10px 0 0 -4px transparent; }
+  #ipad-sidebar::after { content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 6px; background: linear-gradient(90deg, #8c949a, #eef1f2 48%, #b7bec3 62%, #f6f8f9); }
+  #ipad-sidebar .sidebar-logo { color: var(--band-ink) !important; border-bottom: none !important; margin-bottom: 4px !important; padding-bottom: 0 !important; display: flex; align-items: center; gap: 6px; font-weight: 700 !important; font-size: 24px !important; }
+  #ipad-quarter-badge { margin-left: auto; font-size: 11px; letter-spacing: .12em; color: var(--band-dim); border: 1px solid var(--band-dim); border-radius: 4px; padding: 2px 6px; background: none !important; font-weight: 400; }
+  #ipad-sidebar .sb-add { padding: 13px !important; font-size: 17px !important; margin-bottom: 8px; }
+  #ipad-sidebar .sb-nav { display: flex; flex-direction: column; gap: 2px; }
+  #ipad-sidebar .nav-btn { color: var(--band-ink) !important; padding: 9px 12px !important; font-size: 17px !important; border-radius: 6px !important; }
+  #ipad-sidebar .nav-btn.sb-minor { font-size: 15px !important; color: var(--band-dim) !important; padding: 7px 12px !important; }
+  #ipad-sidebar .nav-btn.active { background: var(--surface) !important; color: var(--text) !important; font-weight: 700 !important; }
+  #ipad-sidebar .nav-btn:hover { background: rgba(255,255,255,.18) !important; }
+  #ipad-sidebar .sidebar-divider { background: var(--band-dim) !important; opacity: .35; }
+  .sb-glance { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .sb-glance-h { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--band-dim); margin: 4px 4px 2px; }
+  .sb-g { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; font-family: var(--font); color: var(--text); cursor: pointer; }
+  .sb-g:hover { border-color: var(--sky); }
+  .sb-g-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .sb-g-l { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+  .sb-g-v { font-size: 20px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .sb-g-v small { font-size: 12px; font-weight: 400; color: var(--text-3); }
+  .sb-g-s { font-size: 12px; color: var(--text-3); margin-top: 3px; line-height: 1.35; }
+  #ipad-sidebar { position: sticky; }
+}
 /* Settings sections */
 .hearth-mark { width: 30px; height: 30px; display: inline-block; vertical-align: middle; object-fit: contain; }
 .hearth-mark-lg { width: 40px; height: 40px; margin-right: 6px; }
@@ -640,47 +666,20 @@ input, textarea, select { font-family: var(--font) !important; }
 <div id="app" style="width:100%;max-width:100%;overflow-x:hidden;box-sizing:border-box">
 <!-- iPad Sidebar (hidden on mobile via CSS) -->
 <div id="ipad-sidebar" style="display:none">
-  <div class="sidebar-logo"><img src="hearth-mark.png?v=443" alt="" class="hearth-mark hearth-mark-lg"> Hearth</div>
-  <div id="ipad-quarter-badge"></div>
-  <button class="nav-btn active" id="nav-main" onclick="ipadNav('screen-main')">
-    <span class="nav-icon">&#128200;</span> Dashboard
-  </button>
-  <button class="nav-btn" id="nav-balance" onclick="ipadNav('screen-balance')">
-    <span class="nav-icon">&#128181;</span> Balance
-  </button>
-  <button class="nav-btn" id="nav-budget" onclick="ipadNav('screen-budget')">
-    <span class="nav-icon">&#128202;</span> Budget
-  </button>
-  <button class="nav-btn" id="nav-add" onclick="ipadNav('screen-add')">
-    <span class="nav-icon">&#43;</span> Add expense
-  </button>
-  <button class="nav-btn" id="nav-history" onclick="ipadNav('screen-history')">
-    <span class="nav-icon">&#128337;</span> History
-  </button>
-  <div class="sidebar-divider"></div>
-  <button class="nav-btn" id="nav-funds" onclick="ipadNav('screen-funds')">
-    <span class="nav-icon">&#128181;</span> Sinking funds
-  </button>
-  <button class="nav-btn" id="nav-bills" onclick="ipadNav('screen-bills')">
-    <span class="nav-icon">&#128195;</span> Scheduled bills
-  </button>
-  <button class="nav-btn" id="nav-settings" onclick="ipadNav('screen-settings')">
-    <span class="nav-icon">&#9881;</span> Settings
-  </button>
-  <div class="sidebar-stats">
-    <div class="sidebar-stat">
-      <span class="sidebar-stat-label">Monthly budget</span>
-      <span class="sidebar-stat-val" id="sb-budget">—</span>
-    </div>
-    <div class="sidebar-stat">
-      <span class="sidebar-stat-label">This month</span>
-      <span class="sidebar-stat-val" id="sb-spent">—</span>
-    </div>
-    <div class="sidebar-stat">
-      <span class="sidebar-stat-label">Remaining</span>
-      <span class="sidebar-stat-val" id="sb-remaining">—</span>
-    </div>
+  <div class="sidebar-logo"><img src="hearth-mark.png?v=443" alt="" class="hearth-mark hearth-mark-lg"> Hearth <span id="ipad-quarter-badge"></span></div>
+  <button class="btn btn-coral btn-full sb-add" onclick="ipadNav('screen-add')">+ Add expense</button>
+  <div class="sb-nav">
+    <button class="nav-btn active" id="nav-main" onclick="ipadNav('screen-main')">Dashboard</button>
+    <button class="nav-btn" id="nav-balance" onclick="ipadNav('screen-balance')">Balance</button>
+    <button class="nav-btn" id="nav-budget" onclick="ipadNav('screen-budget')">Budget</button>
+    <button class="nav-btn" id="nav-history" onclick="ipadNav('screen-history')">History</button>
+    <div class="sidebar-divider"></div>
+    <button class="nav-btn sb-minor" id="nav-funds" onclick="ipadNav('screen-funds')">Sinking funds</button>
+    <button class="nav-btn sb-minor" id="nav-bills" onclick="ipadNav('screen-bills')">Bills &amp; income</button>
+    <button class="nav-btn sb-minor" id="nav-settings" onclick="ipadNav('screen-settings')">Settings</button>
   </div>
+  <div class="sb-glance" id="sb-glance"></div>
+  <div style="display:none"><span id="sb-budget"></span><span id="sb-spent"></span><span id="sb-remaining"></span><button id="nav-add"></button></div>
 </div>
 <!-- Bottom Nav (iPhone) -->
 <nav class="bottom-nav" id="bottom-nav" style="display:none">
@@ -769,7 +768,7 @@ input, textarea, select { font-family: var(--font) !important; }
 <button class="icon-btn" onclick="showScreen('screen-settings')">Settings</button>
 </div>
 </div>
-<button class="btn btn-coral btn-full" style="padding:17px;margin:2px 0 14px;font-size:18px" onclick="showScreen('screen-add')">+ Add expense</button>
+<button id="dash-add" class="btn btn-coral btn-full" style="padding:17px;margin:2px 0 14px;font-size:18px" onclick="showScreen('screen-add')">+ Add expense</button>
 <div id="quote-of-day" style="padding:10px 16px 2px;font-size:14px;color:var(--text-3);font-style:italic;text-align:center;line-height:1.5"></div>
 <!-- This week (v4.1.0) -->
 <div class="card card-sky" id="wk-card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:10px">
@@ -5325,7 +5324,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.4.3';
+var APP_VERSION = 'v4.5.0';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
@@ -6637,31 +6636,7 @@ function updateSidebar() {
   var badge = document.getElementById('ipad-quarter-badge');
   if (badge) badge.textContent = quarterLabel(qKey);
 
-  // Stats
-  var entries = loadEntries(qKey);
-  var tot = 0;
-  entries.forEach(function(e) { tot += e.amt; });
-  var budget = config.budget || 0;
-  var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
-  // Show monthly stats in sidebar
-  var now2 = new Date();
-  var mEntries = entries.filter(function(e) {
-    var d = new Date(e.ts); return d.getFullYear() === now2.getFullYear() && d.getMonth() === now2.getMonth();
-  });
-  var mTot = 0;
-  mEntries.forEach(function(e) { if (!e.fundCoverage && e.payMethod !== 'income') mTot += e.amt; });
-  var monthlyBudget = Math.round(budget / 3);
-  var sbBudget = document.getElementById('sb-budget');
-  var sbSpent = document.getElementById('sb-spent');
-  var sbRemaining = document.getElementById('sb-remaining');
-  if (sbBudget) sbBudget.textContent = fmt(monthlyBudget) + '/mo';
-  if (sbSpent) sbSpent.textContent = fmt(mTot);
-  if (sbRemaining) {
-    var rem = monthlyBudget - mTot;
-    sbRemaining.textContent = fmt(Math.max(rem, 0));
-    sbRemaining.style.color = rem < 0 ? 'var(--red)' : rem < monthlyBudget * 0.2 ? 'var(--sun-dim)' : 'var(--grass-dim)';
-  }
-
+  try { renderSidebarGlance(); } catch (err) { console.error('glance', err); }
   // Move screens into ipad-content if not already there
   var content = document.getElementById('ipad-content');
   if (content) {
@@ -6669,6 +6644,53 @@ function updateSidebar() {
       if (s.parentNode !== content) content.appendChild(s);
     });
   }
+}
+
+
+// ── iPAD SIDEBAR: AT A GLANCE (v4.5.0) ─────────────────────────────────────
+// The same numbers as the dashboard, Budget and History, one tap from each.
+function renderSidebarGlance() {
+  var box = document.getElementById('sb-glance'); if (!box || !record) return;
+  var fmt = function(n) { return (n < 0 ? '−' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); };
+  var mnS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var y = now.getFullYear(), m = now.getMonth(), day = now.getDate(), days = new Date(y, m + 1, 0).getDate(), frac = day / days;
+  var pill = function(st, t) { return '<span class="pace-pill ' + st + '" style="font-size:10px;padding:1px 6px">' + t + '</span>'; };
+  var labels = { ok: 'On track', ahead: 'Ahead', over: 'Over' };
+  var colors = { ok: 'var(--grass)', ahead: 'var(--sun)', over: 'var(--red)' };
+  var bar = function(v, t, st) { var w = t > 0 ? Math.min(100, v / t * 100) : (v > 0 ? 100 : 0); return '<div class="pace-track" style="height:6px;margin-top:6px"><div class="pace-fill" style="width:' + w + '%;background:' + colors[st] + '"></div><div class="pace-tick" style="left:' + (frac * 100) + '%"></div></div>'; };
+  var rows = [];
+  // this week
+  var ws = _weekStart(today), wt = _weekTarget(ws), wsp = _everydayBetween(ws, today), wst = _paceStatus(wsp, wt, (Math.round((today - ws) / 86400000) + 1) / 7);
+  rows.push(['screen-main', 'This week', fmt(wsp) + ' <small>of ' + fmt(wt) + '</small>', pill(wst, labels[wst]), wt < 1 ? 'Month’s target used up' : fmt(Math.max(0, wt - wsp)) + ' left this week']);
+  // this month
+  var T = monthTarget(y, m), cum = _paceCumulative(y, m, day), sp = cum.length ? cum[cum.length - 1] : 0, mst = _paceStatus(sp, T, frac);
+  rows.push(['screen-main', MN[m], fmt(sp) + ' <small>of ' + fmt(T) + '</small>', pill(mst, mst === 'over' ? fmt(sp - T) + ' over' : labels[mst]) , '', bar(sp, Math.max(T, sp), mst)]);
+  // plan
+  var p = _planFor(y, m);
+  rows.push(['screen-budget', 'Planned to keep', '<span style="color:' + (p.keep < 0 ? 'var(--red)' : 'var(--grass-dim)') + '">' + fmt(p.keep) + '</span>', '', 'Income ' + fmt(p.inc) + ' − everyday, bills, savings']);
+  // checking: now and the lowest point ahead
+  try {
+    var pr = buildProjection(), low = null;
+    pr.forEach(function(x) { if (x.date >= today && x.date < new Date(y, m + 4, 1) && (!low || x.balance < low.balance)) low = x; });
+    var lowSt = !low ? 'ok' : low.balance < 2000 ? 'over' : low.balance < 3000 ? 'ahead' : 'ok';
+    rows.push(['screen-balance', 'Checking', (balActualBalance !== null ? fmt(balActualBalance) : '—') + ' <small>now</small>', low ? pill(lowSt, 'low ' + fmt(low.balance)) : '', low ? 'Lowest ahead: ' + mnS[low.date.getMonth()] + ' ' + low.date.getDate() + ' · ' + low.name.replace(/\s*\(.*\)/, '') : '']);
+  } catch (e) {}
+  // card cycle
+  var cyc = getCCAppTotal(), pend = 0, pn = 0;
+  [getQuarterKeyForDate(CC_CYCLE_START), getQuarterKeyForDate(CC_CYCLE_END)].filter(function(k, i, a) { return a.indexOf(k) === i; }).forEach(function(k) { loadEntries(k).forEach(function(e) { var d = new Date(e.ts); if (d >= CC_CYCLE_START && d <= CC_CYCLE_END && e.pending && _isCardEntry(e)) { pend += e.amt; pn++; } }); });
+  var nextPay = (getScheduledEvents() || []).filter(function(e) { return e.type === 'cc' && e.date >= today; })[0];
+  var nextAmt = nextPay ? (nextPay.fixedAmt ? nextPay.amt : forecastCCPayment(nextPay.ccYear, nextPay.ccMonth, nextPay.ccCycleFrom, nextPay.ccCycleTo).amt) : null;
+  rows.push(['screen-history:cycles', 'Card cycle', fmt(cyc) + ' <small>' + mnS[CC_CYCLE_START.getMonth()] + ' ' + CC_CYCLE_START.getDate() + '–' + mnS[CC_CYCLE_END.getMonth()] + ' ' + CC_CYCLE_END.getDate() + '</small>', pn ? pill('ahead', pn + ' pending') : '', nextPay ? 'Next payment ' + mnS[nextPay.date.getMonth()] + ' ' + nextPay.date.getDate() + ': ' + fmt(nextAmt) : '']);
+  // reconcile gap + watch list
+  try { var g = cycleGap(); if (Math.abs(g.gap) >= 1) rows.push(['screen-history:cycles', 'Statements vs Hearth', '<span style="color:var(--sun-dim)">' + fmt(g.gap) + '</span>', '', g.base ? 'Since you started fresh' : 'Since April · reconcile Friday']); } catch (e) {}
+  var w = getWatchItems().filter(function(i) { return i.status === 'charging' || i.status === 'again'; });
+  if (w.length) rows.push(['screen-main', 'Watch list', w.length + ' <small>still charging</small>', '', w.map(function(i) { return i.name.split(' ')[0]; }).join(', ')]);
+  box.innerHTML = '<div class="sb-glance-h">At a glance</div>' + rows.map(function(r) {
+    return '<button class="sb-g" data-go="' + r[0] + '"><div class="sb-g-top"><span class="sb-g-l">' + r[1] + '</span>' + (r[3] || '') + '</div><div class="sb-g-v">' + r[2] + '</div>' + (r[5] || '') + (r[4] ? '<div class="sb-g-s">' + r[4] + '</div>' : '') + '</button>';
+  }).join('');
+  box.querySelectorAll('.sb-g').forEach(function(b) { b.onclick = function() { var go = b.dataset.go.split(':'); ipadNav(go[0]); if (go[1] === 'cycles') setTimeout(function() { setHistoryView('cycles'); }, 50); }; });
 }
 
 function initIPadLayout() {
