@@ -684,6 +684,31 @@ input, textarea, select { font-family: var(--font) !important; }
 @keyframes calmHalo { 0%, 100% { opacity: .45; transform: scale(.88); } 50% { opacity: 1; transform: scale(1.12); } }
 @keyframes calmBreath { 0% { opacity: 0; } 6%, 44% { opacity: .9; } 50%, 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .calm-flame { animation: calmGlow 4s ease-in-out infinite alternate; } }
+
+/* v4.6.7: crackle, embers, toss a worry, timer + wake lock */
+#calm-embers { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.calm-fire, .calm-breath { position: relative; z-index: 1; }
+.calm-top { position: absolute; top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right)); display: flex; justify-content: space-between; align-items: center; gap: 10px; z-index: 2; }
+.calm-timer { display: flex; gap: 6px; flex-wrap: wrap; }
+.calm-timer button, .calm-sound { font-family: var(--font); font-size: 14px; color: #b8f0df; background: rgba(184,240,223,.08); border: 1px solid rgba(184,240,223,.35); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.calm-timer button.on { background: rgba(184,240,223,.25); color: #fff; border-color: #b8f0df; }
+.calm-sound { font-size: 18px; padding: 4px 10px; }
+.calm-sound.off { opacity: .5; }
+.calm-left { position: relative; z-index: 1; min-height: 1.4em; margin-bottom: 1.5vh; font-family: var(--font); font-size: 16px; letter-spacing: .1em; color: rgba(184,240,223,.75); text-align: center; }
+.calm-toss { position: absolute; left: max(20px, env(safe-area-inset-left)); bottom: max(22px, env(safe-area-inset-bottom)); z-index: 2; font-family: var(--font); font-size: 16px; padding: 12px 18px; border-radius: 10px; cursor: pointer; color: #b8f0df; background: rgba(184,240,223,.08); border: 1px solid rgba(184,240,223,.4); }
+.calm-done { z-index: 2; }
+.calm-worry { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 64px); z-index: 3; display: none; gap: 8px; width: min(92vw, 460px); }
+.calm-worry.on { display: flex; }
+.calm-worry input { flex: 1; min-width: 0; font-family: var(--font); font-size: 16px; padding: 11px 12px; border-radius: 8px; border: 1px solid rgba(184,240,223,.5); background: rgba(0,0,0,.25); color: #f4efe2; }
+.calm-worry input::placeholder { color: rgba(184,240,223,.55); }
+.calm-worry button { font-family: var(--font); font-size: 15px; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; background: linear-gradient(#ffd9a0, #f0a860); color: #3a1d08; white-space: nowrap; }
+.calm-burning { position: fixed; z-index: 9001; font-family: var(--font); font-size: 18px; color: #f4efe2; white-space: nowrap; pointer-events: none; transform-origin: 50% 50%; transition: left 1.6s cubic-bezier(.45,.05,.4,1), top 1.6s cubic-bezier(.45,.05,.4,1), transform 1.6s ease-in, opacity .6s ease, filter 1.2s ease, color 1.2s ease; text-shadow: 0 0 8px rgba(255,190,110,.0); }
+.calm-burning.hot { color: #ffb066; text-shadow: 0 0 12px rgba(255,150,60,.9); filter: blur(1.5px); }
+.calm-fire.flare .calm-flame { animation: calmFlare 1.4s ease-out; }
+.calm-fire.flare .calm-glow { animation: calmGlowFlare 1.4s ease-out; }
+@keyframes calmFlare { 0% { transform: scale(1); } 30% { transform: scale(1.18, 1.32); filter: drop-shadow(0 0 22px rgba(255,200,120,.8)) brightness(1.3); } 100% { transform: scale(1); } }
+@keyframes calmGlowFlare { 0% { opacity: .6; } 30% { opacity: 1; transform: scale(1.3); } 100% { opacity: .6; transform: scale(1); } }
+@media (max-width: 520px) { .calm-timer button { font-size: 12px; padding: 5px 9px; } .calm-toss, .calm-done { font-size: 15px; padding: 11px 14px; } }
 /* v4.6.4: version history */
 .ver { padding: 12px 0; border-bottom: 1px dashed var(--border); }
 .ver:last-child { border-bottom: none; }
@@ -770,13 +795,24 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
 <!-- Bottom Nav (iPhone) -->
 <button id="sb-show" onclick="setSidebarHidden(false)" title="Show sidebar" aria-label="Show sidebar">&#187;</button>
 <div id="calm" aria-hidden="true">
-  <div class="calm-fire">
+  <canvas id="calm-embers"></canvas>
+  <div class="calm-top">
+    <div class="calm-timer" id="calm-timer"><button data-min="0" class="on" onclick="calmSetTimer(0)">&infin;</button><button data-min="1" onclick="calmSetTimer(1)">1 min</button><button data-min="3" onclick="calmSetTimer(3)">3 min</button><button data-min="5" onclick="calmSetTimer(5)">5 min</button></div>
+    <button class="calm-sound" id="calm-sound" onclick="calmToggleSound()" aria-label="Sound">&#128264;</button>
+  </div>
+  <div class="calm-left" id="calm-left"></div>
+  <div class="calm-fire" id="calm-fire">
     <div class="calm-halo"></div>
     <img class="calm-base" src="calm-hearth.png" alt="">
     <div class="calm-glow"></div>
     <img class="calm-flame" src="calm-flame.png" alt="">
   </div>
   <div class="calm-breath"><span>breathe in</span><span>breathe out</span></div>
+  <div class="calm-worry" id="calm-worry">
+    <input id="calm-worry-in" type="text" maxlength="80" placeholder="What&rsquo;s weighing on you?" autocomplete="off" onkeydown="if(event.key==='Enter')calmTossWorry()">
+    <button onclick="calmTossWorry()">Toss it in</button>
+  </div>
+  <button class="calm-toss" onclick="calmShowWorry()">Toss a worry</button>
   <button class="calm-done" onclick="closeCalm()">I&rsquo;m calm now</button>
 </div>
 <div id="demo-bar"><span><b>DEMO</b> &middot; made-up numbers</span><button onclick="exitDemo()">Exit demo</button></div>
@@ -2303,16 +2339,179 @@ function openCalm() {
   c.querySelectorAll('.calm-halo, .calm-breath span').forEach(function(el) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
   c.setAttribute('aria-hidden', 'false'); c.classList.add('on');
   try { document.body.style.overflow = 'hidden'; } catch (e) {}
+  _calm.open = true; _calm.t0 = Date.now();
+  calmSetTimer(0, true);
+  calmWake(true);
+  calmEmbersStart();
+  calmSoundStart();
+  clearInterval(_calm.tick); _calm.tick = setInterval(calmTick, 250);
 }
 function closeCalm() {
   var c = document.getElementById('calm'); if (!c) return;
   c.classList.remove('on'); c.setAttribute('aria-hidden', 'true');
   try { document.body.style.overflow = ''; } catch (e) {}
+  _calm.open = false; clearInterval(_calm.tick);
+  document.getElementById('calm-worry').classList.remove('on');
+  calmWake(false); calmEmbersStop(); calmSoundStop();
+}
+// v4.6.7 ── state
+var _calm = { open: false, t0: 0, tick: null, half: -1, timerMin: 0, timerEnd: 0, done: false, wake: null, ctx: null, master: null, crackle: null, embers: [], raf: null };
+function _calmSoundOn() { try { return localStorage.getItem('hft_calm_sound') !== 'off'; } catch (e) { return true; } }
+// breath chimes + timer, checked four times a second
+function calmTick() {
+  if (!_calm.open) return;
+  var half = Math.floor((Date.now() - _calm.t0) / 5000);
+  if (half !== _calm.half) { _calm.half = half; if (half > 0) calmChime(half % 2 === 0 ? 528 : 396, 0.05); }
+  var left = document.getElementById('calm-left');
+  if (_calm.timerMin && !_calm.done) {
+    var ms = _calm.timerEnd - Date.now();
+    if (ms <= 0) {
+      _calm.done = true; left.textContent = 'Time’s up. Stay as long as you like.';
+      calmChime(528, 0.07); setTimeout(function() { calmChime(660, 0.06); }, 700); setTimeout(function() { calmChime(792, 0.05); }, 1400);
+    } else { var sec = Math.ceil(ms / 1000); left.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+  } else if (!_calm.timerMin) left.textContent = '';
+}
+function calmSetTimer(min, quiet) {
+  _calm.timerMin = min; _calm.done = false; _calm.timerEnd = Date.now() + min * 60000;
+  document.querySelectorAll('#calm-timer button').forEach(function(b) { b.classList.toggle('on', +b.dataset.min === min); });
+  if (!quiet) calmTick();
+}
+// keep the screen awake while Calm is open (iOS 16.4+, most browsers)
+async function calmWake(on) {
+  try {
+    if (on && 'wakeLock' in navigator) { _calm.wake = await navigator.wakeLock.request('screen'); }
+    else if (!on && _calm.wake) { await _calm.wake.release(); _calm.wake = null; }
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', function() { if (!document.hidden && _calm.open) calmWake(true); });
+
+// ── sound: crackle, a warm hum, chimes. Made in the browser; no sound files. ──
+function calmSoundStart() {
+  var btn = document.getElementById('calm-sound'); if (btn) { btn.classList.toggle('off', !_calmSoundOn()); btn.innerHTML = _calmSoundOn() ? '&#128264;' : '&#128263;'; }
+  if (!_calmSoundOn()) return;
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = 'playback'; // iOS 17+: play even on silent
+    var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    if (!_calm.ctx) _calm.ctx = new AC();
+    var ctx = _calm.ctx; ctx.resume();
+    var master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+    master.gain.linearRampToValueAtTime(1.8, ctx.currentTime + 2.5);
+    _calm.master = master;
+    // warm hum: brown noise through a low-pass
+    var len = ctx.sampleRate * 3, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0), last = 0;
+    for (var i = 0; i < len; i++) { var w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; }
+    var hum = ctx.createBufferSource(); hum.buffer = buf; hum.loop = true;
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
+    var hg = ctx.createGain(); hg.gain.value = 0.16;
+    hum.connect(lp); lp.connect(hg); hg.connect(master); hum.start();
+    _calm.hum = hum;
+    // crackle: short bursts of filtered noise at random moments
+    var nlen = Math.floor(ctx.sampleRate * 0.12), nb = ctx.createBuffer(1, nlen, ctx.sampleRate), nd = nb.getChannelData(0);
+    for (var j = 0; j < nlen; j++) nd[j] = Math.random() * 2 - 1;
+    _calm.noise = nb;
+    clearInterval(_calm.crackle);
+    _calm.crackle = setInterval(function() {
+      if (Math.random() < 0.22) calmPop(0.04 + Math.random() * 0.18);
+      if (Math.random() < 0.025) { for (var k = 0; k < 3 + Math.random() * 4; k++) setTimeout(function() { calmPop(0.05 + Math.random() * 0.22); }, k * (25 + Math.random() * 60)); }
+    }, 70);
+  } catch (e) {}
+}
+function calmPop(vol) {
+  var ctx = _calm.ctx; if (!ctx || !_calm.master || !_calm.noise) return;
+  var src = ctx.createBufferSource(); src.buffer = _calm.noise;
+  var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900 + Math.random() * 4200; bp.Q.value = 0.8 + Math.random() * 2;
+  var g = ctx.createGain(), t = ctx.currentTime, dur = 0.015 + Math.random() * 0.06;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(bp); bp.connect(g); g.connect(_calm.master); src.start(t, Math.random() * 0.05, dur + 0.02);
+}
+function calmChime(freq, vol) {
+  var ctx = _calm.ctx; if (!ctx || !_calm.master || !_calmSoundOn()) return;
+  var t = ctx.currentTime, g = ctx.createGain();
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+  g.connect(_calm.master);
+  [1, 2.01, 3.02].forEach(function(h, i) { var o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq * h; var og = ctx.createGain(); og.gain.value = [1, 0.25, 0.08][i]; o.connect(og); og.connect(g); o.start(t); o.stop(t + 3.3); });
+}
+function calmWhoosh() {
+  var ctx = _calm.ctx; if (!ctx || !_calm.master || !_calm.noise) return;
+  var t = ctx.currentTime, src = ctx.createBufferSource(); src.buffer = _calm.noise; src.loop = true;
+  var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.7; bp.frequency.setValueAtTime(250, t); bp.frequency.exponentialRampToValueAtTime(1800, t + 0.9);
+  var g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.35, t + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+  src.connect(bp); bp.connect(g); g.connect(_calm.master); src.start(t); src.stop(t + 1.5);
+  for (var k = 0; k < 8; k++) setTimeout(function() { calmPop(0.12 + Math.random() * 0.25); }, 200 + k * (60 + Math.random() * 90));
+}
+function calmSoundStop() {
+  clearInterval(_calm.crackle);
+  var ctx = _calm.ctx, m = _calm.master; if (!ctx || !m) return;
+  try { m.gain.cancelScheduledValues(ctx.currentTime); m.gain.setValueAtTime(m.gain.value, ctx.currentTime); m.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6); } catch (e) {}
+  var hum = _calm.hum; _calm.master = null; _calm.hum = null;
+  setTimeout(function() { try { hum && hum.stop(); m.disconnect(); if (!_calm.open) ctx.suspend(); } catch (e) {} }, 700);
+}
+function calmToggleSound() {
+  var on = !_calmSoundOn();
+  try { localStorage.setItem('hft_calm_sound', on ? 'on' : 'off'); } catch (e) {}
+  if (on) calmSoundStart(); else { calmSoundStop(); calmSoundStart(); }
+}
+
+// ── embers: a few sparks drift up from the logs and fade ──
+function calmEmbersStart() {
+  var cv = document.getElementById('calm-embers'); if (!cv) return;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var dpr = window.devicePixelRatio || 1, ctx = cv.getContext('2d');
+  var size = function() { cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr; };
+  size(); window.addEventListener('resize', size);
+  _calm.embers = []; var lastT = performance.now();
+  var step = function(now) {
+    if (!_calm.open) return;
+    var dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+    var fr = document.getElementById('calm-fire').getBoundingClientRect(), cr = cv.getBoundingClientRect();
+    var ox = fr.left - cr.left + fr.width * 0.5, oy = fr.top - cr.top + fr.height * 0.70;
+    if (!reduce && Math.random() < dt * (_calm.burst ? 60 : 4.5)) {
+      _calm.embers.push({ x: ox + (Math.random() - 0.5) * fr.width * 0.22, y: oy - Math.random() * fr.height * 0.12, vx: (Math.random() - 0.5) * 14, vy: -(28 + Math.random() * 42), life: 0, max: 2.5 + Math.random() * 3.5, r: 1.3 + Math.random() * 2.2, hue: Math.random() < 0.7 ? 32 + Math.random() * 18 : 150 + Math.random() * 20, wob: Math.random() * 6 });
+    }
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    _calm.embers = _calm.embers.filter(function(e) {
+      e.life += dt; if (e.life > e.max) return false;
+      e.vx += Math.sin((e.life + e.wob) * 2.3) * 9 * dt; e.vy *= (1 - 0.12 * dt);
+      e.x += e.vx * dt; e.y += e.vy * dt;
+      var a = Math.sin(Math.PI * Math.min(1, e.life / e.max)) * (0.55 + 0.45 * Math.sin(e.life * 12 + e.wob));
+      ctx.beginPath(); ctx.arc(e.x * dpr, e.y * dpr, e.r * dpr * 2.6, 0, 6.283);
+      ctx.fillStyle = 'hsla(' + e.hue + ',100%,62%,' + (a * 0.28) + ')'; ctx.fill();
+      ctx.beginPath(); ctx.arc(e.x * dpr, e.y * dpr, e.r * dpr, 0, 6.283);
+      ctx.fillStyle = 'hsla(' + e.hue + ',100%,' + (e.hue < 100 ? 72 : 80) + '%,' + a + ')'; ctx.fill();
+      return true;
+    });
+    _calm.raf = requestAnimationFrame(step);
+  };
+  cancelAnimationFrame(_calm.raf); _calm.raf = requestAnimationFrame(step);
+}
+function calmEmbersStop() { cancelAnimationFrame(_calm.raf); _calm.embers = []; var cv = document.getElementById('calm-embers'); if (cv) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
+
+// ── toss a worry: it flies into the fire and burns away. Nothing is saved. ──
+function calmShowWorry() {
+  var w = document.getElementById('calm-worry'); w.classList.toggle('on');
+  if (w.classList.contains('on')) setTimeout(function() { document.getElementById('calm-worry-in').focus(); }, 50);
+}
+function calmTossWorry() {
+  var inp = document.getElementById('calm-worry-in'), text = (inp.value || '').trim(); if (!text) return;
+  var r = inp.getBoundingClientRect(), fire = document.getElementById('calm-fire'), fr = fire.getBoundingClientRect();
+  var el = document.createElement('div'); el.className = 'calm-burning'; el.textContent = text;
+  el.style.left = (r.left + 12) + 'px'; el.style.top = (r.top + 8) + 'px';
+  document.body.appendChild(el);
+  inp.value = ''; inp.blur(); document.getElementById('calm-worry').classList.remove('on');
+  requestAnimationFrame(function() { requestAnimationFrame(function() {
+    var w = el.getBoundingClientRect().width;
+    el.style.left = (fr.left + fr.width * 0.5 - w / 2) + 'px'; el.style.top = (fr.top + fr.height * 0.6) + 'px';
+    el.style.transform = 'scale(.35) rotate(-6deg)';
+  }); });
+  setTimeout(function() { el.classList.add('hot'); calmWhoosh(); fire.classList.remove('flare'); void fire.offsetWidth; fire.classList.add('flare'); _calm.burst = true; setTimeout(function() { _calm.burst = false; }, 700); }, 1100);
+  setTimeout(function() { el.style.opacity = '0'; }, 1500);
+  setTimeout(function() { el.remove(); fire.classList.remove('flare'); }, 2600);
 }
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeCalm(); });
 // ═══ v4.6.4: VERSION HISTORY (Settings › Version history) ══════════════════
 // Newest first. Plain words, no household figures (this file is public).
 var VERSION_HISTORY = [
+  ['v4.6.7', 'Nov 26, 2026', ['Calm gets a soft fire crackle and chimes (\ud83d\udd08 to mute), rising embers, a timer (1, 3 or 5 minutes) and \u201cToss a worry\u201d into the fire. The screen stays awake while Calm is open.']],
   ['v4.6.6', 'Nov 25, 2026', ['The Calm button: the fireplace, full screen, flickering softly, with a 5-second breathe in and 5-second breathe out. Tap \u201cI\u2019m calm now\u201d when you\u2019re ready.']],
   ['v4.6.5', 'Nov 25, 2026', ['Card bills (Netflix, Spotify and the rest) show on their dates in the Balance calendar, marked 💳. They\u2019re already inside the card payment on the 19th, so they don\u2019t change the balance.']],
   ['v4.6.4', 'Nov 25, 2026', ['Bigger text, with a Text size choice in Settings (Standard, Larger, Largest).', 'The iPad and desktop sidebar stays in place when you scroll.', 'Version history in Settings.', 'Bills can use the Runaway Anchor category.']],
@@ -5863,7 +6062,7 @@ async function refreshBalance() {
 
 // Current billing cycle: March 13 – April 11 (will be configurable later)
 // ── APP VERSION ─────────────────────────────────────────────────────────────
-var APP_VERSION = 'v4.6.6';
+var APP_VERSION = 'v4.6.7';
 
 // ── QUOTE OF THE DAY ─────────────────────────────────────────────────────────
 var DAILY_QUOTES = [
