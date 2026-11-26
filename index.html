@@ -2363,7 +2363,7 @@ function closeCalm() {
 // v4.6.7 ── state
 var _calm = { open: false, t0: 0, tick: null, half: -1, timerMin: 0, timerEnd: 0, done: false, wake: null, ctx: null, master: null, crackle: null, embers: [], raf: null };
 function _calmSoundOn() { try { return localStorage.getItem('hft_calm_sound') !== 'off'; } catch (e) { return true; } }
-// breath chimes + timer, checked four times a second
+// timer, checked four times a second
 function calmTick() {
   if (!_calm.open) return;
   var half = Math.floor((Date.now() - _calm.t0) / 5000);
@@ -2390,7 +2390,7 @@ async function calmWake(on) {
 }
 document.addEventListener('visibilitychange', function() { if (!document.hidden && _calm.open) calmWake(true); });
 
-// ── sound: crackle, a warm hum, chimes. Made in the browser; no sound files. ──
+// ── sound: crackle and a warm hum. Made in the browser; no sound files. ──
 function calmSoundStart() {
   var btn = document.getElementById('calm-sound'); if (btn) { btn.classList.toggle('off', !_calmSoundOn()); btn.innerHTML = _calmSoundOn() ? '&#128264;' : '&#128263;'; }
   if (!_calmSoundOn()) return;
