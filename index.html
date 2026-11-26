@@ -2377,6 +2377,7 @@ function calmTick() {
     var ms = _calm.timerEnd - Date.now();
     if (ms <= 0) {
       _calm.done = true; left.textContent = 'Time’s up. Stay as long as you like.';
+      calmChime(528, 0.07); setTimeout(function() { calmChime(660, 0.06); }, 900); setTimeout(function() { calmChime(792, 0.05); }, 1800);
     } else { var sec = Math.ceil(ms / 1000); left.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
   } else if (!_calm.timerMin) left.textContent = '';
 }
@@ -2432,6 +2433,14 @@ function calmPop(vol) {
   var g = ctx.createGain(), t = ctx.currentTime, dur = 0.015 + Math.random() * 0.06;
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   src.connect(bp); bp.connect(g); g.connect(_calm.master); src.start(t, Math.random() * 0.05, dur + 0.02);
+}
+// three soft rising chimes when a timer ends (only sound besides the fire; follows the sound toggle)
+function calmChime(freq, vol) {
+  var ctx = _calm.ctx; if (!ctx || !_calm.master || !_calmSoundOn()) return;
+  var t = ctx.currentTime, g = ctx.createGain();
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+  g.connect(_calm.master);
+  [1, 2.01, 3.02].forEach(function(h, i) { var o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq * h; var og = ctx.createGain(); og.gain.value = [1, 0.25, 0.08][i]; o.connect(og); og.connect(g); o.start(t); o.stop(t + 3.3); });
 }
 function calmWhoosh() {
   var ctx = _calm.ctx; if (!ctx || !_calm.master || !_calm.noise) return;
@@ -2513,7 +2522,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
 // ═══ v4.6.4: VERSION HISTORY (Settings › Version history) ══════════════════
 // Newest first. Plain words, no household figures (this file is public).
 var VERSION_HISTORY = [
-  ['v4.6.7', 'Nov 26, 2026', ['Calm gets a soft fire crackle (\ud83d\udd08 to mute), a timer (1, 3 or 5 minutes) and \u201cToss a worry\u201d into the fire. The flame shrinks as you breathe in and grows as you breathe out, and the piggy bank breathes too, puffing out little clouds on the breathe out. The screen stays awake while Calm is open.']],
+  ['v4.6.7', 'Nov 26, 2026', ['Calm gets a soft fire crackle (\ud83d\udd08 to mute), a timer (1, 3 or 5 minutes) with three soft chimes when it ends, and \u201cToss a worry\u201d into the fire. The flame shrinks as you breathe in and grows as you breathe out, and the piggy bank breathes too, puffing out little clouds on the breathe out. The screen stays awake while Calm is open.']],
   ['v4.6.6', 'Nov 25, 2026', ['The Calm button: the fireplace, full screen, flickering softly, with a 5-second breathe in and 5-second breathe out. Tap \u201cI\u2019m calm now\u201d when you\u2019re ready.']],
   ['v4.6.5', 'Nov 25, 2026', ['Card bills (Netflix, Spotify and the rest) show on their dates in the Balance calendar, marked 💳. They\u2019re already inside the card payment on the 19th, so they don\u2019t change the balance.']],
   ['v4.6.4', 'Nov 25, 2026', ['Bigger text, with a Text size choice in Settings (Standard, Larger, Largest).', 'The iPad and desktop sidebar stays in place when you scroll.', 'Version history in Settings.', 'Bills can use the Runaway Anchor category.']],
