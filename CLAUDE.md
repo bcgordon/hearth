@@ -16,7 +16,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.6.6** (Nov 25, 2026: the Calm button). Bump patch/minor from here unless BC names a version.
+Live: **v4.6.7** (Nov 26, 2026: Calm with crackle, breathing flame and piggy, Toss a worry, timer). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -125,6 +125,13 @@ Live: **v4.6.6** (Nov 25, 2026: the Calm button). Bump patch/minor from here unl
   fireplace with the flame dimmed) + `calm-flame.png` (the flame cut out, animated: flicker + sway),
   a glow over the logs, a halo and the words "breathe in / breathe out" on a 10 s cycle (5 in, 5 out),
   "I'm calm now" lower right. Opened from the dashboard (under the quote) and the iPad sidebar.
+- v4.6.7 Calm: the **flame** wrapper breathes (smaller on the 5 s breathe in, bigger on the breathe out);
+  the **piggy** (`calm-piggy.png`, cut out of `calm-hearth.png`) swells and glows on the breathe in, with
+  breath clouds (`.calm-puff`) drawn into its snout on the in and puffed out on the out. **Sound** (Web Audio,
+  no files): crackle + brown-noise hum, 🔈 toggle (`hft_calm_sound`); no breath chimes (BC: visual cue only);
+  three soft chimes only when a **timer** (∞/1/3/5 min) ends. **Toss a worry**: typed text flies into the fire
+  and burns with a flare, whoosh and sparks; nothing saved. Screen **wake lock** while Calm is open. No
+  floating embers except the sparks while a worry burns.
 - The Camry loan is serviced by Royal Credit Union; due on the 3rd from Dec 2026 (the old bill ends Oct 2026).
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
