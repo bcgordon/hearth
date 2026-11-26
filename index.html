@@ -672,8 +672,10 @@ input, textarea, select { font-family: var(--font) !important; }
 .calm-fire { position: relative; width: min(84vw, 62vh, 560px); aspect-ratio: 1; }
 .calm-base { position: absolute; inset: 0; width: 100%; height: 100%; }
 .calm-halo { position: absolute; left: 4%; right: 4%; top: 22%; bottom: -6%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,190,110,.26), rgba(140,240,200,.12) 60%, transparent); filter: blur(18px); animation: calmHalo 10s ease-in-out infinite; }
-.calm-glow { position: absolute; left: 28%; width: 44%; top: 42%; height: 34%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,214,150,.55), rgba(150,255,210,.25) 55%, transparent); mix-blend-mode: screen; animation: calmGlow 2.6s ease-in-out infinite alternate; }
-.calm-flame { position: absolute; left: 33.6%; top: 44.8%; width: 32.5%; height: 29.06%; transform-origin: 50% 100%; animation: calmFlick 1.9s ease-in-out infinite alternate, calmSway 4.3s ease-in-out infinite alternate; filter: drop-shadow(0 0 10px rgba(160,255,215,.45)); }
+.calm-glow { position: absolute; left: 28%; width: 44%; top: 42%; height: 34%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,214,150,.55), rgba(150,255,210,.25) 55%, transparent); mix-blend-mode: screen; transform-origin: 50% 90%; animation: calmGlowBreath 10s ease-in-out infinite; }
+.calm-flame-wrap { position: absolute; left: 33.6%; top: 44.8%; width: 32.5%; height: 29.06%; transform-origin: 50% 100%; animation: calmFlameBreath 10s ease-in-out infinite; }
+.calm-piggy { position: absolute; left: 61.56%; top: 5.94%; width: 24.53%; height: 18.91%; transform-origin: 50% 100%; animation: calmPigBreath 10s ease-in-out infinite; }
+.calm-flame { position: absolute; inset: 0; width: 100%; height: 100%; transform-origin: 50% 100%; animation: calmFlick 1.9s ease-in-out infinite alternate, calmSway 4.3s ease-in-out infinite alternate; filter: drop-shadow(0 0 10px rgba(160,255,215,.45)); }
 .calm-breath { position: relative; height: 1.6em; margin-top: 4vh; font-family: var(--font); font-size: 18px; letter-spacing: .2em; color: #b8f0df; }
 .calm-breath span { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; opacity: 0; animation: calmBreath 10s linear infinite; }
 .calm-breath span + span { animation-delay: 5s; }
@@ -681,7 +683,10 @@ input, textarea, select { font-family: var(--font) !important; }
 @keyframes calmFlick { 0% { transform: scale(1, 1) skewX(0deg); opacity: .95; } 30% { transform: scale(.985, 1.035) skewX(.8deg); opacity: 1; } 55% { transform: scale(1.01, .975) skewX(-.6deg); opacity: .9; } 80% { transform: scale(.99, 1.05) skewX(.4deg); opacity: 1; } 100% { transform: scale(1.005, .985) skewX(-.9deg); opacity: .93; } }
 @keyframes calmSway { 0% { translate: -1% 0; } 100% { translate: 1% 0; } }
 @keyframes calmGlow { 0% { opacity: .55; transform: scale(.96); } 50% { opacity: .85; } 100% { opacity: .65; transform: scale(1.04); } }
-@keyframes calmHalo { 0%, 100% { opacity: .45; transform: scale(.88); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes calmHalo { 0%, 100% { opacity: 1; transform: scale(1.1); } 50% { opacity: .45; transform: scale(.9); } }
+@keyframes calmFlameBreath { 0%, 100% { transform: scale(1.14); } 50% { transform: scale(.8); } }
+@keyframes calmGlowBreath { 0%, 100% { opacity: .9; transform: scale(1.15); } 50% { opacity: .5; transform: scale(.85); } }
+@keyframes calmPigBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06, 1.05); } }
 @keyframes calmBreath { 0% { opacity: 0; } 6%, 44% { opacity: .9; } 50%, 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .calm-flame { animation: calmGlow 4s ease-in-out infinite alternate; } }
 
@@ -705,7 +710,7 @@ input, textarea, select { font-family: var(--font) !important; }
 .calm-burning { position: fixed; z-index: 9001; font-family: var(--font); font-size: 18px; color: #f4efe2; white-space: nowrap; pointer-events: none; transform-origin: 50% 50%; transition: left 1.6s cubic-bezier(.45,.05,.4,1), top 1.6s cubic-bezier(.45,.05,.4,1), transform 1.6s ease-in, opacity .6s ease, filter 1.2s ease, color 1.2s ease; text-shadow: 0 0 8px rgba(255,190,110,.0); }
 .calm-burning.hot { color: #ffb066; text-shadow: 0 0 12px rgba(255,150,60,.9); filter: blur(1.5px); }
 .calm-fire.flare .calm-flame { animation: calmFlare 1.4s ease-out; }
-.calm-fire.flare .calm-glow { animation: calmGlowFlare 1.4s ease-out; }
+.calm-fire.flare .calm-glow { animation: calmGlowFlare 1.4s ease-out, calmGlowBreath 10s ease-in-out infinite; }
 @keyframes calmFlare { 0% { transform: scale(1); } 30% { transform: scale(1.18, 1.32); filter: drop-shadow(0 0 22px rgba(255,200,120,.8)) brightness(1.3); } 100% { transform: scale(1); } }
 @keyframes calmGlowFlare { 0% { opacity: .6; } 30% { opacity: 1; transform: scale(1.3); } 100% { opacity: .6; transform: scale(1); } }
 @media (max-width: 520px) { .calm-timer button { font-size: 12px; padding: 5px 9px; } .calm-toss, .calm-done { font-size: 15px; padding: 11px 14px; } }
@@ -803,9 +808,10 @@ body.demo #ipad-sidebar { height: calc(100vh - 36px); }
   <div class="calm-left" id="calm-left"></div>
   <div class="calm-fire" id="calm-fire">
     <div class="calm-halo"></div>
-    <img class="calm-base" src="calm-hearth.png" alt="">
+    <img class="calm-base" src="calm-hearth.png?v=467" alt="">
+    <img class="calm-piggy" src="calm-piggy.png" alt="">
     <div class="calm-glow"></div>
-    <img class="calm-flame" src="calm-flame.png" alt="">
+    <div class="calm-flame-wrap"><img class="calm-flame" src="calm-flame.png" alt=""></div>
   </div>
   <div class="calm-breath"><span>breathe in</span><span>breathe out</span></div>
   <div class="calm-worry" id="calm-worry">
@@ -2336,7 +2342,7 @@ applyTextSize();
 // ── CALM (v4.6.6) ─────────────────────────────────────────────────────────
 function openCalm() {
   var c = document.getElementById('calm'); if (!c) return;
-  c.querySelectorAll('.calm-halo, .calm-breath span').forEach(function(el) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+  c.querySelectorAll('.calm-halo, .calm-breath span, .calm-flame-wrap, .calm-glow, .calm-piggy').forEach(function(el) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
   c.setAttribute('aria-hidden', 'false'); c.classList.add('on');
   try { document.body.style.overflow = 'hidden'; } catch (e) {}
   _calm.open = true; _calm.t0 = Date.now();
@@ -2361,13 +2367,12 @@ function _calmSoundOn() { try { return localStorage.getItem('hft_calm_sound') !=
 function calmTick() {
   if (!_calm.open) return;
   var half = Math.floor((Date.now() - _calm.t0) / 5000);
-  if (half !== _calm.half) { _calm.half = half; if (half > 0) calmChime(half % 2 === 0 ? 528 : 396, 0.05); }
+  _calm.half = half;
   var left = document.getElementById('calm-left');
   if (_calm.timerMin && !_calm.done) {
     var ms = _calm.timerEnd - Date.now();
     if (ms <= 0) {
       _calm.done = true; left.textContent = 'Time’s up. Stay as long as you like.';
-      calmChime(528, 0.07); setTimeout(function() { calmChime(660, 0.06); }, 700); setTimeout(function() { calmChime(792, 0.05); }, 1400);
     } else { var sec = Math.ceil(ms / 1000); left.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
   } else if (!_calm.timerMin) left.textContent = '';
 }
@@ -2424,13 +2429,6 @@ function calmPop(vol) {
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   src.connect(bp); bp.connect(g); g.connect(_calm.master); src.start(t, Math.random() * 0.05, dur + 0.02);
 }
-function calmChime(freq, vol) {
-  var ctx = _calm.ctx; if (!ctx || !_calm.master || !_calmSoundOn()) return;
-  var t = ctx.currentTime, g = ctx.createGain();
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
-  g.connect(_calm.master);
-  [1, 2.01, 3.02].forEach(function(h, i) { var o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq * h; var og = ctx.createGain(); og.gain.value = [1, 0.25, 0.08][i]; o.connect(og); og.connect(g); o.start(t); o.stop(t + 3.3); });
-}
 function calmWhoosh() {
   var ctx = _calm.ctx; if (!ctx || !_calm.master || !_calm.noise) return;
   var t = ctx.currentTime, src = ctx.createBufferSource(); src.buffer = _calm.noise; src.loop = true;
@@ -2452,7 +2450,7 @@ function calmToggleSound() {
   if (on) calmSoundStart(); else { calmSoundStop(); calmSoundStart(); }
 }
 
-// ── embers: a few sparks drift up from the logs and fade ──
+// ── sparks: a shower from the fire only while a worry burns ──
 function calmEmbersStart() {
   var cv = document.getElementById('calm-embers'); if (!cv) return;
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2465,7 +2463,7 @@ function calmEmbersStart() {
     var dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
     var fr = document.getElementById('calm-fire').getBoundingClientRect(), cr = cv.getBoundingClientRect();
     var ox = fr.left - cr.left + fr.width * 0.5, oy = fr.top - cr.top + fr.height * 0.70;
-    if (!reduce && Math.random() < dt * (_calm.burst ? 60 : 4.5)) {
+    if (!reduce && _calm.burst && Math.random() < dt * 60) {
       _calm.embers.push({ x: ox + (Math.random() - 0.5) * fr.width * 0.22, y: oy - Math.random() * fr.height * 0.12, vx: (Math.random() - 0.5) * 14, vy: -(28 + Math.random() * 42), life: 0, max: 2.5 + Math.random() * 3.5, r: 1.3 + Math.random() * 2.2, hue: Math.random() < 0.7 ? 32 + Math.random() * 18 : 150 + Math.random() * 20, wob: Math.random() * 6 });
     }
     ctx.clearRect(0, 0, cv.width, cv.height);
@@ -2511,7 +2509,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
 // ═══ v4.6.4: VERSION HISTORY (Settings › Version history) ══════════════════
 // Newest first. Plain words, no household figures (this file is public).
 var VERSION_HISTORY = [
-  ['v4.6.7', 'Nov 26, 2026', ['Calm gets a soft fire crackle and chimes (\ud83d\udd08 to mute), rising embers, a timer (1, 3 or 5 minutes) and \u201cToss a worry\u201d into the fire. The screen stays awake while Calm is open.']],
+  ['v4.6.7', 'Nov 26, 2026', ['Calm gets a soft fire crackle (\ud83d\udd08 to mute), a timer (1, 3 or 5 minutes) and \u201cToss a worry\u201d into the fire. The flame shrinks as you breathe in and grows as you breathe out, and the piggy bank breathes too. The screen stays awake while Calm is open.']],
   ['v4.6.6', 'Nov 25, 2026', ['The Calm button: the fireplace, full screen, flickering softly, with a 5-second breathe in and 5-second breathe out. Tap \u201cI\u2019m calm now\u201d when you\u2019re ready.']],
   ['v4.6.5', 'Nov 25, 2026', ['Card bills (Netflix, Spotify and the rest) show on their dates in the Balance calendar, marked 💳. They\u2019re already inside the card payment on the 19th, so they don\u2019t change the balance.']],
   ['v4.6.4', 'Nov 25, 2026', ['Bigger text, with a Text size choice in Settings (Standard, Larger, Largest).', 'The iPad and desktop sidebar stays in place when you scroll.', 'Version history in Settings.', 'Bills can use the Runaway Anchor category.']],
