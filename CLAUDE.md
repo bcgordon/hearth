@@ -16,7 +16,7 @@ This repo is **public**. Never commit household data, codes, balances, income fi
 beyond the publishable Supabase key already in `index.html`.
 
 ## Version
-Live: **v4.6.8** (Nov 26, 2026: card purchases blue, checking red in the History register). Bump patch/minor from here unless BC names a version.
+Live: **v4.6.9** (Nov 26, 2026: checking balance saves on the first Enter; low-balance warnings one line per day). Bump patch/minor from here unless BC names a version.
 
 ## Standing rules
 1. **Propose or mock before building.** Build only after BC says **"build it and ship it"**.
@@ -134,6 +134,10 @@ Live: **v4.6.8** (Nov 26, 2026: card purchases blue, checking red in the History
   floating embers except the sparks while a worry burns.
 - v4.6.8: History → Register amounts: card entries and card bills in `--ccblue` (light #1659c7, dark #9cc4ff),
   checking in `--coral` red, income green, transfers seafoam, upcoming grey.
+- v4.6.9: `onActualBalanceInput` saves once (Enter blurs the field; blur saves) and **awaits `cloudSet` before
+  `refreshBalance()`** re-reads the record. Before, the re-read beat the save, put the old balance back in the
+  box, and blur then saved the old number. Rule for new code: never `cloudGet` right after an un-awaited
+  `cloudSet`. `renderDangerAlerts` groups by day (lowest balance that day).
 - The Camry loan is serviced by Royal Credit Union; due on the 3rd from Dec 2026 (the old bill ends Oct 2026).
 - Cycle dates and CC autopay schedule are partly hard-coded in `getScheduledEvents`.
 - Some older views (P&L, quarter tracker) count slightly differently from the dashboard
